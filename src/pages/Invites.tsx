@@ -19,13 +19,8 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
   expired: { label: "Expirado", variant: "secondary" },
 };
 
-const FALLBACK_PREVIEW_BASE = "https://republi-k.lovable.app";
-const isLovableEditUrl = (url?: string) => !!url && url.includes("/projects/");
-
-function getBaseUrl() {
-  const envUrl = import.meta.env.VITE_APP_URL?.replace(/\/$/, "");
-  return envUrl && !isLovableEditUrl(envUrl) ? envUrl : FALLBACK_PREVIEW_BASE;
-}
+// Base URL explicitly set to the public domain
+const PUBLIC_APP_URL = "https://republi-k.lovable.app";
 
 export default function Invites() {
   const { user, membership } = useAuth();
@@ -104,7 +99,7 @@ export default function Invites() {
   };
 
   const copyLink = (token: string, title = "Link copiado!") => {
-    const link = `${getBaseUrl()}/invite?token=${token}`;
+    const link = `${PUBLIC_APP_URL}/invite?token=${token}`;
     navigator.clipboard.writeText(link);
     toast({ title, description: "Envie para o morador." });
   };
