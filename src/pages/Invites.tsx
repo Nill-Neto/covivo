@@ -19,7 +19,7 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
   expired: { label: "Expirado", variant: "secondary" },
 };
 
-const FALLBACK_PREVIEW_BASE = "https://preview--republi-k.lovable.app";
+const FALLBACK_PREVIEW_BASE = "https://republi-k.lovable.app";
 const isLovableEditUrl = (url?: string) => !!url && url.includes("/projects/");
 
 function getBaseUrl() {
