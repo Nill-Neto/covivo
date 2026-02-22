@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { PUBLIC_APP_URL } from "@/config/app";
 
 interface Profile {
   id: string;
@@ -109,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((prev) => ({ ...prev, user, session }));
 
         if (user) {
-          // Defer data fetch to avoid deadlocks
           setTimeout(() => loadUserData(user), 0);
         } else {
           setState({
@@ -138,9 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    const redirectPath = window.location.pathname + window.location.search;
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${PUBLIC_APP_URL}${redirectPath}` },
     });
   };
 
