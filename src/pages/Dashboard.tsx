@@ -5,12 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Receipt, TrendingUp, AlertTriangle, Download, Package, DollarSign, Upload, Loader2, ListChecks } from "lucide-react";
+import { Users, Receipt, TrendingUp, AlertTriangle, Download, Package, DollarSign, Upload, Loader2, ListChecks, User, CheckCircle2 } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,7 +27,9 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   // Payment State
-  const [payTotalOpen, setPayTotalOpen] = useState(false);
+  const [payRateioOpen, setPayRateioOpen] = useState(false);
+  const [payIndividualOpen, setPayIndividualOpen] = useState(false);
+  const [selectedIndividualSplit, setSelectedIndividualSplit] = useState<any>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -59,22 +61,12 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  const { data: myBalance } = useQuery({
-    queryKey: ["my-balance", membership?.group_id, user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.rpc("get_member_balances", { _group_id: membership!.group_id });
-      const mine = (data as any[])?.find((b: any) => b.user_id === user!.id);
-      return mine ?? { total_owed: 0, total_paid: 0, balance: 0 };
-    },
-    enabled: !!membership?.group_id && !!user?.id,
-  });
-
   const { data: pendingSplits } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, group_id)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, group_id, expense_type)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -97,7 +89,7 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  // Category breakdown for pie chart
+  // Charts data
   const { data: categoryData } = useQuery({
     queryKey: ["expense-categories", membership?.group_id],
     queryFn: async () => {
@@ -117,7 +109,6 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  // Monthly bar chart (last 6 months)
   const { data: monthlyData } = useQuery({
     queryKey: ["monthly-expenses", membership?.group_id],
     queryFn: async () => {
@@ -142,7 +133,6 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  // Low stock count
   const { data: lowStockCount } = useQuery({
     queryKey: ["low-stock-count", membership?.group_id],
     queryFn: async () => {
@@ -155,9 +145,15 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  const totalPendingAmount = (pendingSplits ?? []).reduce((acc, curr: any) => acc + Number(curr.amount), 0);
+  // Split calculations
+  const collectivePending = (pendingSplits ?? []).filter((s: any) => s.expenses?.expense_type === "collective");
+  const individualPending = (pendingSplits ?? []).filter((s: any) => s.expenses?.expense_type === "individual");
+  
+  const totalCollective = collectivePending.reduce((sum, s: any) => sum + Number(s.amount), 0);
+  const totalIndividual = individualPending.reduce((sum, s: any) => sum + Number(s.amount), 0);
 
-  const handlePayTotal = async () => {
+  // Pay Batch (Collective)
+  const handlePayRateio = async () => {
     if (!receiptFile) {
       toast({ title: "Erro", description: "Comprovante é obrigatório.", variant: "destructive" });
       return;
@@ -166,33 +162,29 @@ export default function Dashboard() {
     setSaving(true);
     try {
       const ext = receiptFile.name.split(".").pop();
-      const path = `${user!.id}/${Date.now()}_total_payment.${ext}`;
+      const path = `${user!.id}/${Date.now()}_rateio.${ext}`;
       const { error: upErr } = await supabase.storage.from("receipts").upload(path, receiptFile);
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      // Create a descriptive note of what's being paid
-      const expenseTitles = (pendingSplits ?? [])
-        .map((s: any) => s.expenses?.title)
-        .slice(0, 5)
-        .join(", ");
-      const notes = `Pagamento do saldo total. Ref: ${expenseTitles}${pendingSplits!.length > 5 ? '...' : ''}`;
+      const expenseTitles = collectivePending.slice(0, 3).map((s: any) => s.expenses?.title).join(", ");
+      const notes = `Pagamento de Rateio. Ref: ${expenseTitles}${collectivePending.length > 3 ? '...' : ''}`;
 
       const { error } = await supabase.from("payments").insert({
         group_id: membership!.group_id,
-        expense_split_id: null, // Null indicates general payment for all pending splits
+        expense_split_id: null, // Null = Batch Collective
         paid_by: user!.id,
-        amount: totalPendingAmount,
+        amount: totalCollective,
         receipt_url: urlData.publicUrl,
         status: "pending",
         notes: notes
       });
       if (error) throw error;
 
-      toast({ title: "Pagamento enviado!", description: "O admin confirmará a baixa das despesas." });
+      toast({ title: "Pagamento de rateio enviado!", description: "Aguardando confirmação do admin." });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      setPayTotalOpen(false);
+      setPayRateioOpen(false);
       setReceiptFile(null);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -201,21 +193,57 @@ export default function Dashboard() {
     }
   };
 
-  const balance = myBalance?.balance ?? 0;
-  const pendingCount = pendingSplits?.length ?? 0;
+  // Pay Individual (Single)
+  const handlePayIndividual = async () => {
+    if (!receiptFile || !selectedIndividualSplit) {
+      toast({ title: "Erro", description: "Comprovante inválido.", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const ext = receiptFile.name.split(".").pop();
+      const path = `${user!.id}/${Date.now()}_indiv.${ext}`;
+      const { error: upErr } = await supabase.storage.from("receipts").upload(path, receiptFile);
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+
+      const { error } = await supabase.from("payments").insert({
+        group_id: membership!.group_id,
+        expense_split_id: selectedIndividualSplit.id,
+        paid_by: user!.id,
+        amount: Number(selectedIndividualSplit.amount),
+        receipt_url: urlData.publicUrl,
+        status: "pending",
+        notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
+      });
+      if (error) throw error;
+
+      toast({ title: "Pagamento individual enviado!" });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setPayIndividualOpen(false);
+      setSelectedIndividualSplit(null);
+      setReceiptFile(null);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const exportCSV = () => {
     if (!recentExpenses) return;
     supabase
       .from("expenses")
-      .select("title, amount, category, expense_type, created_at, due_date")
+      .select("title, amount, category, expense_type, created_at")
       .eq("group_id", membership!.group_id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (!data || data.length === 0) return;
-        const header = "Título,Valor,Categoria,Tipo,Data,Vencimento\n";
+        const header = "Título,Valor,Categoria,Tipo,Data\n";
         const rows = data.map((e) =>
-          `"${e.title}",${e.amount},"${CATEGORY_LABELS[e.category] || e.category}","${e.expense_type === "collective" ? "Coletiva" : "Individual"}","${format(new Date(e.created_at), "dd/MM/yyyy")}","${e.due_date || ""}"`
+          `"${e.title}",${e.amount},"${CATEGORY_LABELS[e.category] || e.category}","${e.expense_type === "collective" ? "Coletiva" : "Individual"}","${format(new Date(e.created_at), "dd/MM/yyyy")}"`
         ).join("\n");
         const blob = new Blob([header + rows], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
@@ -228,21 +256,42 @@ export default function Dashboard() {
   };
 
   const stats = [
-    { label: "Moradores", value: String(memberCount ?? "—"), icon: Users, color: "text-primary" },
-    { label: "Despesas do mês", value: `R$ ${(monthExpenses ?? 0).toFixed(2)}`, icon: Receipt, color: "text-accent" },
+    { 
+      label: "Despesas do mês", 
+      value: `R$ ${(monthExpenses ?? 0).toFixed(2)}`, 
+      icon: Receipt, 
+      color: "text-muted-foreground" 
+    },
     {
-      label: "Seu saldo",
-      value: `R$ ${Math.abs(balance).toFixed(2)}`,
+      label: "Rateio Pendente",
+      value: `R$ ${totalCollective.toFixed(2)}`,
       icon: TrendingUp,
-      color: balance >= 0 ? "text-success" : "text-destructive",
-      suffix: balance < 0 ? " (devendo)" : balance > 0 ? " (em dia)" : "",
-      action: balance < 0 || pendingCount > 0 ? (
-        <Button size="sm" variant="default" className="mt-2 h-7 gap-1 w-full" onClick={() => setPayTotalOpen(true)}>
-          <DollarSign className="h-3 w-3" /> Pagar Total (R$ {totalPendingAmount.toFixed(2)})
+      color: totalCollective > 0 ? "text-destructive" : "text-success",
+      suffix: totalCollective > 0 ? " (em aberto)" : " (em dia)",
+      action: totalCollective > 0 ? (
+        <Button size="sm" className="mt-2 h-8 w-full gap-2" onClick={() => setPayRateioOpen(true)}>
+          <DollarSign className="h-4 w-4" /> Pagar Rateio
         </Button>
       ) : null
     },
-    { label: "Pendências", value: String(pendingCount), icon: AlertTriangle, color: pendingCount > 0 ? "text-warning" : "text-muted-foreground" },
+    {
+      label: "Desp. Individuais",
+      value: `R$ ${totalIndividual.toFixed(2)}`,
+      icon: User,
+      color: totalIndividual > 0 ? "text-warning" : "text-muted-foreground",
+      suffix: totalIndividual > 0 ? " (pendente)" : "",
+      action: totalIndividual > 0 ? (
+        <Button size="sm" variant="outline" className="mt-2 h-8 w-full gap-2" onClick={() => setPayIndividualOpen(true)}>
+          <ListChecks className="h-4 w-4" /> Ver Detalhes
+        </Button>
+      ) : null
+    },
+    { 
+      label: "Moradores", 
+      value: String(memberCount ?? "—"), 
+      icon: Users, 
+      color: "text-primary" 
+    },
   ];
 
   return (
@@ -282,50 +331,104 @@ export default function Dashboard() {
         </Link>
       )}
 
-      {/* Pay Total Dialog */}
-      <Dialog open={payTotalOpen} onOpenChange={setPayTotalOpen}>
+      {/* Pay Rateio Dialog */}
+      <Dialog open={payRateioOpen} onOpenChange={setPayRateioOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pagamento do Rateio</DialogTitle>
+            <DialogTitle>Pagar Rateio Coletivo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="p-4 bg-muted/50 rounded-lg text-center">
-              <p className="text-sm text-muted-foreground">Valor total a pagar</p>
-              <p className="text-3xl font-bold font-serif text-primary mt-1">R$ {totalPendingAmount.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground">Total do Rateio</p>
+              <p className="text-3xl font-bold font-serif text-primary mt-1">R$ {totalCollective.toFixed(2)}</p>
             </div>
             
             <div className="space-y-2">
-              <Label className="flex items-center gap-2"><ListChecks className="h-4 w-4" /> Itens inclusos neste pagamento</Label>
+              <Label className="flex items-center gap-2"><ListChecks className="h-4 w-4" /> Itens inclusos</Label>
               <ScrollArea className="h-32 rounded-md border p-2">
-                {pendingSplits?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma pendência encontrada.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {pendingSplits?.map((s: any) => (
-                      <div key={s.id} className="flex justify-between text-sm border-b pb-1 last:border-0">
-                        <span className="font-medium truncate pr-2">{s.expenses?.title}</span>
-                        <span className="shrink-0">R$ {Number(s.amount).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="space-y-2">
+                  {collectivePending.map((s: any) => (
+                    <div key={s.id} className="flex justify-between text-sm border-b pb-1 last:border-0">
+                      <span className="font-medium truncate pr-2">{s.expenses?.title}</span>
+                      <span className="shrink-0">R$ {Number(s.amount).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
               </ScrollArea>
             </div>
 
             <div className="space-y-2">
               <Label>Comprovante *</Label>
               <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
-              <p className="text-xs text-muted-foreground">Anexe o comprovante do valor total acima.</p>
+              <p className="text-xs text-muted-foreground">Anexe o comprovante do valor total.</p>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPayTotalOpen(false)}>Cancelar</Button>
-              <Button onClick={handlePayTotal} disabled={saving || totalPendingAmount <= 0}>
+              <Button variant="outline" onClick={() => setPayRateioOpen(false)}>Cancelar</Button>
+              <Button onClick={handlePayRateio} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />} 
                 Enviar Pagamento
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Individual List Dialog */}
+      <Dialog open={payIndividualOpen} onOpenChange={(v) => { if (!v) { setPayIndividualOpen(false); setSelectedIndividualSplit(null); } else setPayIndividualOpen(true); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Despesas Individuais</DialogTitle>
+          </DialogHeader>
+          
+          {!selectedIndividualSplit ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Selecione uma despesa para pagar:</p>
+              <ScrollArea className="max-h-[300px]">
+                <div className="space-y-3">
+                  {individualPending.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-medium truncate">{s.expenses?.title}</p>
+                        <p className="text-xs text-muted-foreground">R$ {Number(s.amount).toFixed(2)}</p>
+                      </div>
+                      <Button size="sm" onClick={() => setSelectedIndividualSplit(s)}>
+                        Pagar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPayIndividualOpen(false)}>Fechar</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+               <div className="flex items-center gap-2 mb-2">
+                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setSelectedIndividualSplit(null)}>←</Button>
+                 <span className="font-medium">{selectedIndividualSplit.expenses?.title}</span>
+               </div>
+               
+               <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Valor a pagar</p>
+                  <p className="text-2xl font-bold font-serif text-primary mt-1">R$ {Number(selectedIndividualSplit.amount).toFixed(2)}</p>
+               </div>
+
+               <div className="space-y-2">
+                  <Label>Comprovante *</Label>
+                  <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+               </div>
+
+               <DialogFooter>
+                 <Button variant="outline" onClick={() => setSelectedIndividualSplit(null)}>Voltar</Button>
+                 <Button onClick={handlePayIndividual} disabled={saving}>
+                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />} 
+                   Enviar
+                 </Button>
+               </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
