@@ -164,6 +164,7 @@ export default function Invites() {
                           size="icon"
                           onClick={() => copyLink(inv.token)}
                           title="Copiar link"
+                          aria-label={`Copiar link de convite para ${inv.email}`}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -173,6 +174,7 @@ export default function Invites() {
                           onClick={() => regenerateInvite.mutate(inv.id)}
                           disabled={isRegenLoading}
                           title="Gerar novo link"
+                          aria-label={`Gerar novo link de convite para ${inv.email}`}
                         >
                           {isRegenLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -182,6 +184,7 @@ export default function Invites() {
                         </Button>
                       </>
                     )}
+
                   </div>
                 </CardContent>
               </Card>

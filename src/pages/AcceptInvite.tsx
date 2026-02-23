@@ -2,16 +2,24 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useInviteFlag } from "@/hooks/useInviteFlag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+
+interface AcceptInviteResponse {
+  success: boolean;
+  error?: string;
+  group_id?: string;
+}
 
 export default function AcceptInvite() {
   const [params] = useSearchParams();
   const token = params.get("token");
   const navigate = useNavigate();
   const { user, loading: authLoading, signInWithGoogle, refreshMembership } = useAuth();
+  const { markInviteAccepted } = useInviteFlag();
 
   const [status, setStatus] = useState<"loading" | "needs-login" | "accepting" | "success" | "error">(
     "loading",
@@ -41,7 +49,7 @@ export default function AcceptInvite() {
       const { data, error } = await supabase.rpc("accept_invite", { _token: token! });
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; group_id?: string };
+      const result = data as AcceptInviteResponse;
       if (!result.success) {
         setStatus("error");
         setErrorMsg(result.error || "Erro ao aceitar convite.");
@@ -49,9 +57,7 @@ export default function AcceptInvite() {
       }
 
       await refreshMembership();
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem("accepted-invite", "true");
-      }
+      markInviteAccepted();
       setStatus("success");
       toast({ title: "Convite aceito!", description: "Bem-vindo ao grupo." });
 
