@@ -180,16 +180,22 @@ function CollapsibleNavGroup({
   items: { to: string; icon: any; label: string }[];
   location: any;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(title === "Moradia");
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between px-3 py-1">
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-1">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 hover:bg-muted/50 rounded-md transition-colors group cursor-pointer">
+        <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 group-hover:text-foreground">
           {title}
         </h4>
-      </div>
-      <div className="space-y-1">
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 text-muted-foreground/50 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pt-1 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden">
         {items.map((item) => {
           const isActive = location.pathname === item.to;
           return (
@@ -210,8 +216,8 @@ function CollapsibleNavGroup({
             </Link>
           );
         })}
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
