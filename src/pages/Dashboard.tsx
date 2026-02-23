@@ -1,22 +1,28 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Receipt, TrendingUp, Download, Package, DollarSign, Upload, Loader2, ListChecks, User, Calendar, CreditCard, ArrowRight, Plus } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Receipt, TrendingUp, Package, DollarSign, Loader2, ListChecks, User, Calendar, CreditCard, Plus } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 
-const COLORS = ["hsl(220,65%,18%)", "hsl(164,55%,36%)", "hsl(38,92%,50%)", "hsl(0,72%,51%)", "hsl(270,50%,50%)"];
+const CATEGORIES = [
+  { value: "rent", label: "Aluguel" },
+  { value: "utilities", label: "Contas (Luz/Água/Gás)" },
+  { value: "internet", label: "Internet/TV" },
+  { value: "cleaning", label: "Limpeza" },
+  { value: "maintenance", label: "Manutenção" },
+  { value: "groceries", label: "Mercado" },
+  { value: "other", label: "Outros" },
+];
 
 export default function Dashboard() {
   const { profile, membership, isAdmin, user } = useAuth();
@@ -62,35 +68,60 @@ export default function Dashboard() {
   });
 
   // --- Personal Queries (Faturas e Gastos Individuais) ---
-  const { data: currentBill } = useQuery({
-    queryKey: ["personal-bill-summary", user?.id, currentMonth, currentYear],
+  
+  // 1. Fetch Cards to know closing dates
+  const { data: cards = [], isSuccess: cardsLoaded } = useQuery({
+    queryKey: ["credit-cards", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("expense_installments" as any)
-        .select("amount")
-        .eq("user_id", user!.id)
-        .eq("bill_month", currentMonth)
-        .eq("bill_year", currentYear);
-      return (data ?? []).reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+      const { data } = await supabase.from("credit_cards").select("*").eq("user_id", user!.id);
+      return data ?? [];
     },
     enabled: !!user,
   });
 
-  const { data: individualSpendMonth } = useQuery({
-    queryKey: ["personal-individual-spend", user?.id],
+  // 2. Fetch "Current Open Bill"
+  // Needs to sum installments from "This Month" or "Next Month" depending on closing day
+  const { data: currentBill } = useQuery({
+    queryKey: ["personal-bill-summary", user?.id, currentMonth, currentYear, cards],
     queryFn: async () => {
-      const start = startOfMonth(now).toISOString();
-      const end = endOfMonth(now).toISOString();
+      if (cards.length === 0) return 0;
+
+      // We fetch a range (Current and Next Month) to cover both cases
+      let nextMonth = currentMonth + 1;
+      let nextYear = currentYear;
+      if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+
       const { data } = await supabase
-        .from("expenses")
-        .select("amount")
-        .eq("created_by", user!.id)
-        .eq("expense_type", "individual")
-        .gte("purchase_date", start)
-        .lte("purchase_date", end);
-      return (data ?? []).reduce((sum, e) => sum + Number(e.amount), 0);
+        .from("expense_installments" as any)
+        .select("amount, bill_month, bill_year, expenses!inner(credit_card_id)")
+        .eq("user_id", user!.id)
+        .or(`and(bill_month.eq.${currentMonth},bill_year.eq.${currentYear}),and(bill_month.eq.${nextMonth},bill_year.eq.${nextYear})`);
+
+      const items = (data as any[]) ?? [];
+      let total = 0;
+
+      items.forEach((item) => {
+        const card = cards.find((c: any) => c.id === item.expenses?.credit_card_id);
+        if (!card) return;
+
+        // Determine target "Open Bill" for this card
+        const today = new Date();
+        let targetM = today.getMonth() + 1;
+        let targetY = today.getFullYear();
+
+        if (today.getDate() >= card.closing_day) {
+          targetM++;
+          if (targetM > 12) { targetM = 1; targetY++; }
+        }
+
+        if (item.bill_month === targetM && item.bill_year === targetY) {
+          total += Number(item.amount);
+        }
+      });
+
+      return total;
     },
-    enabled: !!user,
+    enabled: !!user && cardsLoaded,
   });
 
   const { data: recentExpenses } = useQuery({
@@ -224,7 +255,7 @@ export default function Dashboard() {
         {/* Credit Card Bill */}
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardDescription className="text-primary-foreground/70">Fatura do Mês</CardDescription>
+            <CardDescription className="text-primary-foreground/70">Fatura Atual (Aberta)</CardDescription>
             <CreditCard className="h-4 w-4 text-primary-foreground/70" />
           </CardHeader>
           <CardContent>
