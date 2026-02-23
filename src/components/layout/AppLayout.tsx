@@ -26,10 +26,11 @@ import {
   MessageSquare,
   BookOpen,
   Vote,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const baseNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/expenses", icon: Receipt, label: "Despesas" },
   { to: "/payments", icon: CreditCard, label: "Pagamentos" },
@@ -48,11 +49,14 @@ const adminItems = [
   { to: "/audit-log", icon: ScrollText, label: "Histórico" },
 ];
 
+const personalItems = [{ to: "/personal/cards", icon: Wallet, label: "Cartões pessoais" }];
+
 export function AppLayout() {
   const { profile, membership, isAdmin, signOut } = useAuth();
   const location = useLocation();
 
-  const allItems = isAdmin ? [...navItems, ...adminItems] : navItems;
+  const groupNavItems = isAdmin ? [...baseNavItems, ...adminItems] : baseNavItems;
+  const allNavItems = [...groupNavItems, ...personalItems];
 
   const initials = (profile?.full_name || "U")
     .split(" ")
@@ -63,7 +67,6 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-sm">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
@@ -103,7 +106,8 @@ export function AppLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />Meu Perfil
+                    <User className="mr-2 h-4 w-4" />
+                    Meu Perfil
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut} className="text-destructive">
@@ -116,10 +120,9 @@ export function AppLayout() {
         </div>
       </header>
 
-      {/* Desktop nav */}
       <nav className="border-b bg-card hidden md:block">
         <div className="container flex gap-1 overflow-x-auto">
-          {allItems.map((item) => (
+          {groupNavItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -127,7 +130,7 @@ export function AppLayout() {
                 "flex items-center gap-2 px-3 py-2.5 text-sm transition-colors border-b-2 -mb-px whitespace-nowrap",
                 location.pathname === item.to
                   ? "border-primary text-foreground font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -135,25 +138,47 @@ export function AppLayout() {
             </Link>
           ))}
         </div>
+        {personalItems.length > 0 && (
+          <div className="border-t">
+            <div className="container flex items-center gap-2 overflow-x-auto py-1.5">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
+                Pessoal
+              </span>
+              {personalItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border-b-2 border-transparent whitespace-nowrap",
+                    location.pathname === item.to
+                      ? "text-foreground border-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Main content */}
       <main className="container py-6 pb-20 md:pb-6">
         <Outlet />
       </main>
 
-      {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card md:hidden">
-        <div className="flex">
-          {allItems.slice(0, 5).map((item) => (
+        <div className="flex overflow-x-auto">
+          {allNavItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
+                "flex flex-col items-center gap-0.5 py-2 px-3 text-[10px] transition-colors flex-1 min-w-[72px]",
                 location.pathname === item.to
                   ? "text-primary font-medium"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground",
               )}
             >
               <item.icon className="h-5 w-5" />

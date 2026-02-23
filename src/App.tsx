@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import Bulletin from "./pages/Bulletin";
 import HouseRules from "./pages/HouseRules";
 import Polls from "./pages/Polls";
+import CreditCards from "./pages/CreditCards";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +41,13 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/invite" element={<AcceptInvite />} />
 
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route path="/" element={<Dashboard />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/payments" element={<Payments />} />
@@ -55,6 +62,7 @@ const App = () => (
               <Route path="/rules" element={<HouseRules />} />
               <Route path="/polls" element={<Polls />} />
               <Route path="/audit-log" element={<AuditLog />} />
+              <Route path="/personal/cards" element={<CreditCards />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
