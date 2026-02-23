@@ -11,6 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -111,6 +122,18 @@ export default function ShoppingLists() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shopping-list-items"] }),
   });
 
+  const deleteList = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("shopping_lists").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shopping-lists"] });
+      setSelectedList(null);
+      toast({ title: "Lista removida" });
+    },
+  });
+
   const completeList = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("shopping_lists").update({
@@ -173,11 +196,32 @@ export default function ShoppingLists() {
                 <span className="text-xs text-muted-foreground">{purchasedCount}/{listItems.length} comprados</span>
               </div>
             </div>
-            {currentList.status === "active" && (
-              <Button variant="outline" onClick={() => completeList.mutate(currentList.id)}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />Concluir
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {currentList.status === "active" && (
+                <Button variant="outline" onClick={() => completeList.mutate(currentList.id)}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />Concluir
+                </Button>
+              )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir lista?</AlertDialogTitle>
+                    <AlertDialogDescription>Isso removerá a lista e todos os itens dela.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteList.mutate(currentList.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
 
           {currentList.status === "active" && (
