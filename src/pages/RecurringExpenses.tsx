@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, RefreshCw, Calendar } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Calendar, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -26,7 +37,12 @@ const CATEGORIES = [
 export default function RecurringExpenses() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // State for Create/Edit Dialog
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Form Fields
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("other");
@@ -49,7 +65,28 @@ export default function RecurringExpenses() {
     enabled: !!membership?.group_id,
   });
 
-  const handleCreate = async () => {
+  const resetForm = () => {
+    setEditingId(null);
+    setTitle("");
+    setAmount("");
+    setCategory("other");
+    setFrequency("monthly");
+    setDayOfMonth("1");
+    setDescription("");
+  };
+
+  const handleOpenEdit = (rec: any) => {
+    setEditingId(rec.id);
+    setTitle(rec.title);
+    setAmount(String(rec.amount));
+    setCategory(CATEGORIES.some(c => c.value === rec.category) ? rec.category : "other");
+    setFrequency(rec.frequency);
+    setDayOfMonth(String(rec.day_of_month || 1));
+    setDescription(rec.description || "");
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!title.trim() || !amount || parseFloat(amount) <= 0) {
       toast({ title: "Erro", description: "Preencha título e valor.", variant: "destructive" });
       return;
@@ -58,13 +95,8 @@ export default function RecurringExpenses() {
     setSaving(true);
     try {
       const day = parseInt(dayOfMonth);
-      const now = new Date();
-      let nextDue = new Date(now.getFullYear(), now.getMonth(), day);
-      if (nextDue <= now) {
-        nextDue.setMonth(nextDue.getMonth() + 1);
-      }
-
-      const { error } = await supabase.from("recurring_expenses").insert({
+      
+      const basePayload = {
         group_id: membership!.group_id,
         created_by: user!.id,
         title: title.trim(),
@@ -73,23 +105,49 @@ export default function RecurringExpenses() {
         category,
         frequency,
         day_of_month: day,
-        next_due_date: nextDue.toISOString().split("T")[0],
-      });
-      if (error) throw error;
+      };
 
-      toast({ title: "Recorrência criada!", description: `"${title}" será gerada automaticamente.` });
+      if (editingId) {
+        const { error } = await supabase.from("recurring_expenses").update(basePayload).eq("id", editingId);
+        if (error) throw error;
+        toast({ title: "Recorrência atualizada!" });
+      } else {
+        // Calculate next due date only for new items
+        const now = new Date();
+        let nextDue = new Date(now.getFullYear(), now.getMonth(), day);
+        if (nextDue <= now) {
+          nextDue.setMonth(nextDue.getMonth() + 1);
+        }
+
+        const { error } = await supabase.from("recurring_expenses").insert({
+          ...basePayload,
+          next_due_date: nextDue.toISOString().split("T")[0]
+        });
+        if (error) throw error;
+        toast({ title: "Recorrência criada!", description: `"${title}" será gerada automaticamente.` });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["recurring"] });
       setOpen(false);
-      setTitle("");
-      setAmount("");
-      setCategory("other");
-      setDescription("");
+      resetForm();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
+
+  const deleteRecurring = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("recurring_expenses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
+      toast({ title: "Recorrência excluída." });
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
 
   const toggleActive = async (id: string, active: boolean) => {
     const { error } = await supabase.from("recurring_expenses").update({ active: !active }).eq("id", id);
@@ -149,13 +207,13 @@ export default function RecurringExpenses() {
           <p className="text-muted-foreground mt-1">Despesas automáticas mensais</p>
         </div>
         {isAdmin && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); setOpen(v); }}>
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" /> Nova Recorrência</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle className="font-serif">Nova Despesa Recorrente</DialogTitle>
+                <DialogTitle className="font-serif">{editingId ? "Editar Recorrência" : "Nova Despesa Recorrente"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
@@ -198,9 +256,9 @@ export default function RecurringExpenses() {
                   <Label>Descrição (opcional)</Label>
                   <Input value={description} onChange={(e) => setDescription(e.target.value)} />
                 </div>
-                <Button onClick={handleCreate} disabled={saving} className="w-full">
+                <Button onClick={handleSave} disabled={saving} className="w-full">
                   {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Criar Recorrência
+                  {editingId ? "Salvar Alterações" : "Criar Recorrência"}
                 </Button>
               </div>
             </DialogContent>
@@ -236,11 +294,36 @@ export default function RecurringExpenses() {
                   <div className="text-right shrink-0 flex flex-col items-end gap-2">
                     <p className="text-lg font-bold font-serif">R$ {Number(r.amount).toFixed(2)}</p>
                     {isAdmin && (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => generateNow(r)}>
-                          <RefreshCw className="h-3 w-3" /> Gerar agora
+                      <div className="flex items-center gap-1 mt-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenEdit(r)} title="Editar">
+                          <Edit className="h-4 w-4" />
                         </Button>
-                        <Switch checked={r.active} onCheckedChange={() => toggleActive(r.id, r.active)} />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Excluir">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir recorrência?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir "{r.title}"? Novas despesas não serão geradas automaticamente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteRecurring.mutate(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => generateNow(r)} title="Gerar agora">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Switch checked={r.active} onCheckedChange={() => toggleActive(r.id, r.active)} className="ml-1" />
                       </div>
                     )}
                   </div>
