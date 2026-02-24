@@ -141,8 +141,7 @@ export default function Dashboard() {
 
       const [membersRes, balancesRes, pendingPaymentsRes, rolesRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
-        // Use the new v2 function here
-        supabase.rpc("get_group_balances_v2" as any, { _group_id: membership.group_id }),
+        supabase.rpc("get_member_balances", { _group_id: membership.group_id }),
         supabase.from("payments")
           .select("id, expense_split_id, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)

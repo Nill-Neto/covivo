@@ -99,6 +99,20 @@ export function AdminTab({
         </Button>
       </div>
 
+      {/* Quick Actions - moved to top */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x">
+            <QuickActionLink to="/expenses" icon={ClipboardList} label="Gerenciar Despesas" desc="Lançar e editar despesas coletivas" />
+            <QuickActionLink to="/payments?filter=pending" icon={DollarSign} label="Confirmar Pagamentos" desc="Aprovar ou recusar comprovantes" />
+            <QuickActionLink to="/members" icon={Users} label="Moradores" desc="Gerenciar membros do grupo" />
+            <QuickActionLink to="/recurring-expenses" icon={RefreshCw} label="Despesas Recorrentes" desc="Contas fixas e assinaturas" />
+            <QuickActionLink to="/invites" icon={UserPlus} label="Convites" desc="Convidar novos moradores" />
+            <QuickActionLink to="/group-settings" icon={Settings} label="Configurações" desc="Regras de rateio e ciclo" />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Despesas do Ciclo */}
