@@ -356,10 +356,15 @@ export default function Dashboard() {
         {isAdmin && (
           <TabsContent value="admin" className="space-y-6">
             {adminData ? (
-              <AdminTab 
+           <AdminTab 
                 memberBalances={adminData.balances} 
                 members={adminData.members} 
                 pendingPaymentsCount={adminData.pendingPaymentsCount}
+                collectiveExpenses={collectiveExpenses}
+                totalMonthExpenses={totalMonthExpenses}
+                cycleStart={cycleStart}
+                cycleEnd={cycleEnd}
+                currentDate={currentDate}
               />
             ) : (
               <div className="py-12 text-center text-muted-foreground">Carregando dados administrativos...</div>
