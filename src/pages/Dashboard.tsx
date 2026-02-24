@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Receipt, TrendingUp, Package, DollarSign, Loader2, ListChecks, User, Calendar, CreditCard, Plus, CalendarClock, Info, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, subDays, isAfter, isSameDay, addMonths, subMonths } from "date-fns";
+import { Receipt, TrendingUp, DollarSign, Loader2, ListChecks, User, Calendar, CreditCard, Plus, CalendarClock, Info, AlertCircle, ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { format, subDays, isAfter, isSameDay, addMonths, subMonths, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -17,14 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Dashboard() {
-  const { profile, membership, isAdmin, user } = useAuth();
+  const { profile, membership, user } = useAuth();
   const queryClient = useQueryClient();
   const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  
-  // Date State for Navigation
-  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Payment State
   const [payRateioOpen, setPayRateioOpen] = useState(false);
@@ -33,7 +28,7 @@ export default function Dashboard() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // --- Group Settings ---
+  // --- Group Settings & Initial Date Logic ---
   const { data: groupSettings } = useQuery({
     queryKey: ["group-settings-dashboard", membership?.group_id],
     queryFn: async () => {
@@ -46,49 +41,77 @@ export default function Dashboard() {
   const closingDay = groupSettings?.closing_day || 1;
   const dueDay = groupSettings?.due_day || 10;
 
-  // Initialize Date Logic based on Closing Day
-  // Calculate Cycle Dates based on currentDate state
-  // Cycle Start: Month - 1, Day = closingDay
-  // Cycle End: Month, Day = closingDay (Exclusive)
+  // Initialize currentDate based on Closing Day logic
+  // If today >= closingDay, the current competence is NEXT month.
+  const [currentDate, setCurrentDate] = useState<Date>(() => {
+    const today = new Date();
+    // We assume default closing day 1 if not loaded yet, 
+    // but useEffect below will correct it once settings load.
+    return today; 
+  });
+
+  // Update currentDate once settings are loaded to reflect correct competence
+  useEffect(() => {
+    if (groupSettings) {
+      const today = new Date();
+      if (today.getDate() >= groupSettings.closing_day) {
+        setCurrentDate(addMonths(today, 1));
+      } else {
+        setCurrentDate(today);
+      }
+    }
+  }, [groupSettings]);
+
+  // --- Cycle Calculation ---
+  // Cycle Start: Previous Month, on Closing Day.
+  // Cycle End: Current Month, on Closing Day.
+  // Example: View = March. Closing = 5. 
+  // Cycle = Feb 5 to March 5.
   const cycleStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, closingDay);
   const cycleEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), closingDay);
   
-  // Calculate Due Date for this specific selected month
+  // Set times to ensure full coverage (Start at 00:00:00, End at 00:00:00 exclusive)
+  cycleStart.setHours(0, 0, 0, 0);
+  cycleEnd.setHours(0, 0, 0, 0);
+
+  // Due Date: Current Month, on Due Day
   const cycleDueDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dueDay);
   
   // Limit Date (D-1)
   const cycleLimitDate = subDays(cycleDueDate, 1);
   
-  // Check if Late (only relevant if looking at current or past months)
-  // Logic: If today is after the limit date of the VIEWED cycle, and there is pending debt displayed, it is late.
-  // Note: We compare 'now' vs 'cycleLimitDate'. 
+  // Is Late? Only if looking at current/past cycle and today > limit
   const isLate = isAfter(now, cycleLimitDate) && !isSameDay(now, cycleLimitDate);
 
   // --- Queries ---
 
-  // 1. Month Expenses (Group Spend) - Filtered by Cycle
+  // 1. Month Expenses (Group Spend)
   const { data: monthExpenses } = useQuery({
     queryKey: ["month-expenses", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
     queryFn: async () => {
+      // Add 1 day to end date for API comparison to ensure we catch everything on the last day if times differ
+      const dbStart = cycleStart.toISOString().split('T')[0];
+      const dbEnd = cycleEnd.toISOString().split('T')[0];
+
       const { data } = await supabase
         .from("expenses")
-        .select("amount")
+        .select("amount, purchase_date, created_at")
         .eq("group_id", membership!.group_id)
-        .gte("created_at", cycleStart.toISOString())
-        .lt("created_at", cycleEnd.toISOString());
+        .gte("purchase_date", dbStart)
+        .lt("purchase_date", dbEnd);
       
       return (data ?? []).reduce((sum, e) => sum + Number(e.amount), 0);
     },
     enabled: !!membership?.group_id
   });
 
-  // 2. Pending Splits (Debts) - Fetch ALL pending first, then filter in memory
+  // 2. Pending Splits (Fetch ALL, filter in memory)
   const { data: pendingSplits } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, group_id, expense_type, created_at, purchase_date)") // Added dates
+        .select("id, amount, status, expense_id, expenses:expense_id(title, group_id, expense_type, created_at, purchase_date)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -97,11 +120,13 @@ export default function Dashboard() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
-  // 3. Personal Bill - Filtered by Month/Year of currentDate
+  // 3. Personal Bill (Credit Cards)
   const { data: currentBill } = useQuery({
     queryKey: ["personal-bill-summary", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
-      const targetMonth = currentDate.getMonth() + 1; // 1-12
+      // Check which expense_installments match the selected month/year
+      // bill_month is 1-12
+      const targetMonth = currentDate.getMonth() + 1; 
       const targetYear = currentDate.getFullYear();
 
       const { data } = await supabase
@@ -116,7 +141,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // 4. Recent Activity (Global)
+  // 4. Recent Activity
   const { data: recentExpenses } = useQuery({
     queryKey: ["recent-expenses", membership?.group_id],
     queryFn: async () => {
@@ -131,13 +156,19 @@ export default function Dashboard() {
     enabled: !!membership?.group_id,
   });
 
-  // Filter Pending Splits by Selected Month Cycle
+  // --- Filtering Logic ---
   const filteredPendingSplits = (pendingSplits ?? []).filter((s: any) => {
-    // Use purchase_date if available, otherwise created_at
+    // Prefer purchase_date, fallback to created_at
     const dateStr = s.expenses?.purchase_date || s.expenses?.created_at;
     if (!dateStr) return false;
-    const date = new Date(dateStr);
-    return date >= cycleStart && date < cycleEnd;
+    
+    // Normalize string to date object (midnight)
+    const expenseDate = new Date(dateStr + "T00:00:00"); 
+    // Fix: If dateStr is full ISO (has T), use standard constructor
+    const d = dateStr.includes("T") ? new Date(dateStr) : expenseDate;
+    
+    // Normalize comparison to timestamps to avoid object reference issues
+    return d.getTime() >= cycleStart.getTime() && d.getTime() < cycleEnd.getTime();
   });
 
   const collectivePending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
@@ -241,7 +272,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
               <CalendarClock className="h-3.5 w-3.5 text-primary" /> 
-              Fecha: <strong>{format(cycleEnd, "dd/MM")}</strong>
+              Ciclo: <strong>{format(cycleStart, "dd/MM")}</strong> até <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
           </Badge>
           <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
               <Calendar className="h-3.5 w-3.5 text-destructive" /> 
@@ -253,7 +284,7 @@ export default function Dashboard() {
       {/* Main Financial Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         
-        {/* Collective Debt (Rateio) - Filtered by Month */}
+        {/* Collective Debt (Rateio) */}
         <Card className={`relative overflow-hidden transition-all ${isLate && totalCollective > 0 ? "border-destructive bg-destructive/10" : "border-destructive/20 bg-destructive/5"}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
@@ -263,7 +294,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-1 mt-1">
                 {isLate && totalCollective > 0 && <AlertCircle className="h-3 w-3 text-destructive" />}
                 <p className={`text-[10px] ${isLate && totalCollective > 0 ? "text-destructive font-bold" : "text-destructive/80"}`}>
-                   Vencimento da ref.: {format(cycleLimitDate, "dd/MM")}
+                   Referência: {format(currentDate, "MMM/yy")}
                 </p>
               </div>
             </div>
@@ -279,7 +310,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Individual Pending - Filtered by Month */}
+        {/* Individual Pending */}
         <Card className="border-warning/20 bg-warning/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardDescription className="text-warning-foreground font-medium">Gastos Individuais Pendentes</CardDescription>
@@ -295,7 +326,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Credit Card Bill (Dynamic by Month) */}
+        {/* Credit Card Bill */}
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardDescription className="text-primary-foreground/70">Fatura Pessoal ({format(currentDate, "MMM")})</CardDescription>
@@ -307,7 +338,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Group Spend (Dynamic by Cycle) */}
+        {/* Group Spend */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
@@ -322,7 +353,7 @@ export default function Dashboard() {
           <CardContent>
             <p className="text-2xl font-bold font-serif">R$ {(monthExpenses ?? 0).toFixed(2)}</p>
             <p className="text-[10px] uppercase tracking-wider mt-2 text-muted-foreground">
-              Competência {format(currentDate, "MM/yy")}
+              Total do Ciclo
             </p>
           </CardContent>
         </Card>
