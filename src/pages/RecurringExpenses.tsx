@@ -320,9 +320,29 @@ export default function RecurringExpenses() {
                           </AlertDialogContent>
                         </AlertDialog>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => generateNow(r)} title="Gerar agora">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" title="Gerar agora">
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Gerar despesa agora?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isso criará a despesa "{r.title}" imediatamente na aba Despesas e avançará a próxima data de vencimento.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => generateNow(r)}>
+                                Gerar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
                         <Switch checked={r.active} onCheckedChange={() => toggleActive(r.id, r.active)} className="ml-1" />
                       </div>
                     )}
