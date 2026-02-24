@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, CreditCard, Plus, PieChart as PieChartIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
@@ -48,44 +48,46 @@ export function CardsTab({
             <CardTitle className="text-sm font-medium">Composição da Fatura</CardTitle>
             <PieChartIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="h-[200px]">
+          <CardContent className="h-[200px] flex items-center justify-center">
             {cardsChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={cardsChartData} 
-                  layout="vertical" 
-                  margin={{ left: 0, right: 30, top: 10, bottom: 5 }}
-                >
-                  <CartesianGrid horizontal={false} vertical={true} strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.6} />
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={100} 
-                    tick={{ fontSize: 12, fill: "#64748b", fontWeight: 500 }} 
-                    interval={0} 
-                    axisLine={false}
-                    tickLine={false}
-                  />
+                <PieChart>
+                  <Pie
+                    data={cardsChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {cardsChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
                   <RechartsTooltip 
-                    cursor={{fill: 'transparent'}}
-                    formatter={(v: number) => [`R$ ${v.toFixed(2)}`, 'Valor']}
+                    formatter={(v: number) => `R$ ${v.toFixed(2)}`}
                     contentStyle={{ 
                       borderRadius: "8px", 
                       border: "1px solid #e2e8f0", 
                       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       fontSize: "12px"
                     }}
+                    itemStyle={{ color: "#1e293b" }}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} animationDuration={1200}>
-                    {cardsChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Legend 
+                    layout="vertical" 
+                    verticalAlign="middle" 
+                    align="right"
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: "12px" }}
+                  />
+                </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm opacity-60">
+              <div className="flex flex-col items-center justify-center text-muted-foreground text-sm opacity-60">
                 <CreditCard className="h-8 w-8 mb-2 opacity-20" />
                 <p>Fatura zerada neste mês</p>
               </div>

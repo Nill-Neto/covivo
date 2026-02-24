@@ -108,19 +108,19 @@ export function PersonalTab({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={personalChartData} 
-                  layout="vertical" 
-                  margin={{ left: 0, right: 30, top: 10, bottom: 10 }}
-                  barGap={4}
+                  margin={{ left: 0, right: 0, top: 10, bottom: 0 }}
+                  barGap={8}
                 >
-                  <CartesianGrid horizontal={false} vertical={true} strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
-                  <XAxis type="number" hide />
-                  <YAxis 
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                  <XAxis 
                     dataKey="name" 
-                    type="category" 
-                    width={100} 
-                    tick={{ fontSize: 12, fill: "#64748b", fontWeight: 500 }} 
-                    axisLine={false}
-                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#64748b" }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    interval={0}
+                  />
+                  <YAxis 
+                    hide 
                   />
                   <RechartsTooltip 
                     cursor={{fill: 'transparent'}} 
@@ -133,7 +133,7 @@ export function PersonalTab({
                       backgroundColor: "rgba(255, 255, 255, 0.95)"
                     }} 
                   />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24} animationDuration={1000}>
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={32} animationDuration={1000}>
                      {personalChartData.map((entry, index) => (
                        <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
                      ))}
