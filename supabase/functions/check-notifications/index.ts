@@ -15,6 +15,42 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Authentication: require a valid user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const callerId = claimsData.claims.sub as string;
+
+    // Authorization: caller must be admin of at least one group
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerId)
+      .eq("role", "admin")
+      .limit(1);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return new Response(JSON.stringify({ error: "Admin access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -30,7 +66,6 @@ Deno.serve(async (req) => {
       .eq("due_date", tomorrowStr);
 
     for (const expense of dueSoon ?? []) {
-      // Get unpaid splits for this expense
       const { data: splits } = await supabase
         .from("expense_splits")
         .select("user_id")
@@ -65,7 +100,6 @@ Deno.serve(async (req) => {
         .eq("status", "pending");
 
       for (const split of splits ?? []) {
-        // Check if we already sent an overdue notification today
         const { data: existing } = await supabase
           .from("notifications")
           .select("id")
@@ -95,7 +129,6 @@ Deno.serve(async (req) => {
 
     const lowItems = (lowStock ?? []).filter((i: any) => Number(i.quantity) <= Number(i.min_quantity));
     
-    // Group low items by group_id
     const byGroup: Record<string, any[]> = {};
     lowItems.forEach((item: any) => {
       if (!byGroup[item.group_id]) byGroup[item.group_id] = [];
@@ -103,7 +136,6 @@ Deno.serve(async (req) => {
     });
 
     for (const [groupId, items] of Object.entries(byGroup)) {
-      // Get admin(s) of this group
       const { data: admins } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -140,7 +172,6 @@ Deno.serve(async (req) => {
       .select("id, amount, group_id, paid_by, created_at")
       .eq("status", "pending");
 
-    // Payments pending for more than 24h
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     const stalePending = (pendingPayments ?? []).filter((p: any) => p.created_at < oneDayAgo);
     
