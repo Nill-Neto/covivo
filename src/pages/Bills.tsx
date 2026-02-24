@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, ChevronLeft, ChevronRight, Loader2, ArrowUpDown, CreditCard } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Loader2, CreditCard } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -63,7 +63,8 @@ export default function Bills() {
         .select("*, expenses(title, credit_card_id, category, purchase_date)")
         .eq("user_id", user!.id)
         .eq("bill_month", month)
-        .eq("bill_year", year);
+        .eq("bill_year", year)
+        .limit(1000); // Ensure we fetch all items, not just the default page size
 
       const { data, error } = await query;
       if (error) throw error;
