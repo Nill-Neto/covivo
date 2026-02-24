@@ -303,7 +303,7 @@ function PaymentCard({ payment, isAdmin, onConfirm }: { payment: any; isAdmin: b
             )}
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">
-            <p className="text-lg font-bold font-serif">R$ {Number(payment.amount).toFixed(2)}</p>
+            <p className="text-lg font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
             <Badge variant={s.variant}>{s.label}</Badge>
             {isAdmin && payment.status === "pending" && (
               <div className="flex gap-1 mt-1">

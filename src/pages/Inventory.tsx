@@ -261,7 +261,7 @@ export default function Inventory() {
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: -1 })}>
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <span className="font-serif text-xl w-12 text-center">{Number(item.quantity)}</span>
+                    <span className="text-xl font-bold w-12 text-center">{Number(item.quantity)}</span>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: 1 })}>
                       <PlusCircle className="h-4 w-4" />
                     </Button>

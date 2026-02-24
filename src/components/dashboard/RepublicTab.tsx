@@ -34,7 +34,7 @@ export function RepublicTab({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-serif text-foreground">R$ {totalCollectivePending.toFixed(2)}</div>
+            <div className="text-3xl font-bold text-foreground">R$ {totalCollectivePending.toFixed(2)}</div>
             {isLate && totalCollectivePending > 0 && (
               <p className="text-xs text-destructive font-bold mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3"/> Pagamento em Atraso
@@ -54,7 +54,7 @@ export function RepublicTab({
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif">R$ {totalMonthExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">R$ {totalMonthExpenses.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Soma de todas despesas coletivas</p>
           </CardContent>
         </Card>
@@ -65,7 +65,7 @@ export function RepublicTab({
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif">--</div>
+            <div className="text-2xl font-bold">--</div>
             <Button variant="link" className="h-auto p-0 text-xs text-primary mt-1" asChild>
               <Link to="/inventory">Ver estoque →</Link>
             </Button>
@@ -158,7 +158,6 @@ export function RepublicTab({
                         <div>
                           <p className="text-sm font-medium leading-none">{e.title}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {/* Translations also applied here if needed, but categories usually display fine or we can map them */}
                             {e.category} • {format(new Date(e.purchase_date), "dd MMM")}
                           </p>
                         </div>

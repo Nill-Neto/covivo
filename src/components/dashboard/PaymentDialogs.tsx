@@ -51,7 +51,7 @@ export function PaymentDialogs({
           <div className="space-y-4 pt-2">
             <div className="p-4 bg-muted/50 rounded-lg text-center">
               <p className="text-sm text-muted-foreground">Total a pagar ({format(currentDate, "MMMM/yy", { locale: ptBR })})</p>
-              <p className="text-3xl font-bold font-serif text-primary mt-1">R$ {totalCollectivePending.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-primary mt-1">R$ {totalCollectivePending.toFixed(2)}</p>
             </div>
             {collectivePending.length > 0 && (
               <div className="border rounded-md p-3 bg-card">
@@ -105,7 +105,7 @@ export function PaymentDialogs({
             <div className="space-y-4">
                <div className="p-4 bg-muted/50 rounded-lg text-center">
                   <p className="text-sm text-muted-foreground">{selectedIndividualSplit.expenses?.title}</p>
-                  <p className="text-2xl font-bold font-serif text-primary mt-1">R$ {Number(selectedIndividualSplit.amount).toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-primary mt-1">R$ {Number(selectedIndividualSplit.amount).toFixed(2)}</p>
                </div>
                <div className="space-y-2">
                   <Label>Comprovante *</Label>

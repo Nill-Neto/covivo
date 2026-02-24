@@ -292,7 +292,7 @@ export default function RecurringExpenses() {
                     </p>
                   </div>
                   <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                    <p className="text-lg font-bold font-serif">R$ {Number(r.amount).toFixed(2)}</p>
+                    <p className="text-lg font-bold">R$ {Number(r.amount).toFixed(2)}</p>
                     {isAdmin && (
                       <div className="flex items-center gap-1 mt-1">
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenEdit(r)} title="Editar">

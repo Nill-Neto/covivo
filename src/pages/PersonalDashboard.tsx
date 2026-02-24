@@ -137,7 +137,7 @@ export default function PersonalDashboard() {
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="pb-2">
             <CardDescription className="text-primary-foreground/70">Fatura Atual (Aberta)</CardDescription>
-            <CardTitle className="text-3xl font-serif">R$ {totalBill.toFixed(2)}</CardTitle>
+            <CardTitle className="text-3xl font-bold">R$ {totalBill.toFixed(2)}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-primary-foreground/60 flex items-center gap-1">
@@ -149,7 +149,7 @@ export default function PersonalDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Gastos à Vista (Mês)</CardDescription>
-            <CardTitle className="text-3xl font-serif">R$ {totalPersonalCash.toFixed(2)}</CardTitle>
+            <CardTitle className="text-3xl font-bold">R$ {totalPersonalCash.toFixed(2)}</CardTitle>
           </CardHeader>
           <CardContent>
              <Progress value={Math.min(100, (totalPersonalCash / (totalSpending || 1)) * 100)} className="h-1" />
@@ -159,7 +159,7 @@ export default function PersonalDashboard() {
         <Card className="border-destructive/20 bg-destructive/5">
           <CardHeader className="pb-2">
             <CardDescription className="text-destructive">Rateio Coletivo Pendente</CardDescription>
-            <CardTitle className="text-3xl font-serif text-destructive">R$ {totalShared.toFixed(2)}</CardTitle>
+            <CardTitle className="text-3xl font-bold text-destructive">R$ {totalShared.toFixed(2)}</CardTitle>
           </CardHeader>
           <CardContent>
              <Link to="/payments" className="text-xs font-medium text-destructive hover:underline flex items-center gap-1">
@@ -171,7 +171,7 @@ export default function PersonalDashboard() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
-          <CardHeader><CardTitle className="text-lg font-serif">Distribuição de Gastos</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg font-bold">Distribuição de Gastos</CardTitle></CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
               {methodData.length > 0 ? (
@@ -199,7 +199,7 @@ export default function PersonalDashboard() {
 
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg font-serif">Lançamentos na Fatura Aberta</CardTitle>
+            <CardTitle className="text-lg font-bold">Lançamentos na Fatura Aberta</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

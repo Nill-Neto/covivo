@@ -33,7 +33,7 @@ export function CardsTab({
             <Wallet className="h-4 w-4 text-primary-foreground/60" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold font-serif tracking-tight">R$ {totalBill.toFixed(2)}</div>
+            <div className="text-4xl font-bold tracking-tight">R$ {totalBill.toFixed(2)}</div>
             <p className="text-xs text-primary-foreground/60 mt-2 font-medium bg-primary-foreground/10 inline-block px-2 py-1 rounded">
               {format(currentDate, "MMMM/yyyy")}
             </p>
@@ -97,7 +97,7 @@ export function CardsTab({
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-serif flex items-center gap-2 text-foreground/90">
+        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
           <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
         </h3>
         
@@ -130,7 +130,7 @@ export function CardsTab({
                   <CardContent className="px-4 pb-4">
                     <div className="mb-4 mt-2">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Fatura Atual</p>
-                      <p className="text-2xl font-bold font-serif text-primary">R$ {billValue.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-primary">R$ {billValue.toFixed(2)}</p>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 text-[10px] bg-muted/40 p-2 rounded border border-border/50">

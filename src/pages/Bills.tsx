@@ -151,7 +151,7 @@ export default function Bills() {
           <Card className="bg-muted/50 border-dashed">
             <CardContent className="pt-6">
               <p className="text-xs text-muted-foreground uppercase font-bold">Total da Fatura</p>
-              <p className="text-3xl font-serif mt-2">R$ {totalBill.toFixed(2)}</p>
+              <p className="text-3xl font-bold mt-2">R$ {totalBill.toFixed(2)}</p>
             </CardContent>
           </Card>
         </div>

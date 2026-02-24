@@ -42,7 +42,7 @@ export function PersonalTab({
             <Wallet className="h-4 w-4 text-primary-foreground/70" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold font-serif">R$ {totalUserExpenses.toFixed(2)}</div>
+            <div className="text-4xl font-bold">R$ {totalUserExpenses.toFixed(2)}</div>
             <p className="text-xs text-primary-foreground/70 mt-1">Soma de Rateio + Gastos Individuais (Crédito).</p>
           </CardContent>
         </Card>
@@ -54,7 +54,7 @@ export function PersonalTab({
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif">R$ {myCollectiveShare.toFixed(2)}</div>
+            <div className="text-2xl font-bold">R$ {myCollectiveShare.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Sua parte nas despesas da casa.</p>
           </CardContent>
         </Card>
@@ -68,7 +68,7 @@ export function PersonalTab({
             <AlertCircle className={`h-4 w-4 ${totalIndividualPending > 0 ? "text-warning" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold font-serif ${totalIndividualPending > 0 ? "text-warning-foreground" : ""}`}>
+            <div className={`text-2xl font-bold ${totalIndividualPending > 0 ? "text-warning-foreground" : ""}`}>
               R$ {totalIndividualPending.toFixed(2)}
             </div>
             {individualPending.length > 0 && (
@@ -86,7 +86,7 @@ export function PersonalTab({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif">R$ {totalPersonalCash.toFixed(2)}</div>
+            <div className="text-2xl font-bold">R$ {totalPersonalCash.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Pix, Dinheiro ou Débito.</p>
           </CardContent>
         </Card>
@@ -98,7 +98,7 @@ export function PersonalTab({
             <div className="h-4 w-4 text-muted-foreground">💳</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif">R$ {totalBill.toFixed(2)}</div>
+            <div className="text-2xl font-bold">R$ {totalBill.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Parcelas a vencer.</p>
           </CardContent>
         </Card>

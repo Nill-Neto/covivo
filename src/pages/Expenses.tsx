@@ -568,7 +568,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-lg font-bold font-serif">R$ {Number(expense.amount).toFixed(2)}</p>
+            <p className="text-lg font-bold">R$ {Number(expense.amount).toFixed(2)}</p>
             {mySplit && expense.expense_type === "collective" && <Badge variant="secondary" className="text-[10px]">Sua parte: R$ {Number(mySplit.amount).toFixed(2)}</Badge>}
           </div>
           {canManage && (
@@ -621,7 +621,7 @@ function RecurringCard({ recurring, isAdmin, onEdit, onDelete }: any) {
             <p className="text-xs text-muted-foreground mt-1">Próximo vencimento: {format(new Date(recurring.next_due_date), "dd/MM/yyyy")}</p>
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">
-             <p className="text-lg font-bold font-serif">R$ {Number(recurring.amount).toFixed(2)}</p>
+             <p className="text-lg font-bold">R$ {Number(recurring.amount).toFixed(2)}</p>
              <p className="text-[10px] text-muted-foreground uppercase">Mensal</p>
           </div>
           {isAdmin && (
