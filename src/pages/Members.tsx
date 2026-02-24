@@ -68,7 +68,7 @@ export default function Members() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium truncate">{m.profile?.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{m.profile?.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{m.role === "admin" ? "Administrador" : "Morador"}</p>
                 </div>
                 <Badge variant={m.role === "admin" ? "default" : "secondary"} className="shrink-0">
                   {m.role === "admin" ? "Admin" : "Morador"}
