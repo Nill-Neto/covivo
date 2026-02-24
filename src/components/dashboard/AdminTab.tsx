@@ -126,7 +126,7 @@ export function AdminTab({
         </Card>
 
         <Card className="relative overflow-hidden">
-          <div className={`absolute top-0 left-0 w-1 h-full ${pendingPaymentsCount > 0 ? "bg-amber-500" : "bg-muted"}`} />
+          <div className={`absolute top-0 left-0 w-1 h-full ${pendingPaymentsCount > 0 ? "bg-yellow-500" : "bg-muted"}`} />
           <CardHeader className="pb-2 pl-5">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
