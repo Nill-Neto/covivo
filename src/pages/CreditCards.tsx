@@ -209,7 +209,7 @@ export default function CreditCards() {
                     <FormItem>
                       <FormLabel>Limite (opcional)</FormLabel>
                       <FormControl>
-                        <Input type="number" min={0} step="100" placeholder="R$" {...field} />
+                        <Input type="number" min={0} step="0.01" placeholder="R$" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
