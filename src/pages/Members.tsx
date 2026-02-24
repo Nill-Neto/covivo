@@ -22,7 +22,7 @@ export default function Members() {
       const userIds = groupMembers.map((gm) => gm.user_id);
 
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, avatar_url").in("id", userIds),
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership!.group_id),
       ]);
 
