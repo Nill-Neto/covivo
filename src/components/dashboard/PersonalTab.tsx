@@ -38,19 +38,19 @@ export function PersonalTab({
         {/* Total Geral - Destaque */}
         <Card className="sm:col-span-2 bg-primary text-primary-foreground border-0 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-primary-foreground/90">Total de Despesas (Mês)</CardTitle>
+            <CardTitle className="text-sm font-medium text-primary-foreground/90">Total Geral (Mês)</CardTitle>
             <Wallet className="h-4 w-4 text-primary-foreground/70" />
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold font-serif">R$ {totalUserExpenses.toFixed(2)}</div>
-            <p className="text-xs text-primary-foreground/70 mt-1">Soma de rateio, gastos à vista e faturas.</p>
+            <p className="text-xs text-primary-foreground/70 mt-1">Soma de Rateio + Faturas de Cartão.</p>
           </CardContent>
         </Card>
 
         {/* Meu Rateio */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio da Casa</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

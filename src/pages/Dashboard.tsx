@@ -62,19 +62,27 @@ export default function Dashboard() {
 
   // --- Queries ---
 
-  // 1. All Expenses in Cycle (Updated to fetch SPLITS)
+  // 1. All Expenses in Cycle (Updated to fetch SPLITS explicitly)
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
     queryFn: async () => {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("expenses")
-        .select("*, expense_splits(user_id, amount)") // Added splits fetch
+        .select(`
+          *,
+          expense_splits (
+            user_id,
+            amount
+          )
+        `)
         .eq("group_id", membership!.group_id)
         .gte("purchase_date", dbStart)
         .lt("purchase_date", dbEnd);
+      
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!membership?.group_id
@@ -132,7 +140,8 @@ export default function Dashboard() {
   
   // Calculate User's Share of Collective Expenses (Meu Rateio)
   const myCollectiveShare = collectiveExpenses.reduce((sum, e) => {
-    const mySplit = e.expense_splits?.find((s: any) => s.user_id === user?.id);
+    const splits = (e.expense_splits as any[]) || [];
+    const mySplit = splits.find((s: any) => s.user_id === user?.id);
     return sum + (mySplit ? Number(mySplit.amount) : 0);
   }, 0);
 
@@ -150,7 +159,7 @@ export default function Dashboard() {
   // Personal Data (In cycle)
   const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
   
-  // Expenses paid upfront (Cash/Pix/Debit)
+  // Expenses paid upfront (Cash/Pix/Debit) - used for card display but NOT for total calculation
   const totalPersonalCash = myPersonalExpenses
     .filter(e => e.payment_method !== "credit_card")
     .reduce((sum, e) => sum + Number(e.amount), 0);
@@ -158,8 +167,9 @@ export default function Dashboard() {
   // Bill Installments (Credit Card)
   const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
-  // Total User Expenses (Cash + Bill + Collective Share)
-  const totalUserExpenses = totalPersonalCash + totalBill + myCollectiveShare;
+  // Total User Expenses (Rateio + Bill Installments ONLY) - "sem 'à vista' somado"
+  // This represents what the user "owes" or "has billed" this month, excluding immediate cash spending.
+  const totalUserExpenses = myCollectiveShare + totalBill;
 
   const personalChartData = useMemo(() => {
     const categories: Record<string, number> = {};
