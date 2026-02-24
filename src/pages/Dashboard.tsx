@@ -62,7 +62,7 @@ export default function Dashboard() {
 
   // --- Queries ---
 
-  // 1. All Expenses in Cycle
+  // 1. All Expenses in Cycle (Updated to fetch SPLITS)
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
     queryFn: async () => {
@@ -71,7 +71,7 @@ export default function Dashboard() {
 
       const { data } = await supabase
         .from("expenses")
-        .select("id, title, amount, category, expense_type, created_by, purchase_date, payment_method")
+        .select("*, expense_splits(user_id, amount)") // Added splits fetch
         .eq("group_id", membership!.group_id)
         .gte("purchase_date", dbStart)
         .lt("purchase_date", dbEnd);
@@ -130,6 +130,12 @@ export default function Dashboard() {
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   
+  // Calculate User's Share of Collective Expenses (Meu Rateio)
+  const myCollectiveShare = collectiveExpenses.reduce((sum, e) => {
+    const mySplit = e.expense_splits?.find((s: any) => s.user_id === user?.id);
+    return sum + (mySplit ? Number(mySplit.amount) : 0);
+  }, 0);
+
   const republicChartData = useMemo(() => {
     const categories: Record<string, number> = {};
     collectiveExpenses.forEach(e => {
@@ -143,9 +149,17 @@ export default function Dashboard() {
 
   // Personal Data (In cycle)
   const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
+  
+  // Expenses paid upfront (Cash/Pix/Debit)
   const totalPersonalCash = myPersonalExpenses
     .filter(e => e.payment_method !== "credit_card")
     .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  // Bill Installments (Credit Card)
+  const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
+  // Total User Expenses (Cash + Bill + Collective Share)
+  const totalUserExpenses = totalPersonalCash + totalBill + myCollectiveShare;
 
   const personalChartData = useMemo(() => {
     const categories: Record<string, number> = {};
@@ -174,8 +188,6 @@ export default function Dashboard() {
   const totalIndividualPending = individualPending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
 
   // Cards Data
-  const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
-  
   const cardsBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     creditCards.forEach(c => map[c.id] = 0); // Init
@@ -308,6 +320,8 @@ export default function Dashboard() {
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
+            totalUserExpenses={totalUserExpenses}
+            myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
             onPayIndividual={() => setPayIndividualOpen(true)}

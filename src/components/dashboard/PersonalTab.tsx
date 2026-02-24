@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, AlertCircle, TrendingUp } from "lucide-react";
+import { DollarSign, AlertCircle, TrendingUp, Users, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ interface PersonalTabProps {
   individualPending: any[];
   totalPersonalCash: number;
   totalBill: number;
+  totalUserExpenses: number;
+  myCollectiveShare: number;
   personalChartData: any[];
   myPersonalExpenses: any[];
   onPayIndividual: () => void;
@@ -22,46 +24,82 @@ export function PersonalTab({
   individualPending,
   totalPersonalCash,
   totalBill,
+  totalUserExpenses,
+  myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
   onPayIndividual,
 }: PersonalTabProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="border-warning/30 bg-warning/5 transition-all hover:bg-warning/10">
+      
+      {/* Cards de Resumo */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Geral - Destaque */}
+        <Card className="sm:col-span-2 bg-primary text-primary-foreground border-0 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-warning-foreground">Pendências Individuais</CardTitle>
-            <AlertCircle className="h-4 w-4 text-warning" />
+            <CardTitle className="text-sm font-medium text-primary-foreground/90">Total de Despesas (Mês)</CardTitle>
+            <Wallet className="h-4 w-4 text-primary-foreground/70" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-serif text-warning-foreground">R$ {totalIndividualPending.toFixed(2)}</div>
+            <div className="text-4xl font-bold font-serif">R$ {totalUserExpenses.toFixed(2)}</div>
+            <p className="text-xs text-primary-foreground/70 mt-1">Soma de rateio, gastos à vista e faturas.</p>
+          </CardContent>
+        </Card>
+
+        {/* Meu Rateio */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-serif">R$ {myCollectiveShare.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Sua parte nas despesas da casa.</p>
+          </CardContent>
+        </Card>
+
+        {/* Pendências Individuais */}
+        <Card className={`${totalIndividualPending > 0 ? "border-warning/50 bg-warning/5" : ""}`}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className={`text-sm font-medium ${totalIndividualPending > 0 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+              Pendências Individuais
+            </CardTitle>
+            <AlertCircle className={`h-4 w-4 ${totalIndividualPending > 0 ? "text-warning" : "text-muted-foreground"}`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold font-serif ${totalIndividualPending > 0 ? "text-warning-foreground" : ""}`}>
+              R$ {totalIndividualPending.toFixed(2)}
+            </div>
             {individualPending.length > 0 && (
-              <Button variant="outline" size="sm" className="mt-3 w-full border-warning/50 text-warning-foreground hover:bg-warning/20" onClick={onPayIndividual}>
-                Ver Detalhes
+              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs border-warning/50 text-warning-foreground hover:bg-warning/20 w-full" onClick={onPayIndividual}>
+                Pagar
               </Button>
             )}
           </CardContent>
         </Card>
 
+        {/* Gastos à Vista */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Gastos à Vista (Ciclo)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Gastos à Vista</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-serif">R$ {totalPersonalCash.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Débito, Dinheiro ou Pix</p>
+            <p className="text-xs text-muted-foreground mt-1">Pix, Dinheiro ou Débito.</p>
           </CardContent>
         </Card>
 
+        {/* Fatura Atual */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Fatura Atual Estimada</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Fatura Cartão</CardTitle>
+            <div className="h-4 w-4 text-muted-foreground">💳</div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-serif">R$ {totalBill.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Soma de todos os cartões</p>
+            <p className="text-xs text-muted-foreground mt-1">Estimativa da fatura atual.</p>
           </CardContent>
         </Card>
       </div>
@@ -101,7 +139,7 @@ export function PersonalTab({
 
         <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
           <CardHeader>
-            <CardTitle className="text-base">Top Categorias</CardTitle>
+            <CardTitle className="text-base">Top Categorias (Pessoal)</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 min-h-[300px]">
             {personalChartData.length > 0 ? (
