@@ -5,14 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Receipt, TrendingUp, Package, DollarSign, Loader2, ListChecks, User, Calendar, CreditCard, Plus } from "lucide-react";
+import { Receipt, TrendingUp, Package, DollarSign, Loader2, ListChecks, User, Calendar, CreditCard, Plus, CalendarClock, Info } from "lucide-react";
 import { format, startOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CATEGORIES = [
   { value: "rent", label: "Aluguel" },
@@ -224,12 +226,40 @@ export default function Dashboard() {
     }
   };
 
+  // Determine next closing date
+  const closingDay = groupSettings?.closing_day || 1;
+  const nextClosingDate = new Date();
+  if (now.getDate() >= closingDay) {
+      nextClosingDate.setMonth(nextClosingDate.getMonth() + 1);
+  }
+  nextClosingDate.setDate(closingDay);
+
+  // Determine next due date
+  const dueDay = groupSettings?.due_day || 10;
+  const nextDueDate = new Date();
+  if (now.getDate() >= dueDay) {
+    nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+  }
+  nextDueDate.setDate(dueDay);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-serif">Olá, {profile?.full_name?.split(" ")[0]}</h1>
           <p className="text-muted-foreground mt-1">{membership?.group_name}</p>
+          {groupSettings && (
+             <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="outline" className="gap-1 font-normal">
+                   <CalendarClock className="h-3 w-3 text-primary" /> 
+                   Fecha dia <strong>{closingDay}</strong>
+                </Badge>
+                <Badge variant="outline" className="gap-1 font-normal">
+                   <Calendar className="h-3 w-3 text-destructive" /> 
+                   Vence dia <strong>{dueDay}</strong>
+                </Badge>
+             </div>
+          )}
         </div>
         <div className="flex gap-2">
            <Button variant="outline" size="sm" asChild>
@@ -241,11 +271,13 @@ export default function Dashboard() {
       {/* Main Financial Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Collective Debt */}
-        <Card className="border-destructive/20 bg-destructive/5">
+        <Card className="border-destructive/20 bg-destructive/5 relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardDescription className="text-destructive font-medium">Rateio Pendente (Casa)</CardDescription>
-              {groupSettings?.due_day && <p className="text-[10px] text-destructive/80 mt-1">Vence dia {groupSettings.due_day}</p>}
+              <CardDescription className="text-destructive font-medium">Rateio Pendente</CardDescription>
+              <p className="text-[10px] text-destructive/80 mt-1">
+                 Vencimento: {format(nextDueDate, "dd/MM", { locale: ptBR })}
+              </p>
             </div>
             <TrendingUp className="h-4 w-4 text-destructive" />
           </CardHeader>
@@ -290,13 +322,19 @@ export default function Dashboard() {
         {/* Group Spend */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardDescription>Gastos da República</CardDescription>
+            <div className="flex items-center gap-2">
+               <CardDescription>Gastos da República</CardDescription>
+               <Tooltip>
+                 <TooltipTrigger><Info className="h-3 w-3 text-muted-foreground" /></TooltipTrigger>
+                 <TooltipContent><p>Soma das despesas na competência atual.</p></TooltipContent>
+               </Tooltip>
+            </div>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold font-serif">R$ {(monthExpenses ?? 0).toFixed(2)}</p>
             <p className="text-[10px] uppercase tracking-wider mt-2 text-muted-foreground">
-              Competência Atual (Fecha dia {groupSettings?.closing_day || 1})
+              Fecha em {format(nextClosingDate, "dd/MM", { locale: ptBR })}
             </p>
           </CardContent>
         </Card>
