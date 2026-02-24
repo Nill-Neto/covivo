@@ -2,11 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, CreditCard, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-
-const CHART_COLORS = ["#0f172a", "#0d9488", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#64748b"];
+import { CHART_COLORS } from "@/constants/categories";
 
 interface CardsTabProps {
   totalBill: number;
@@ -44,16 +43,32 @@ export function CardsTab({
 
         <Card className="md:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Composição</CardTitle>
+            <CardTitle className="text-sm font-medium">Composição da Fatura</CardTitle>
           </CardHeader>
           <CardContent className="h-[160px]">
             {cardsChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cardsChartData} layout="vertical">
+                <BarChart data={cardsChartData} layout="vertical" margin={{ left: 5, right: 20, top: 10 }}>
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11 }} interval={0} />
-                  <RechartsTooltip formatter={(v: number) => `R$ ${v.toFixed(2)}`} cursor={{fill: 'transparent'}} />
-                  <Bar dataKey="value" fill="#64748b" radius={[0, 4, 4, 0]} barSize={15} />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={90} 
+                    tick={{ fontSize: 11, fill: "#64748b" }} 
+                    interval={0} 
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <RechartsTooltip 
+                    formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                    cursor={{fill: '#f1f5f9', radius: 4}} 
+                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
+                    {cardsChartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Fatura zerada</div>}
@@ -79,7 +94,7 @@ export function CardsTab({
             {creditCards.map(card => {
               const billValue = cardsBreakdown[card.id] || 0;
               return (
-                <Card key={card.id} className="flex flex-col justify-between">
+                <Card key={card.id} className="flex flex-col justify-between hover:border-primary/50 transition-colors">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>

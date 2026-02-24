@@ -5,12 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CreditCard, Calendar, ArrowRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-
-const COLORS = ["#0f172a", "#0d9488", "#f59e0b", "#ef4444", "#8b5cf6"];
+import { getCategoryLabel, CHART_COLORS } from "@/constants/categories";
 
 export default function PersonalDashboard() {
   const { user } = useAuth();
@@ -107,7 +105,11 @@ export default function PersonalDashboard() {
     { name: "Fatura Aberta", value: totalBill },
     ...Object.entries(
       expenses.reduce((acc: any, e) => {
-        const method = (e as any).payment_method || 'cash';
+        // Here we map payment methods to friendly names
+        const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
+        const rawMethod = (e as any).payment_method || 'cash';
+        const method = methodMap[rawMethod] || rawMethod;
+        
         acc[method] = (acc[method] || 0) + Number(e.amount);
         return acc;
       }, {})
@@ -175,10 +177,19 @@ export default function PersonalDashboard() {
               {methodData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={methodData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                      {methodData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    <Pie 
+                      data={methodData} 
+                      cx="50%" 
+                      cy="50%" 
+                      innerRadius={60} 
+                      outerRadius={80} 
+                      paddingAngle={5} 
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {methodData.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => `R$ ${v.toFixed(2)}`} />
+                    <Tooltip formatter={(v: number) => `R$ ${v.toFixed(2)}`} contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Sem gastos individuais este mês.</div>}

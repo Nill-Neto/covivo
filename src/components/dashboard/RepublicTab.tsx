@@ -5,8 +5,7 @@ import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-
-const CHART_COLORS = ["#0f172a", "#0d9488", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#64748b"];
+import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 
 interface RepublicTabProps {
   collectiveExpenses: any[];
@@ -80,30 +79,54 @@ export function RepublicTab({
           <CardHeader>
             <CardTitle className="text-base">Distribuição por Categoria</CardTitle>
           </CardHeader>
-          <CardContent className="h-[250px]">
+          <CardContent className="h-[250px] relative">
             {republicChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie 
-                    data={republicChartData} 
-                    dataKey="value" 
-                    nameKey="name" 
-                    cx="50%" 
-                    cy="50%" 
-                    innerRadius={50} 
-                    outerRadius={70} 
-                    paddingAngle={3}
-                    stroke="none"
-                  >
-                    {republicChartData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <RechartsTooltip 
-                    formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
-                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                  />
-                  <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: "11px", marginLeft: "10px" }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={republicChartData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      innerRadius={60} 
+                      outerRadius={80} 
+                      paddingAngle={5}
+                      stroke="none"
+                      cornerRadius={5}
+                    >
+                      {republicChartData.map((entry, i) => (
+                        <Cell 
+                          key={i} 
+                          fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[i % CHART_COLORS.length]} 
+                        />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                      contentStyle={{ 
+                        borderRadius: "8px", 
+                        border: "none", 
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        fontSize: "12px"
+                      }}
+                      itemStyle={{ color: "#1e293b" }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle"
+                      formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center Label */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] text-center pointer-events-none">
+                  <span className="text-xs text-muted-foreground block">Total</span>
+                  <span className="text-lg font-bold">R$ {totalMonthExpenses.toFixed(0)}</span>
+                </div>
+              </>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
                 <span className="opacity-50">Sem dados no período</span>
@@ -135,6 +158,7 @@ export function RepublicTab({
                         <div>
                           <p className="text-sm font-medium leading-none">{e.title}</p>
                           <p className="text-xs text-muted-foreground mt-1">
+                            {/* Translations also applied here if needed, but categories usually display fine or we can map them */}
                             {e.category} • {format(new Date(e.purchase_date), "dd MMM")}
                           </p>
                         </div>

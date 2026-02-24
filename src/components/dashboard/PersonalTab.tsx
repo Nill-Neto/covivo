@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, AlertCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { CHART_COLORS } from "@/constants/categories";
 
 interface PersonalTabProps {
   totalIndividualPending: number;
@@ -103,9 +104,24 @@ export function PersonalTab({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={personalChartData} layout="vertical" margin={{ left: 5, right: 20 }}>
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={70} tick={{ fontSize: 11 }} />
-                  <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(v: number) => `R$ ${v.toFixed(2)}`} contentStyle={{ borderRadius: "8px" }} />
-                  <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={24} />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={80} 
+                    tick={{ fontSize: 11, fill: "#64748b" }} 
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <RechartsTooltip 
+                    cursor={{fill: '#f1f5f9', radius: 4}} 
+                    formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }} 
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                     {personalChartData.map((_, index) => (
+                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                     ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem dados</div>}

@@ -2,27 +2,18 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, TrendingUp, DollarSign, Loader2, ListChecks, User, Users, Calendar, CreditCard, Plus, CalendarClock, Info, AlertCircle, ChevronLeft, ChevronRight, Package, PieChart as PieIcon, BarChart3, Wallet, ArrowRight } from "lucide-react";
-import { format, subDays, isAfter, isSameDay, addMonths, subMonths, startOfDay, endOfDay } from "date-fns";
+import { User, Users, CreditCard } from "lucide-react";
+import { format, subDays, isAfter, isSameDay, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from "recharts";
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { RepublicTab } from "@/components/dashboard/RepublicTab";
 import { PersonalTab } from "@/components/dashboard/PersonalTab";
 import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs } from "@/components/dashboard/PaymentDialogs";
+import { getCategoryLabel } from "@/constants/categories";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -142,7 +133,8 @@ export default function Dashboard() {
   const republicChartData = useMemo(() => {
     const categories: Record<string, number> = {};
     collectiveExpenses.forEach(e => {
-      categories[e.category] = (categories[e.category] || 0) + Number(e.amount);
+      const label = getCategoryLabel(e.category);
+      categories[label] = (categories[label] || 0) + Number(e.amount);
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
@@ -158,7 +150,8 @@ export default function Dashboard() {
   const personalChartData = useMemo(() => {
     const categories: Record<string, number> = {};
     myPersonalExpenses.forEach(e => {
-      categories[e.category] = (categories[e.category] || 0) + Number(e.amount);
+      const label = getCategoryLabel(e.category);
+      categories[label] = (categories[label] || 0) + Number(e.amount);
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
@@ -198,8 +191,9 @@ export default function Dashboard() {
   const cardsChartData = useMemo(() => {
     const categories: Record<string, number> = {};
     billInstallments.forEach((i: any) => {
-      const cat = i.expenses?.category || "Outros";
-      categories[cat] = (categories[cat] || 0) + Number(i.amount);
+      const rawCat = i.expenses?.category || "other";
+      const label = getCategoryLabel(rawCat);
+      categories[label] = (categories[label] || 0) + Number(i.amount);
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
@@ -284,13 +278,13 @@ export default function Dashboard() {
       {/* Main Tabs */}
       <Tabs defaultValue="republic" className="space-y-6">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
-          <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3">
+          <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
             <Users className="h-4 w-4 mr-2" /> República
           </TabsTrigger>
-          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3">
+          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
             <User className="h-4 w-4 mr-2" /> Pessoal
           </TabsTrigger>
-          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3">
+          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
             <CreditCard className="h-4 w-4 mr-2" /> Cartões
           </TabsTrigger>
         </TabsList>
