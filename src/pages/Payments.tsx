@@ -72,7 +72,7 @@ export default function Payments() {
 
       // Get profile names for paid_by
       const userIds = [...new Set(data.map((p) => p.paid_by))];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name").eq("group_id", membership!.group_id).in("id", userIds);
       return data.map((p) => ({
         ...p,
         payer_name: profiles?.find((pr) => pr.id === p.paid_by)?.full_name ?? "—",

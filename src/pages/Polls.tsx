@@ -78,7 +78,7 @@ export default function Polls() {
       ]);
 
       const userIds = [...new Set(pollsData.map((p) => p.created_by))];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name").eq("group_id", membership!.group_id).in("id", userIds);
       const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) ?? []);
 
       return pollsData.map((poll) => {
