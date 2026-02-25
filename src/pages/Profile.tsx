@@ -10,14 +10,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, Shield, FileText, Download, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Shield, FileText, FileSpreadsheet, Loader2, Download } from "lucide-react";
 
 export default function Profile() {
   const { profile, membership, isAdmin, user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState(profile?.full_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
-  const [generating, setGenerating] = useState(false);
+  
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [generatingCsv, setGeneratingCsv] = useState(false);
 
   const updateProfile = useMutation({
     mutationFn: async () => {
@@ -34,34 +36,45 @@ export default function Profile() {
     onError: () => toast({ title: "Erro ao atualizar perfil", variant: "destructive" }),
   });
 
-  const generateReport = async () => {
+  const generateReport = async (format: 'pdf' | 'csv') => {
     if (!membership) return;
-    setGenerating(true);
+    
+    const setLoading = format === 'pdf' ? setGeneratingPdf : setGeneratingCsv;
+    setLoading(true);
+
     try {
       const { data, error } = await supabase.functions.invoke("generate-report", {
-        body: { group_id: membership.group_id },
+        body: { group_id: membership.group_id, format },
       });
+
       if (error) throw error;
+      if (!data?.file) throw new Error("Dados do arquivo não recebidos");
       
-      // data is base64 PDF
-      const byteCharacters = atob(data.pdf);
+      // Decode Base64
+      const byteCharacters = atob(data.file);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
+      
+      const blob = new Blob([byteArray], { type: data.contentType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `relatorio-${new Date().toISOString().slice(0, 7)}.pdf`;
+      const ext = format === 'pdf' ? 'pdf' : 'csv';
+      a.download = `relatorio-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast({ title: "Relatório gerado com sucesso!" });
-    } catch (e) {
-      toast({ title: "Erro ao gerar relatório", variant: "destructive" });
+
+      toast({ title: `Relatório ${format.toUpperCase()} gerado com sucesso!` });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Erro ao gerar relatório", description: e.message, variant: "destructive" });
     } finally {
-      setGenerating(false);
+      setLoading(false);
     }
   };
 
@@ -124,14 +137,29 @@ export default function Profile() {
       <Card>
         <CardHeader>
           <CardTitle className="font-serif text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />Relatórios
+            <FileText className="h-5 w-5" />Relatórios Mensais
           </CardTitle>
-          <CardDescription>Gere relatórios mensais em PDF</CardDescription>
+          <CardDescription>Baixe o resumo financeiro da moradia</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={generateReport} disabled={generating}>
-            {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {generating ? "Gerando..." : "Gerar relatório mensal (PDF)"}
+        <CardContent className="flex flex-col sm:flex-row gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => generateReport('pdf')} 
+            disabled={generatingPdf || generatingCsv}
+            className="flex-1"
+          >
+            {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4 text-red-600" />}
+            {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => generateReport('csv')} 
+            disabled={generatingPdf || generatingCsv}
+            className="flex-1"
+          >
+            {generatingCsv ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />}
+            {generatingCsv ? "Gerando CSV..." : "Baixar CSV"}
           </Button>
         </CardContent>
       </Card>
