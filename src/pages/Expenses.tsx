@@ -333,8 +333,10 @@ export default function Expenses() {
     setOpen(true);
   };
 
-  // Filter "all" to only expenses the user is involved in (has a split or created)
+  // Filter "all": show collective expenses + only the user's own individual expenses
   const filteredAll = (expenses ?? []).filter(e => {
+    if (e.expense_type === 'collective') return true;
+    // Individual: only show if the user created it or has a split
     if (e.created_by === user?.id) return true;
     const splits = (e.expense_splits as any[]) || [];
     return splits.some((s: any) => s.user_id === user?.id);
