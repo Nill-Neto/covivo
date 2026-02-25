@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,19 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Check, X, Upload, Image, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Check, X, Upload, Image, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { format, addMonths, subMonths, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export default function Payments() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
+  
   const [open, setOpen] = useState(false);
-  const [splitId, setSplitId] = useState("");
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  
+  // Alterado para array de IDs
+  const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -81,7 +87,7 @@ export default function Payments() {
     enabled: !!membership?.group_id,
   });
 
-  // Fetch pending splits for current user (Independent of cycle, always show ALL pending)
+  // Fetch pending splits for current user
   const { data: pendingSplits } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
@@ -96,9 +102,31 @@ export default function Payments() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
+  // Effect: Update total amount when selection changes
+  useEffect(() => {
+    if (!pendingSplits) return;
+    const total = pendingSplits
+      .filter((s) => selectedSplitIds.includes(s.id))
+      .reduce((sum, s) => sum + Number(s.amount), 0);
+    
+    // Only update if greater than 0 to avoid clearing manual edits unnecessarily 
+    // (though manual edits are discouraged in multi-select mode)
+    if (selectedSplitIds.length > 0) {
+      setAmount(total.toFixed(2));
+    } else {
+      setAmount("");
+    }
+  }, [selectedSplitIds, pendingSplits]);
+
+  const toggleSplitSelection = (id: string) => {
+    setSelectedSplitIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   const handleSubmitPayment = async () => {
-    if (!splitId || !amount || parseFloat(amount) <= 0) {
-      toast({ title: "Erro", description: "Selecione a despesa e informe o valor.", variant: "destructive" });
+    if (selectedSplitIds.length === 0 || !amount || parseFloat(amount) <= 0) {
+      toast({ title: "Erro", description: "Selecione pelo menos uma despesa.", variant: "destructive" });
       return;
     }
     if (!receiptFile) {
@@ -108,28 +136,39 @@ export default function Payments() {
 
     setSaving(true);
     try {
-      // Upload receipt
+      // 1. Upload receipt once
       const ext = receiptFile.name.split(".").pop();
       const path = `${user!.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("receipts").upload(path, receiptFile);
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      const { error } = await supabase.from("payments").insert({
-        group_id: membership!.group_id,
-        expense_split_id: splitId,
-        paid_by: user!.id,
-        amount: parseFloat(amount),
-        receipt_url: urlData.publicUrl,
-        notes: notes.trim() || null,
+      // 2. Insert payment records (one per split)
+      const paymentsToInsert = selectedSplitIds.map((splitId) => {
+        const split = pendingSplits?.find(s => s.id === splitId);
+        // We use the exact split amount for the record to ensure accounting consistency
+        const splitAmount = split ? Number(split.amount) : 0;
+        
+        return {
+          group_id: membership!.group_id,
+          expense_split_id: splitId,
+          paid_by: user!.id,
+          amount: splitAmount,
+          receipt_url: urlData.publicUrl,
+          notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
+        };
       });
+
+      const { error } = await supabase.from("payments").insert(paymentsToInsert);
       if (error) throw error;
 
       toast({ title: "Pagamento enviado!", description: "Aguardando confirmação do administrador." });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      
+      // Reset form
       setOpen(false);
-      setSplitId("");
+      setSelectedSplitIds([]);
       setAmount("");
       setNotes("");
       setReceiptFile(null);
@@ -155,8 +194,6 @@ export default function Payments() {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
   };
-
-  const selectedSplit = pendingSplits?.find((s) => s.id === splitId);
 
   if (isLoading) {
     return (
@@ -193,32 +230,77 @@ export default function Payments() {
               <DialogTrigger asChild>
                 <Button className="gap-2 h-10"><Plus className="h-4 w-4" /> Enviar Pagamento</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md overflow-visible">
                 <DialogHeader>
                   <DialogTitle className="font-serif">Enviar Comprovante</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
+                  
+                  {/* Multi-select Dropdown */}
                   <div className="space-y-2">
-                    <Label>Despesa</Label>
-                    <Select value={splitId} onValueChange={(v) => {
-                      setSplitId(v);
-                      const s = pendingSplits?.find((ps) => ps.id === v);
-                      if (s) setAmount(String(s.amount));
-                    }}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a despesa..." /></SelectTrigger>
-                      <SelectContent>
-                        {pendingSplits?.map((s: any) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.expenses?.title} — R$ {Number(s.amount).toFixed(2)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Despesas ({selectedSplitIds.length})</Label>
+                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={comboboxOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedSplitIds.length > 0
+                            ? `${selectedSplitIds.length} item(ns) selecionado(s)`
+                            : "Selecione as despesas..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[350px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar despesa..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhuma despesa pendente.</CommandEmpty>
+                            <CommandGroup className="max-h-[200px] overflow-auto">
+                              {pendingSplits?.map((split: any) => (
+                                <CommandItem
+                                  key={split.id}
+                                  value={split.id + split.expenses?.title} // Search key
+                                  onSelect={() => toggleSplitSelection(split.id)}
+                                  className="cursor-pointer"
+                                >
+                                  <div
+                                    className={cn(
+                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                      selectedSplitIds.includes(split.id)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "opacity-50 [&_svg]:invisible"
+                                    )}
+                                  >
+                                    <Check className={cn("h-4 w-4")} />
+                                  </div>
+                                  <div className="flex flex-1 justify-between items-center gap-2 overflow-hidden">
+                                    <span className="truncate">{split.expenses?.title}</span>
+                                    <span className="text-muted-foreground whitespace-nowrap">R$ {Number(split.amount).toFixed(2)}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Valor (R$)</Label>
-                    <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    <Label>Valor Total (R$)</Label>
+                    <Input 
+                      type="number" 
+                      value={amount} 
+                      onChange={(e) => setAmount(e.target.value)} 
+                      disabled={selectedSplitIds.length > 1} // Disable manual edit if multiple items (prevents partial payment logic issues)
+                      className={selectedSplitIds.length > 1 ? "bg-muted font-bold" : ""}
+                    />
+                    {selectedSplitIds.length > 1 && (
+                      <p className="text-[10px] text-muted-foreground">Soma automática das despesas selecionadas.</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
