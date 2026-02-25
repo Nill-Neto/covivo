@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
-  User,
   Users,
   Settings,
   LogOut,
@@ -41,6 +40,8 @@ import {
   Wallet,
   ChevronDown,
   Menu,
+  MoreVertical,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -122,16 +123,42 @@ export function AppLayout() {
       </div>
 
       <div className="border-t p-4">
-        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-          <Avatar className="h-9 w-9 border">
-            <AvatarImage src={profile?.avatar_url} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-medium">{profile?.full_name}</p>
-            <p className="truncate text-xs text-muted-foreground">{profile?.email}</p>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3 hover:bg-muted cursor-pointer transition-colors group">
+              <Avatar className="h-9 w-9 border group-hover:border-primary/50 transition-colors">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 overflow-hidden">
+                <p className="truncate text-sm font-medium group-hover:text-primary transition-colors">{profile?.full_name}</p>
+                <p className="truncate text-xs text-muted-foreground">{profile?.email}</p>
+              </div>
+              <MoreVertical className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" side="top" sideOffset={10}>
+             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+             <DropdownMenuSeparator />
+             <DropdownMenuItem asChild>
+               <Link to="/profile" className="cursor-pointer">
+                 <User className="mr-2 h-4 w-4" />
+                 Meu Perfil
+               </Link>
+             </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+               <Link to="/settings" className="cursor-pointer">
+                 <Settings className="mr-2 h-4 w-4" />
+                 Configurações
+               </Link>
+             </DropdownMenuItem>
+             <DropdownMenuSeparator />
+             <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive cursor-pointer">
+               <LogOut className="mr-2 h-4 w-4" />
+               Sair
+             </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -196,7 +223,7 @@ export function AppLayout() {
             </div>
 
             <NotificationBell />
-            <UserMenu profile={profile} signOut={signOut} />
+            {/* UserMenu removido do header */}
           </div>
         </header>
 
@@ -255,33 +282,5 @@ function CollapsibleNavGroup({
         })}
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-function UserMenu({ profile, signOut }: any) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full ml-1">
-          <User className="h-5 w-5" />
-          <span className="sr-only">Menu do usuário</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/profile" className="cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            Perfil
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
-          <LogOut className="mr-2 h-4 w-4" />
-          Sair
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
