@@ -54,8 +54,9 @@ export default function Bulletin() {
 
       const userIds = [...new Set((data || []).map((p) => p.created_by))];
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("group_member_profiles")
         .select("id, full_name")
+        .eq("group_id", membership!.group_id)
         .in("id", userIds);
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) ?? []);

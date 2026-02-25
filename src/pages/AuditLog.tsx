@@ -22,12 +22,20 @@ export default function AuditLog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("audit_log")
-        .select("*, profiles:user_id(full_name)")
+        .select("*")
         .eq("group_id", membership!.group_id)
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data;
+
+      const userIds = [...new Set((data || []).map((l) => l.user_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase
+        .from("group_member_profiles")
+        .select("id, full_name")
+        .eq("group_id", membership!.group_id)
+        .in("id", userIds);
+      const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) ?? []);
+      return (data || []).map((l) => ({ ...l, profiles: l.user_id ? { full_name: profileMap.get(l.user_id) ?? null } : null }));
     },
     enabled: !!membership?.group_id,
   });

@@ -150,7 +150,7 @@ export default function Dashboard() {
       ]);
 
       const userIds = membersRes.data?.map(m => m.user_id) ?? [];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
+      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id).in("id", userIds);
 
       const members = membersRes.data?.map(m => ({
         ...m,
