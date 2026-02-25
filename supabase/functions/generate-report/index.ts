@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
+import { encodeBase64 } from "https://deno.land/std@0.207.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,10 +23,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log("[generate-report] Function started");
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+
+    if (!authHeader) {
+      console.error("[generate-report] Missing Authorization header");
+      return new Response(JSON.stringify({ error: "No auth header" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const supabase = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -33,21 +41,28 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error("[generate-report] Auth error:", authError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { group_id, format = 'pdf' } = await req.json();
+    const body = await req.json();
+    const { group_id, format = 'pdf' } = body;
     
+    console.log("[generate-report] Request parameters:", { group_id, format, user_id: user.id });
+
     if (!group_id) {
       return new Response(JSON.stringify({ error: "group_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Date range for current month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
 
+    console.log("[generate-report] Fetching data for cycle:", { startOfMonth, endOfMonth });
+
     const [groupRes, expensesRes, balancesRes, paymentsRes] = await Promise.all([
-      supabase.from("groups").select("name").eq("id", group_id).single(),
+      supabase.from("groups").select("name").eq("id", group_id).maybeSingle(),
       supabase
         .from("expenses")
         .select("title, amount, category, expense_type, created_at, purchase_date, created_by")
@@ -64,11 +79,21 @@ Deno.serve(async (req) => {
         .lte("created_at", endOfMonth),
     ]);
 
+    if (groupRes.error) console.error("[generate-report] Group fetch error:", groupRes.error);
+    if (expensesRes.error) console.error("[generate-report] Expenses fetch error:", expensesRes.error);
+    if (balancesRes.error) console.error("[generate-report] Balances RPC error:", balancesRes.error);
+
     const groupName = groupRes.data?.name ?? "República";
     const expenses = expensesRes.data ?? [];
     const balances = balancesRes.data ?? [];
     const payments = paymentsRes.data ?? [];
     
+    console.log("[generate-report] Data retrieved:", { 
+      expenses_count: expenses.length, 
+      balances_count: balances.length, 
+      payments_count: payments.length 
+    });
+
     // Collect user IDs for names
     const userIds = new Set<string>();
     balances.forEach((b: any) => userIds.add(b.user_id));
@@ -84,7 +109,7 @@ Deno.serve(async (req) => {
     let contentType = "";
 
     if (format === 'csv') {
-      // Generate CSV
+      console.log("[generate-report] Generating CSV");
       contentType = "text/csv";
       const header = ["Data", "Título", "Categoria", "Tipo", "Valor", "Criado Por"].join(",");
       const rows = expenses.map((e: any) => {
@@ -101,11 +126,11 @@ Deno.serve(async (req) => {
       });
       
       const csvContent = [header, ...rows].join("\n");
-      // Encode CSV string to Base64
-      fileData = btoa(unescape(encodeURIComponent(csvContent)));
+      const encoder = new TextEncoder();
+      fileData = encodeBase64(encoder.encode(csvContent));
 
     } else {
-      // Generate PDF
+      console.log("[generate-report] Generating PDF");
       contentType = "application/pdf";
       const totalExpenses = expenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
       const totalPayments = payments.filter((p: any) => p.status === "confirmed").reduce((s: number, p: any) => s + Number(p.amount), 0);
@@ -123,7 +148,7 @@ Deno.serve(async (req) => {
       const drawText = (text: string, options: any = {}) => {
         const size = options.size || 10;
         const f = options.font || font;
-        if (y < margin) {
+        if (y < margin + 20) {
           page = pdfDoc.addPage();
           y = height - margin;
         }
@@ -155,30 +180,30 @@ Deno.serve(async (req) => {
       y -= 20;
 
       drawText("SALDOS", { size: 14, font: fontBold });
-      if (balances.length === 0) drawText("Nenhum saldo calculado.");
-      else {
+      if (balances.length === 0) {
+        drawText("Nenhum saldo calculado.");
+      } else {
         for (const b of balances) {
           const name = nameMap[b.user_id] || "Desconhecido";
           drawText(`${name}: Saldo R$ ${Number(b.balance).toFixed(2)} (Devido: R$ ${Number(b.total_owed).toFixed(2)})`);
         }
       }
 
-      // Safe Base64 conversion for Uint8Array
       const pdfBytes = await pdfDoc.save();
-      let binary = '';
-      const len = pdfBytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(pdfBytes[i]);
-      }
-      fileData = btoa(binary);
+      fileData = encodeBase64(pdfBytes);
     }
+
+    console.log("[generate-report] File generated successfully");
 
     return new Response(JSON.stringify({ file: fileData, contentType }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err: any) {
-    console.error("Report error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    console.error("[generate-report] Unexpected error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), { 
+      status: 500, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });
