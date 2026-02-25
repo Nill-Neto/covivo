@@ -80,7 +80,6 @@ const adminGroup = {
   items: [
     { to: "/recurring", icon: RefreshCw, label: "Recorrências" },
     { to: "/invites", icon: UserPlus, label: "Convites" },
-    { to: "/settings", icon: Settings, label: "Configurações" },
     { to: "/audit-log", icon: ScrollText, label: "Histórico" },
   ],
 };
