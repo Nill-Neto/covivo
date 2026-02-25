@@ -8,6 +8,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const escapeCsv = (str: any) => {
+  if (str === null || str === undefined) return "";
+  const s = String(str);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,15 +27,17 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization");
 
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       console.error("[generate-report] Missing Authorization header");
       return new Response(JSON.stringify({ error: "No auth header" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Extract JWT token and verify user
     const token = authHeader.replace("Bearer ", "");
+
+    // Verify user identity with service role
     const serviceClient = createClient(supabaseUrl, serviceKey);
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) {
@@ -34,19 +45,23 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Use service role client for data queries
+    // User-scoped client for RPC calls that use auth.uid()
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Service client for direct data queries
     const supabase = serviceClient;
 
     const body = await req.json();
     const { group_id, format = 'pdf' } = body;
-    
+
     console.log("[generate-report] Request parameters:", { group_id, format, user_id: user.id });
 
     if (!group_id) {
       return new Response(JSON.stringify({ error: "group_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Date range for current month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
@@ -62,7 +77,8 @@ Deno.serve(async (req) => {
         .gte("purchase_date", startOfMonth)
         .lte("purchase_date", endOfMonth)
         .order("purchase_date"),
-      supabase.rpc("get_member_balances", { _group_id: group_id }),
+      // Use user-scoped client because get_member_balances checks auth.uid()
+      userClient.rpc("get_member_balances", { _group_id: group_id }),
       supabase
         .from("payments")
         .select("amount, status, created_at")
@@ -79,18 +95,18 @@ Deno.serve(async (req) => {
     const expenses = expensesRes.data ?? [];
     const balances = balancesRes.data ?? [];
     const payments = paymentsRes.data ?? [];
-    
-    console.log("[generate-report] Data retrieved:", { 
-      expenses_count: expenses.length, 
-      balances_count: balances.length, 
-      payments_count: payments.length 
+
+    console.log("[generate-report] Data retrieved:", {
+      expenses_count: expenses.length,
+      balances_count: balances.length,
+      payments_count: payments.length,
     });
 
     // Collect user IDs for names
     const userIds = new Set<string>();
     balances.forEach((b: any) => userIds.add(b.user_id));
     expenses.forEach((e: any) => userIds.add(e.created_by));
-    
+
     let nameMap: Record<string, string> = {};
     if (userIds.size > 0) {
       const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", Array.from(userIds));
@@ -113,14 +129,13 @@ Deno.serve(async (req) => {
           escapeCsv(e.category),
           escapeCsv(e.expense_type),
           e.amount,
-          escapeCsv(name)
+          escapeCsv(name),
         ].join(",");
       });
-      
+
       const csvContent = [header, ...rows].join("\n");
       const encoder = new TextEncoder();
       fileData = encodeBase64(encoder.encode(csvContent));
-
     } else {
       console.log("[generate-report] Generating PDF");
       contentType = "application/pdf";
@@ -148,9 +163,9 @@ Deno.serve(async (req) => {
         y -= (size + 5);
       };
 
-      drawText(`RELATÓRIO MENSAL - ${groupName.toUpperCase()}`, { size: 18, font: fontBold });
+      drawText(`RELATORIO MENSAL - ${groupName.toUpperCase()}`, { size: 18, font: fontBold });
       y -= 10;
-      drawText(`Período: ${monthName}`, { size: 12 });
+      drawText(`Periodo: ${monthName}`, { size: 12 });
       y -= 20;
 
       drawText("RESUMO", { size: 14, font: fontBold });
@@ -158,7 +173,7 @@ Deno.serve(async (req) => {
       drawText(`Pagamentos confirmados: R$ ${totalPayments.toFixed(2)}`);
       y -= 20;
 
-      drawText("DESPESAS DO MÊS", { size: 14, font: fontBold });
+      drawText("DESPESAS DO MES", { size: 14, font: fontBold });
       if (expenses.length === 0) {
         drawText("Nenhuma despesa registrada.");
       } else {
@@ -193,9 +208,9 @@ Deno.serve(async (req) => {
 
   } catch (err: any) {
     console.error("[generate-report] Unexpected error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
