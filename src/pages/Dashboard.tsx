@@ -63,7 +63,6 @@ export default function Dashboard() {
 
   // --- Queries ---
 
-  // 1. All Expenses in Cycle
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
     queryFn: async () => {
@@ -89,7 +88,6 @@ export default function Dashboard() {
     enabled: !!membership?.group_id
   });
 
-  // 2. Pending Splits
   const { data: pendingSplits = [] } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
@@ -104,7 +102,6 @@ export default function Dashboard() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
-  // 3. User Credit Cards
   const { data: creditCards = [] } = useQuery({
     queryKey: ["my-credit-cards", user?.id],
     queryFn: async () => {
@@ -114,7 +111,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // 4. Bill Installments
   const { data: billInstallments = [] } = useQuery({
     queryKey: ["bill-installments-dashboard", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
@@ -133,7 +129,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // 5. Admin Data (UPDATED to use v2 function)
   const { data: adminData } = useQuery({
     queryKey: ["admin-dashboard-data", membership?.group_id],
     queryFn: async () => {
@@ -175,7 +170,6 @@ export default function Dashboard() {
 
   // --- Data Processing ---
 
-  // Republic Data
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   
@@ -196,7 +190,6 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  // Personal Data (In cycle)
   const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
   
   const totalPersonalCash = myPersonalExpenses
@@ -222,14 +215,12 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [myPersonalExpenses]);
 
-  // Pending Splits Logic
   const filteredPendingSplits = pendingSplits.filter((s: any) => {
     const dateStr = s.expenses?.purchase_date;
     if (!dateStr) return false;
-    const expenseDateStr = dateStr;
     const startStr = format(cycleStart, "yyyy-MM-dd");
     const endStr = format(cycleEnd, "yyyy-MM-dd");
-    return expenseDateStr >= startStr && expenseDateStr < endStr;
+    return dateStr >= startStr && dateStr < endStr;
   });
 
   const collectivePending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
@@ -392,7 +383,14 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
-            onPayIndividual={() => setPayIndividualOpen(true)}
+            onPayIndividual={(split) => {
+              if (split) {
+                setSelectedIndividualSplit(split);
+                setPayIndividualOpen(true);
+              } else {
+                setPayIndividualOpen(true);
+              }
+            }}
           />
         </TabsContent>
 
