@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,15 +7,15 @@
 
 @layer base {
   :root {
-    /* Professional Light Theme - "Fintech Premium" - Revised */
+    /* Professional Light Theme - "Fintech Premium" */
     
-    /* Main Background: Slate-50 for depth, distinct from white cards */
+    /* Main Background: Subtle, high-quality off-white/blue tint */
     --background: 210 40% 98%; 
     
     /* Main Text: Deep Navy */
     --foreground: 222 47% 11%;
 
-    /* Cards: Pure white */
+    /* Cards: Pure white with better shadow definition */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
@@ -52,7 +53,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221 83% 53%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Sidebar: Deep Professional Navy */
     --sidebar-background: 222 47% 11%;
@@ -121,19 +122,31 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Typography Hierarchy - Standard Sans Only */
+  /* Typography Hierarchy */
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight font-medium;
   }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
   
-  /* Reset serif class to sans-serif as user rejected font changes */
+  /* Serif Utility for specific headings/numbers */
   .font-serif {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
-    font-weight: 600;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
   }
 }
 
 @layer utilities {
+  .card-gradient {
+    @apply bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950;
+  }
+  
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600;
   }
