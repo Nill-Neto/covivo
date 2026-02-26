@@ -63,6 +63,7 @@ export default function Dashboard() {
 
   // --- Queries ---
 
+  // 1. Expenses purchased in this cycle (filtered by date)
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
     queryFn: async () => {
@@ -71,13 +72,7 @@ export default function Dashboard() {
 
       const { data, error } = await supabase
         .from("expenses")
-        .select(`
-          *,
-          expense_splits (
-            user_id,
-            amount
-          )
-        `)
+        .select(`*, expense_splits (user_id, amount)`)
         .eq("group_id", membership!.group_id)
         .gte("purchase_date", dbStart)
         .lt("purchase_date", dbEnd);
@@ -88,12 +83,13 @@ export default function Dashboard() {
     enabled: !!membership?.group_id
   });
 
+  // 2. Pending splits (Debts)
   const { data: pendingSplits = [] } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -102,6 +98,7 @@ export default function Dashboard() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
+  // 3. Credit Cards
   const { data: creditCards = [] } = useQuery({
     queryKey: ["my-credit-cards", user?.id],
     queryFn: async () => {
@@ -111,6 +108,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  // 4. Installments for this month (Bill items)
   const { data: billInstallments = [] } = useQuery({
     queryKey: ["bill-installments-dashboard", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
@@ -119,7 +117,7 @@ export default function Dashboard() {
 
       const { data } = await supabase
         .from("expense_installments" as any)
-        .select("amount, expenses(title, category, credit_card_id)")
+        .select("amount, installment_number, expenses(title, category, credit_card_id, expense_type, purchase_date, payment_method)")
         .eq("user_id", user!.id)
         .eq("bill_month", targetMonth)
         .eq("bill_year", targetYear);
@@ -129,6 +127,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  // 5. Admin Data
   const { data: adminData } = useQuery({
     queryKey: ["admin-dashboard-data", membership?.group_id],
     queryFn: async () => {
@@ -170,6 +169,7 @@ export default function Dashboard() {
 
   // --- Data Processing ---
 
+  // Republic Tab Data
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   
@@ -190,41 +190,70 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
+  // Personal Tab Data (Competence View)
   
-  const totalPersonalCash = myPersonalExpenses
-    .filter(e => e.payment_method !== "credit_card")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+  // 1. Cash Expenses (purchased in this cycle, paid immediately)
+  const myPersonalCashExpenses = expensesInCycle.filter(e => 
+    e.created_by === user?.id && 
+    e.expense_type === "individual" && 
+    e.payment_method !== "credit_card"
+  );
+  const totalPersonalCash = myPersonalCashExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const totalPersonalCredit = myPersonalExpenses
-    .filter(e => e.payment_method === "credit_card")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+  // 2. Personal Installments (from credit card, falling in this month's bill)
+  const myPersonalInstallments = billInstallments.filter((i: any) => i.expenses?.expense_type === "individual");
+  const totalPersonalInstallments = myPersonalInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
-  const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
-
-  const totalUserExpenses = myCollectiveShare + totalPersonalCredit;
+  // 3. Merged List for "History/Chart" (Competence View)
+  const personalCompetenceList = [
+    ...myPersonalCashExpenses.map(e => ({
+      ...e,
+      display_amount: Number(e.amount),
+      is_installment: false
+    })),
+    ...myPersonalInstallments.map((i: any) => ({
+      id: i.expenses?.id + "_inst_" + i.installment_number, // fake id for key
+      title: i.expenses?.title,
+      category: i.expenses?.category,
+      purchase_date: i.expenses?.purchase_date,
+      payment_method: "credit_card",
+      amount: i.amount, // Installment amount
+      display_amount: i.amount,
+      is_installment: true
+    }))
+  ].sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime());
 
   const personalChartData = useMemo(() => {
     const categories: Record<string, number> = {};
-    myPersonalExpenses.forEach(e => {
+    personalCompetenceList.forEach((e: any) => {
       const label = getCategoryLabel(e.category);
-      categories[label] = (categories[label] || 0) + Number(e.amount);
+      categories[label] = (categories[label] || 0) + Number(e.display_amount);
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [myPersonalExpenses]);
+  }, [personalCompetenceList]);
 
+  // Total User "Comprometido" (Cost) = Share + Cash + Personal Installments
+  const totalUserExpenses = myCollectiveShare + totalPersonalCash + totalPersonalInstallments;
+
+  // Pending Splits Logic
   const filteredPendingSplits = pendingSplits.filter((s: any) => {
-    // Show all pending splits regardless of date, or filter by logic if needed
-    // Usually pending debts are relevant until paid
-    return true; 
+    // We filter OUT credit card individual expenses from "Pending", because they are debts to the bank/card, not "manual pending payments"
+    if (s.expenses?.expense_type === "individual" && s.expenses?.payment_method === "credit_card") {
+      return false;
+    }
+    return true;
   });
 
   const collectivePending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
   const individualPending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "individual");
+  
   const totalCollectivePending = collectivePending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const totalIndividualPending = individualPending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+
+  // Cards Tab Data
+  const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
   const cardsBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
@@ -374,14 +403,14 @@ export default function Dashboard() {
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
             totalIndividualPending={totalIndividualPending}
-            totalCollectivePending={totalCollectivePending} // Adicionado
+            totalCollectivePending={totalCollectivePending}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
             totalUserExpenses={totalUserExpenses}
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
-            myPersonalExpenses={myPersonalExpenses}
+            myPersonalExpenses={personalCompetenceList}
           />
         </TabsContent>
 
