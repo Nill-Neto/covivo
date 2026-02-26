@@ -2,16 +2,8 @@ import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationBell } from "./NotificationBell";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserMenu } from "./UserMenu";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,8 +17,6 @@ import {
 import {
   LayoutDashboard,
   Users,
-  Settings,
-  LogOut,
   UserPlus,
   ScrollText,
   Receipt,
@@ -40,13 +30,10 @@ import {
   Wallet,
   ChevronDown,
   Menu,
-  MoreVertical,
-  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-// Grupos principais da Sidebar
 const mainNavGroups = [
   {
     title: "Moradia",
@@ -67,7 +54,6 @@ const mainNavGroups = [
   },
 ];
 
-// Itens de Convivência (Agora no Header)
 const convenienceItems = [
   { to: "/bulletin", icon: MessageSquare, label: "Mural" },
   { to: "/rules", icon: BookOpen, label: "Regras" },
@@ -85,17 +71,10 @@ const adminGroup = {
 };
 
 export function AppLayout() {
-  const { profile, membership, isAdmin, signOut } = useAuth();
+  const { membership, isAdmin } = useAuth();
   const location = useLocation();
 
   const sidebarGroups = isAdmin ? [...mainNavGroups, adminGroup] : mainNavGroups;
-
-  const initials = (profile?.full_name || "U")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col gap-4">
@@ -114,50 +93,10 @@ export function AppLayout() {
             <CollapsibleNavGroup key={group.title} title={group.title} items={group.items} location={location} />
           ))}
 
-          {/* Convivência - Visível apenas no Mobile dentro da Sidebar (Sheet) */}
           <div className="md:hidden">
             <CollapsibleNavGroup title="Convivência" items={convenienceItems} location={location} />
           </div>
         </nav>
-      </div>
-
-      <div className="border-t p-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3 hover:bg-muted cursor-pointer transition-colors group">
-              <Avatar className="h-9 w-9 border group-hover:border-primary/50 transition-colors">
-                <AvatarImage src={profile?.avatar_url} />
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium group-hover:text-primary transition-colors">{profile?.full_name}</p>
-                <p className="truncate text-xs text-muted-foreground">{profile?.email}</p>
-              </div>
-              <MoreVertical className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" side="top" sideOffset={10}>
-             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-             <DropdownMenuSeparator />
-             <DropdownMenuItem asChild>
-               <Link to="/profile" className="cursor-pointer">
-                 <User className="mr-2 h-4 w-4" />
-                 Meu Perfil
-               </Link>
-             </DropdownMenuItem>
-             <DropdownMenuItem asChild>
-               <Link to="/settings" className="cursor-pointer">
-                 <Settings className="mr-2 h-4 w-4" />
-                 Configurações
-               </Link>
-             </DropdownMenuItem>
-             <DropdownMenuSeparator />
-             <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive cursor-pointer">
-               <LogOut className="mr-2 h-4 w-4" />
-               Sair
-             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );
@@ -170,31 +109,32 @@ export function AppLayout() {
 
       <div className="flex flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
+          <div className="flex flex-1 items-center gap-4 min-w-0">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden shrink-0">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
 
-          <div className="flex-1">
+            <UserMenu />
+
             {membership && (
-              <div className="flex items-center gap-2">
-                <span className="hidden text-sm font-medium text-muted-foreground/80 sm:inline-block">
+              <div className="hidden sm:flex items-center gap-2 border-l pl-4 min-w-0">
+                <span className="text-xs font-medium text-muted-foreground/80 whitespace-nowrap">
                   Moradia:
                 </span>
-                <span className="text-sm font-semibold">{membership.group_name}</span>
+                <span className="text-sm font-semibold truncate">{membership.group_name}</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
-            {/* Ícones de Convivência no Header (Apenas Desktop) */}
+          <div className="flex items-center gap-1 shrink-0">
             <div className="hidden md:flex items-center gap-1 mr-2 border-r pr-2">
               {convenienceItems.map((item) => {
                 const isActive = location.pathname === item.to;
@@ -222,11 +162,10 @@ export function AppLayout() {
             </div>
 
             <NotificationBell />
-            {/* UserMenu removido do header */}
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
           <Outlet />
         </main>
       </div>
@@ -243,7 +182,7 @@ function CollapsibleNavGroup({
   items: { to: string; icon: any; label: string }[];
   location: any;
 }) {
-  const [isOpen, setIsOpen] = useState(true); // Default open for better UX
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-1">
