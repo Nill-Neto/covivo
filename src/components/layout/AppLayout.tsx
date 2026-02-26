@@ -30,9 +30,9 @@ import {
   Wallet,
   ChevronDown,
   Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const mainNavGroups = [
   {
@@ -73,6 +73,7 @@ const adminGroup = {
 export function AppLayout() {
   const { membership, isAdmin } = useAuth();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const sidebarGroups = isAdmin ? [...mainNavGroups, adminGroup] : mainNavGroups;
 
@@ -81,7 +82,7 @@ export function AppLayout() {
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
         R
       </div>
-      <span className="hidden xs:inline">Republi-K</span>
+      <span>Republi-K</span>
     </Link>
   );
 
@@ -90,11 +91,22 @@ export function AppLayout() {
       <div className="flex-1 overflow-y-auto py-4 px-3">
         <nav className="space-y-6">
           {sidebarGroups.map((group) => (
-            <CollapsibleNavGroup key={group.title} title={group.title} items={group.items} location={location} />
+            <CollapsibleNavGroup 
+              key={group.title} 
+              title={group.title} 
+              items={group.items} 
+              location={location} 
+              onItemClick={() => setMobileMenuOpen(false)}
+            />
           ))}
 
           <div className="md:hidden">
-            <CollapsibleNavGroup title="Convivência" items={convenienceItems} location={location} />
+            <CollapsibleNavGroup 
+              title="Convivência" 
+              items={convenienceItems} 
+              location={location} 
+              onItemClick={() => setMobileMenuOpen(false)}
+            />
           </div>
         </nav>
       </div>
@@ -104,22 +116,17 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header Superior Fixo */}
-      <header className="z-40 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden shrink-0">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <div className="p-6 border-b">
-                <Logo />
-              </div>
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden shrink-0"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span className="sr-only">Menu</span>
+          </Button>
 
           <Logo />
 
@@ -166,10 +173,20 @@ export function AppLayout() {
       </header>
 
       {/* Conteúdo Principal (Sidebar + Main) */}
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-64 shrink-0 border-r bg-card/30 md:flex md:flex-col overflow-y-auto">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar Desktop */}
+        <aside className="hidden w-64 shrink-0 border-r bg-primary text-primary-foreground md:flex md:flex-col overflow-y-auto shadow-xl">
           <SidebarContent />
         </aside>
+
+        {/* Sidebar Mobile (Aparece abaixo do header sem escurecer) */}
+        {mobileMenuOpen && (
+          <div className="absolute inset-0 z-40 md:hidden flex flex-col bg-background/95 backdrop-blur-sm">
+            <div className="w-full h-full bg-primary text-primary-foreground overflow-y-auto">
+              <SidebarContent />
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto w-full">
@@ -185,22 +202,24 @@ function CollapsibleNavGroup({
   title,
   items,
   location,
+  onItemClick,
 }: {
   title: string;
   items: { to: string; icon: any; label: string }[];
   location: any;
+  onItemClick?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-1">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 hover:bg-muted/50 rounded-md transition-colors group cursor-pointer">
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 group-hover:text-foreground">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 hover:bg-white/10 rounded-md transition-colors group cursor-pointer">
+        <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/50 group-hover:text-primary-foreground">
           {title}
         </h4>
         <ChevronDown
           className={cn(
-            "h-3 w-3 text-muted-foreground/50 transition-transform duration-200",
+            "h-3 w-3 text-primary-foreground/30 transition-transform duration-200",
             isOpen && "rotate-180"
           )}
         />
@@ -212,15 +231,16 @@ function CollapsibleNavGroup({
             <Link
               key={item.to}
               to={item.to}
+              onClick={onItemClick}
               className={cn(
                 "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-white/20 text-white"
+                  : "text-primary-foreground/70 hover:bg-white/10 hover:text-white"
               )}
             >
               <item.icon
-                className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")}
+                className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-primary-foreground/50 group-hover:text-white")}
               />
               {item.label}
             </Link>
