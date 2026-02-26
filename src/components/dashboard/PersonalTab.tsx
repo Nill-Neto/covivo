@@ -1,11 +1,19 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, DollarSign, TrendingUp, Users, Wallet } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Wallet, Calendar, ArrowRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface PersonalTabProps {
@@ -17,7 +25,7 @@ interface PersonalTabProps {
   myCollectiveShare: number;
   personalChartData: any[];
   myPersonalExpenses: any[];
-  onPayIndividual?: () => void; // Made optional as it's no longer used in the UI
+  onPayIndividual?: () => void;
 }
 
 export function PersonalTab({
@@ -29,7 +37,10 @@ export function PersonalTab({
   myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
+  onPayIndividual,
 }: PersonalTabProps) {
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -60,45 +71,73 @@ export function PersonalTab({
         </Card>
 
         {/* Pendências Individuais */}
-        <Card className={`${totalIndividualPending > 0 ? "border-warning/50 bg-warning/5" : ""}`}>
+        <Card className={`${totalIndividualPending > 0 ? "border-destructive bg-destructive/5" : ""}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className={`text-sm font-medium ${totalIndividualPending > 0 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+            <CardTitle className={`text-sm font-medium ${totalIndividualPending > 0 ? "text-destructive" : "text-muted-foreground"}`}>
               Pendências Individuais
             </CardTitle>
-            <AlertCircle className={`h-4 w-4 ${totalIndividualPending > 0 ? "text-warning" : "text-muted-foreground"}`} />
+            <AlertCircle className={`h-4 w-4 ${totalIndividualPending > 0 ? "text-destructive" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalIndividualPending > 0 ? "text-warning-foreground" : ""}`}>
+            <div className={`text-2xl font-bold ${totalIndividualPending > 0 ? "text-destructive" : ""}`}>
               R$ {totalIndividualPending.toFixed(2)}
             </div>
             {individualPending.length > 0 && (
               <div className="mt-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
-                      Ver {individualPending.length} itens pendentes
+                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-auto p-0 text-xs font-semibold text-destructive hover:underline">
+                      Ver {individualPending.length} pendência(s) →
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider mb-2">Detalhamento</h4>
-                      <ScrollArea className="h-[200px]">
-                        <div className="space-y-2">
-                          {individualPending.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-start text-sm border-b pb-2 last:border-0 last:pb-0">
-                              <span className="text-muted-foreground w-[140px] truncate" title={item.expenses?.title}>
-                                {item.expenses?.title}
-                              </span>
-                              <span className="font-medium whitespace-nowrap">
-                                R$ {Number(item.amount).toFixed(2)}
-                              </span>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-destructive" />
+                        Pendências Individuais
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <div className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                        <span className="text-sm font-medium">Total Pendente</span>
+                        <span className="text-lg font-bold text-destructive">R$ {totalIndividualPending.toFixed(2)}</span>
+                      </div>
+                      
+                      <ScrollArea className="max-h-[350px] pr-4">
+                        <div className="space-y-3">
+                          {individualPending.map((item) => (
+                            <div key={item.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold truncate pr-2">{item.expenses?.title}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date), "dd/MM/yyyy") : "Data não inf."}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-sm">R$ {Number(item.amount).toFixed(2)}</p>
+                              </div>
                             </div>
                           ))}
                         </div>
                       </ScrollArea>
+                      
+                      {onPayIndividual && (
+                        <Button 
+                          className="w-full gap-2 mt-2" 
+                          onClick={() => {
+                            setIsDetailOpen(false);
+                            onPayIndividual();
+                          }}
+                        >
+                          Ir para Pagamentos <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                  </PopoverContent>
-                </Popover>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </CardContent>
@@ -113,18 +152,6 @@ export function PersonalTab({
           <CardContent>
             <div className="text-2xl font-bold">R$ {totalPersonalCash.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Pix, Dinheiro ou Débito.</p>
-          </CardContent>
-        </Card>
-
-        {/* Fatura Atual (Visualização Apenas) */}
-        <Card className="opacity-80 hover:opacity-100 transition-opacity">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Fatura Cartão (Estimada)</CardTitle>
-            <div className="h-4 w-4 text-muted-foreground">💳</div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ {totalBill.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Parcelas a vencer.</p>
           </CardContent>
         </Card>
       </div>
