@@ -192,21 +192,17 @@ export default function Dashboard() {
 
   const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
   
-  // Expenses paid in cash/debit/pix within the current cycle
   const totalPersonalCash = myPersonalExpenses
     .filter(e => e.payment_method !== "credit_card")
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
-  // Total Credit Card expenses (Full amount, NOT installments) - useful for charts but excluded from "Total Comprometido"
   const totalPersonalCredit = myPersonalExpenses
     .filter(e => e.payment_method === "credit_card")
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
   const totalBill = billInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
-  // CORRECTION: Only count immediate liabilities (Collective Share + Personal Cash Expenses).
-  // Exclude credit card purchases (as they are future bills) and exclude bill installments (handled in Cards tab).
-  const totalUserExpenses = myCollectiveShare + totalPersonalCash;
+  const totalUserExpenses = myCollectiveShare + totalPersonalCredit;
 
   const personalChartData = useMemo(() => {
     const categories: Record<string, number> = {};
@@ -378,7 +374,7 @@ export default function Dashboard() {
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
             totalIndividualPending={totalIndividualPending}
-            totalCollectivePending={totalCollectivePending}
+            totalCollectivePending={totalCollectivePending} // Adicionado
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
