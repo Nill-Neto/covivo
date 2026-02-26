@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, DollarSign, TrendingUp, Users, Wallet, Calendar, CheckCircle2 } from "lucide-react";
+import { AlertCircle, TrendingUp, Users, Wallet, Calendar, CheckCircle2, Info } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,6 @@ interface PersonalTabProps {
   myCollectiveShare: number;
   personalChartData: any[];
   myPersonalExpenses: any[];
-  onPayIndividual?: (split?: any) => void;
 }
 
 export function PersonalTab({
@@ -37,162 +36,132 @@ export function PersonalTab({
   myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
-  onPayIndividual,
 }: PersonalTabProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Cards de Resumo */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="sm:col-span-2 bg-primary text-primary-foreground border-0 shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-primary-foreground/90">Total Comprometido (Mês)</CardTitle>
-            <Wallet className="h-4 w-4 text-primary-foreground/70" />
+        {/* Total Comprometido */}
+        <Card className="sm:col-span-2 bg-primary text-primary-foreground border-0 shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Wallet size={80} />
+          </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary-foreground/70">Total Comprometido (Mês)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">R$ {totalUserExpenses.toFixed(2)}</div>
-            <p className="text-xs text-primary-foreground/70 mt-1">Soma de Rateio + Gastos Individuais (Cartão).</p>
+            <div className="text-4xl font-bold tracking-tight">R$ {totalUserExpenses.toFixed(2)}</div>
+            <p className="text-[11px] text-primary-foreground/60 mt-2 font-medium">
+              Soma do seu rateio coletivo + seus gastos individuais no cartão.
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio da Casa</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+        {/* Card de Pendências - Redesenhado */}
+        <Card className={`relative flex flex-col justify-between overflow-hidden transition-all border-l-4 ${totalIndividualPending > 0 ? "border-l-destructive bg-destructive/5" : "border-l-success"}`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pendências Individuais</CardTitle>
+              {totalIndividualPending > 0 ? <AlertCircle className="h-4 w-4 text-destructive" /> : <CheckCircle2 className="h-4 w-4 text-success" />}
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ {myCollectiveShare.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Sua parte nas despesas coletivas.</p>
-          </CardContent>
-        </Card>
-
-        {/* Card de Pendências Individuais Melhorado */}
-        <Card className={`relative transition-all duration-300 ${totalIndividualPending > 0 ? "border-destructive/50 bg-destructive/5 ring-1 ring-destructive/20" : ""}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className={`text-sm font-medium ${totalIndividualPending > 0 ? "text-destructive" : "text-muted-foreground"}`}>
-              Pendências Individuais
-            </CardTitle>
-            <AlertCircle className={`h-4 w-4 ${totalIndividualPending > 0 ? "text-destructive" : "text-muted-foreground"}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${totalIndividualPending > 0 ? "text-destructive" : ""}`}>
+          <CardContent className="pb-4">
+            <div className={`text-2xl font-bold tracking-tight ${totalIndividualPending > 0 ? "text-destructive" : ""}`}>
               R$ {totalIndividualPending.toFixed(2)}
             </div>
+            
             {individualPending.length > 0 ? (
               <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="link" className="h-auto p-0 text-xs font-bold text-destructive hover:text-destructive/80 mt-2 flex items-center gap-1">
-                    {individualPending.length} {individualPending.length === 1 ? 'despesa aguarda' : 'despesas aguardam'} pagamento →
+                  <Button variant="link" className="h-auto p-0 text-[11px] font-bold text-destructive/80 hover:text-destructive mt-2">
+                    VER {individualPending.length} {individualPending.length === 1 ? 'ITEM' : 'ITENS'} DETALHADOS →
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md gap-0 p-0 overflow-hidden">
-                  <DialogHeader className="p-6 pb-4 border-b">
-                    <DialogTitle className="flex items-center gap-2 text-destructive">
-                      <AlertCircle className="h-5 w-5" />
-                      Pendências Individuais
+                <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0">
+                  <DialogHeader className="p-6 pb-4 bg-muted/30 border-b">
+                    <DialogTitle className="flex items-center gap-2 text-foreground font-serif text-xl">
+                      <Info className="h-5 w-5 text-primary" />
+                      Descrição das Pendências
                     </DialogTitle>
                   </DialogHeader>
                   
-                  <div className="p-4 bg-muted/30 border-b">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-muted-foreground">Total a Regularizar</span>
-                      <span className="text-xl font-bold text-destructive">R$ {totalIndividualPending.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  
-                  <ScrollArea className="max-h-[400px]">
-                    <div className="p-4 space-y-3">
-                      {individualPending.map((item) => (
-                        <div key={item.id} className="flex flex-col gap-3 p-3 border rounded-xl bg-card hover:bg-muted/20 transition-colors shadow-sm">
-                          <div className="flex justify-between items-start">
+                  {/* Container fixo para o scroll */}
+                  <div className="h-[400px] flex flex-col">
+                    <ScrollArea className="flex-1 w-full px-6 py-4">
+                      <div className="space-y-3 pb-4">
+                        {individualPending.map((item) => (
+                          <div key={item.id} className="flex justify-between items-start p-4 border rounded-xl bg-card shadow-sm">
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-sm truncate pr-2">{item.expenses?.title}</p>
-                              <div className="flex items-center gap-2 mt-1">
+                              <p className="font-semibold text-sm text-foreground leading-tight mb-1">{item.expenses?.title}</p>
+                              <div className="flex items-center gap-2">
                                 <Calendar className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-[11px] text-muted-foreground">
-                                  {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date), "dd 'de' MMM", { locale: ptBR }) : "Sem data"}
+                                  {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date), "dd 'de' MMMM", { locale: ptBR }) : "Sem data"}
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right pl-4">
                               <p className="font-bold text-base text-foreground">R$ {Number(item.amount).toFixed(2)}</p>
                             </div>
                           </div>
-                          
-                          {onPayIndividual && (
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              className="w-full h-8 text-xs font-bold border-destructive/20 text-destructive hover:bg-destructive hover:text-white" 
-                              onClick={() => {
-                                setIsDetailOpen(false);
-                                onPayIndividual(item);
-                              }}
-                            >
-                              Anexar Comprovante
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                   
-                  <div className="p-4 border-t bg-muted/10">
-                    <p className="text-[10px] text-center text-muted-foreground uppercase tracking-wider font-medium">
-                      Suas despesas individuais pagas fora do cartão de crédito
+                  <div className="p-4 bg-muted/20 border-t">
+                    <p className="text-[10px] text-center text-muted-foreground uppercase font-bold tracking-tighter">
+                      Estes valores representam o que você deve individualmente à casa
                     </p>
                   </div>
                 </DialogContent>
               </Dialog>
             ) : (
-              <p className="text-xs text-success font-medium mt-2 flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Tudo em dia
-              </p>
+              <p className="text-[11px] text-success font-bold mt-2 uppercase tracking-tighter">Nenhuma pendência</p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Gastos à Vista</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+        {/* Gastos à Vista */}
+        <Card className="border-l-4 border-l-slate-300">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Gastos à Vista</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalPersonalCash.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Dinheiro, Pix ou Débito.</p>
+            <div className="text-2xl font-bold tracking-tight">R$ {totalPersonalCash.toFixed(2)}</div>
+            <p className="text-[11px] text-muted-foreground mt-2">Pagos via Pix, Dinheiro ou Débito.</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-12">
-        <Card className="md:col-span-8 lg:col-span-8">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> Histórico Recente (Pessoal)
+        {/* Histórico */}
+        <Card className="md:col-span-8">
+          <CardHeader className="border-b bg-muted/5 py-4">
+            <CardTitle className="text-base flex items-center gap-2 font-serif">
+              <TrendingUp className="h-4 w-4 text-primary" /> Histórico Recente
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="space-y-4">
+          <CardContent className="p-0">
+            <ScrollArea className="h-[300px] w-full px-6">
+              <div className="divide-y divide-border/40">
                 {myPersonalExpenses.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full py-10 text-muted-foreground">
-                    <p className="text-sm">Nenhuma despesa pessoal este mês.</p>
-                  </div>
+                  <div className="py-20 text-center text-muted-foreground text-sm">Nenhuma despesa registrada.</div>
                 ) : (
                   myPersonalExpenses.slice(0, 15).map(e => (
-                    <div key={e.id} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-0 last:pb-0 hover:bg-muted/30 p-2 rounded-md transition-colors">
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm font-medium">{e.title}</p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-muted text-muted-foreground border-0">{e.category}</Badge>
-                          <span className="text-[10px] text-muted-foreground">
+                    <div key={e.id} className="flex items-center justify-between py-4 group hover:bg-muted/10 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{e.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-[9px] h-4 font-bold uppercase tracking-tighter px-1.5">{e.category}</Badge>
+                          <span className="text-[10px] text-muted-foreground font-medium">
                             {format(new Date(e.purchase_date), "dd/MM")} • {e.payment_method === 'credit_card' ? 'Cartão' : 'À vista'}
                           </span>
                         </div>
                       </div>
-                      <span className="font-semibold text-sm">R$ {Number(e.amount).toFixed(2)}</span>
+                      <span className="font-bold text-sm tabular-nums">R$ {Number(e.amount).toFixed(2)}</span>
                     </div>
                   ))
                 )}
@@ -201,47 +170,39 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-base">Categorias (Pessoal)</CardTitle>
+        {/* Gráfico */}
+        <Card className="md:col-span-4 flex flex-col">
+          <CardHeader className="border-b bg-muted/5 py-4">
+            <CardTitle className="text-base font-serif">Top Categorias</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-[300px]">
+          <CardContent className="flex-1 p-6 flex flex-col min-h-[300px]">
             {personalChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={personalChartData} 
-                  margin={{ left: 0, right: 0, top: 10, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 10, fill: "#64748b" }} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    interval={0}
-                  />
-                  <YAxis hide />
-                  <RechartsTooltip 
-                    cursor={{fill: 'transparent'}} 
-                    formatter={(v: number) => [`R$ ${v.toFixed(2)}`, 'Valor']}
-                    contentStyle={{ 
-                      borderRadius: "8px", 
-                      border: "1px solid #e2e8f0", 
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                      fontSize: "12px"
-                    }} 
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={32}>
-                     {personalChartData.map((entry, index) => (
-                       <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
-                     ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
-                <span className="opacity-50">Sem dados para exibir</span>
+              <div className="flex-1 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={personalChartData} margin={{ top: 10, bottom: 0, left: -20, right: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 9, fontWeight: 'bold', fill: "#64748b" }} 
+                      axisLine={false} 
+                      tickLine={false} 
+                    />
+                    <YAxis hide />
+                    <RechartsTooltip 
+                      cursor={{fill: 'rgba(0,0,0,0.02)'}}
+                      contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px", fontWeight: "bold" }}
+                      formatter={(v: number) => [`R$ ${v.toFixed(2)}`]}
+                    />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={24}>
+                      {personalChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm opacity-50">Sem dados.</div>
             )}
           </CardContent>
         </Card>

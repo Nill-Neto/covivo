@@ -383,14 +383,6 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
-            onPayIndividual={(split) => {
-              if (split) {
-                setSelectedIndividualSplit(split);
-                setPayIndividualOpen(true);
-              } else {
-                setPayIndividualOpen(true);
-              }
-            }}
           />
         </TabsContent>
 
