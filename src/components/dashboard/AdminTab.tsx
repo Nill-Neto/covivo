@@ -12,8 +12,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel, CATEGORY_COLORS, CHART_COLORS } from "@/constants/categories";
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 interface AdminTabProps {
   memberBalances: any[];
@@ -87,104 +88,109 @@ export function AdminTab({
   const cycleLabel = format(currentDate, "MMMM 'de' yyyy", { locale: ptBR });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b pb-6">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Painel Administrativo</h2>
-          <p className="text-sm text-muted-foreground capitalize">Ciclo: {cycleLabel}</p>
+          <h2 className="text-xl font-semibold text-foreground tracking-tight">Painel Administrativo</h2>
+          <p className="text-sm text-muted-foreground capitalize mt-1">
+             Gestão do ciclo: <span className="font-medium text-foreground">{cycleLabel}</span>
+          </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="h-8 text-xs gap-1.5">
-          <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="h-9 gap-2 shadow-sm hover:bg-muted/50">
+          <RefreshCw className="h-3.5 w-3.5" /> Atualizar Dados
         </Button>
       </div>
 
-      {/* Quick Actions - moved to top */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x">
-            <QuickActionLink to="/expenses" icon={ClipboardList} label="Gerenciar Despesas" desc="Lançar e editar despesas coletivas" />
-            <QuickActionLink to="/payments?filter=pending" icon={DollarSign} label="Confirmar Pagamentos" desc="Aprovar ou recusar comprovantes" />
-            <QuickActionLink to="/members" icon={Users} label="Moradores" desc="Gerenciar membros do grupo" />
-            <QuickActionLink to="/recurring-expenses" icon={RefreshCw} label="Despesas Recorrentes" desc="Contas fixas e assinaturas" />
-            <QuickActionLink to="/invites" icon={UserPlus} label="Convites" desc="Convidar novos moradores" />
-            <QuickActionLink to="/group-settings" icon={Settings} label="Configurações" desc="Regras de rateio e ciclo" />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {/* Despesas do Ciclo */}
-        <Card>
+        <Card className="shadow-sm border-l-4 border-l-primary transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Despesas do Ciclo
             </CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-full bg-primary/10 text-primary">
+              <BarChart3 className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">
-              R$ {totalMonthExpenses.toFixed(2)}
+            <div className="flex items-baseline gap-1">
+               <span className="text-sm font-medium text-muted-foreground translate-y-[-2px]">R$</span>
+               <div className="text-2xl font-serif font-bold text-foreground">
+                 {totalMonthExpenses.toFixed(2)}
+               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {collectiveExpenses.length} lançamento{collectiveExpenses.length !== 1 ? "s" : ""}
+            <p className="text-xs text-muted-foreground mt-2 font-medium">
+              {collectiveExpenses.length} lançamentos
             </p>
           </CardContent>
         </Card>
 
         {/* Total a Receber */}
-        <Card>
+        <Card className={cn("shadow-sm border-l-4 transition-all hover:shadow-md", totalReceivable > 0 ? "border-l-destructive" : "border-l-emerald-500")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Total a Receber
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className={cn("p-2 rounded-full", totalReceivable > 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20")}>
+               <DollarSign className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold tabular-nums ${totalReceivable > 0 ? "text-destructive" : "text-foreground"}`}>
-              R$ {totalReceivable.toFixed(2)}
+            <div className="flex items-baseline gap-1">
+               <span className="text-sm font-medium text-muted-foreground translate-y-[-2px]">R$</span>
+               <div className={cn("text-2xl font-serif font-bold", totalReceivable > 0 ? "text-destructive" : "text-foreground")}>
+                 {totalReceivable.toFixed(2)}
+               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {membersInDebt.length} pendência{membersInDebt.length !== 1 ? "s" : ""}
+            <p className="text-xs text-muted-foreground mt-2 font-medium">
+              {membersInDebt.length} pendências ativas
             </p>
           </CardContent>
         </Card>
 
         {/* Pagamentos Pendentes */}
-        <Card>
+        <Card className="shadow-sm border-l-4 border-l-amber-400 transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               A Confirmar
             </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/20">
+               <Clock className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{pendingPaymentsCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingPaymentsCount > 0 ? "Aguardando sua ação" : "Nenhum pendente"}
-            </p>
-            {pendingPaymentsCount > 0 && (
-              <Button variant="link" className="p-0 h-auto text-xs mt-1 text-warning" asChild>
-                <Link to="/payments?filter=pending">Confirmar <ArrowRight className="h-3 w-3 ml-1" /></Link>
-              </Button>
+            <div className="text-2xl font-serif font-bold text-foreground">{pendingPaymentsCount}</div>
+            
+            {pendingPaymentsCount > 0 ? (
+               <div className="mt-2">
+                 <Button variant="link" className="p-0 h-auto text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-500" asChild>
+                   <Link to="/payments?filter=pending">Confirmar Pagamentos <ArrowRight className="h-3 w-3 ml-1" /></Link>
+                 </Button>
+               </div>
+            ) : (
+               <p className="text-xs text-muted-foreground mt-2 font-medium">Nenhum pendente</p>
             )}
           </CardContent>
         </Card>
 
         {/* Taxa de Adimplência */}
-        <Card>
+        <Card className="shadow-sm border-l-4 border-l-indigo-500 transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Adimplência
             </CardTitle>
-            <Scale className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20">
+               <Scale className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{collectRate}%</div>
-            <Progress value={collectRate} className="h-1.5 mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {members.length - membersInDebt.length}/{members.length} em dia
+            <div className="text-2xl font-serif font-bold text-foreground">{collectRate}%</div>
+            <Progress value={collectRate} className="h-1.5 mt-2 bg-indigo-100 dark:bg-indigo-950" indicatorClassName="bg-indigo-500" />
+            <p className="text-xs text-muted-foreground mt-2 font-medium">
+              {members.length - membersInDebt.length} de {members.length} moradores em dia
             </p>
           </CardContent>
         </Card>
@@ -193,22 +199,19 @@ export function AdminTab({
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Saldo dos Moradores - 2 cols */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
+        <Card className="lg:col-span-2 shadow-sm border-0 bg-white dark:bg-card flex flex-col">
+          <CardHeader className="border-b bg-muted/20 pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" /> Saldo dos Moradores
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" /> Saldo dos Moradores
               </CardTitle>
-              <Badge variant="outline" className="text-xs font-normal">
-                {members.length} ativo{members.length !== 1 ? "s" : ""}
+              <Badge variant="secondary" className="text-[10px] font-normal px-2 bg-white dark:bg-card border shadow-sm">
+                {members.length} Ativos
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Saldo acumulado do rateio coletivo · Ordenado por situação
-            </p>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y">
+            <div className="divide-y divide-border/50">
               {membersWithBalance.map(member => {
                 const isDebt = member.balance < -0.05;
                 const isCredit = member.balance > 0.05;
@@ -216,23 +219,26 @@ export function AdminTab({
                 return (
                   <div
                     key={member.user_id}
-                    className={`flex items-center justify-between px-6 py-3 transition-colors hover:bg-muted/50 ${isDebt ? "bg-destructive/5" : ""}`}
+                    className={cn(
+                      "flex items-center justify-between px-6 py-4 transition-colors hover:bg-muted/30",
+                      isDebt && "bg-destructive/5 dark:bg-destructive/10"
+                    )}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-9 w-9 border border-border">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
                         <AvatarImage src={member.profile?.avatar_url} />
-                        <AvatarFallback className="text-xs font-medium bg-muted">
+                        <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
                           {member.profile?.full_name?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{member.profile?.full_name}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {member.role === "admin" ? "Admin" : "Morador"}
+                        <p className="font-semibold text-sm text-foreground truncate">{member.profile?.full_name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                            {member.role === "admin" ? "Administrador" : "Morador"}
                           </span>
                           {isDebt && (
-                            <Badge variant="destructive" className="text-[10px] h-4 px-1.5">
+                            <Badge variant="destructive" className="text-[10px] h-4 px-1 rounded-sm font-normal">
                               Pendente
                             </Badge>
                           )}
@@ -242,20 +248,20 @@ export function AdminTab({
 
                     <div className="text-right flex-shrink-0 ml-4">
                       {isDebt ? (
-                        <span className="font-semibold text-sm tabular-nums text-destructive">
-                          -R$ {Math.abs(member.balance).toFixed(2)}
+                        <span className="font-serif font-bold text-sm text-destructive block">
+                          - R$ {Math.abs(member.balance).toFixed(2)}
                         </span>
                       ) : isCredit ? (
-                        <span className="font-semibold text-sm tabular-nums text-success">
-                          +R$ {member.balance.toFixed(2)}
+                        <span className="font-serif font-bold text-sm text-emerald-600 dark:text-emerald-400 block">
+                          + R$ {member.balance.toFixed(2)}
                         </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                        <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium flex items-center justify-end gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                           Em dia
                         </span>
                       )}
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                      <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
                         Rateio: R$ {member.total_owed.toFixed(2)}
                       </p>
                     </div>
@@ -263,7 +269,7 @@ export function AdminTab({
                 );
               })}
               {membersWithBalance.length === 0 && (
-                <p className="text-sm text-muted-foreground px-6 py-8 text-center">
+                <p className="text-sm text-muted-foreground px-6 py-10 text-center">
                   Nenhum morador encontrado.
                 </p>
               )}
@@ -273,31 +279,50 @@ export function AdminTab({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Quick Actions Card */}
+          <Card className="shadow-sm border-0 bg-white dark:bg-card">
+            <CardHeader className="border-b bg-muted/20 pb-4">
+               <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Acesso Rápido</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+               <div className="divide-y divide-border/50">
+                  <QuickActionLink to="/expenses" icon={ClipboardList} label="Despesas" />
+                  <QuickActionLink to="/payments?filter=pending" icon={DollarSign} label="Pagamentos" />
+                  <QuickActionLink to="/members" icon={Users} label="Moradores" />
+                  <QuickActionLink to="/invites" icon={UserPlus} label="Convites" />
+               </div>
+            </CardContent>
+          </Card>
+
           {/* Categoria de Despesas */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" /> Por Categoria
+          <Card className="shadow-sm border-0 bg-white dark:bg-card">
+            <CardHeader className="border-b bg-muted/20 pb-4">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" /> Top Categorias
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {categoryBreakdown.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sem despesas neste ciclo.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Sem despesas neste ciclo.</p>
               ) : (
-                <div className="space-y-3">
-                  {categoryBreakdown.map(cat => {
+                <div className="space-y-4">
+                  {categoryBreakdown.map((cat, idx) => {
                     const pct = totalMonthExpenses > 0
                       ? Math.round((cat.value / totalMonthExpenses) * 100)
                       : 0;
                     return (
-                      <div key={cat.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="truncate">{cat.name}</span>
-                          <span className="font-medium tabular-nums ml-2">
+                      <div key={cat.name} className="group">
+                        <div className="flex justify-between text-xs mb-1.5">
+                          <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">{cat.name}</span>
+                          <span className="font-bold tabular-nums">
                             R$ {cat.value.toFixed(2)}
                           </span>
                         </div>
-                        <Progress value={pct} className="h-1.5" />
+                        <Progress 
+                           value={pct} 
+                           className="h-1.5" 
+                           indicatorClassName={cn("transition-all", `bg-[${CHART_COLORS[idx % CHART_COLORS.length]}]`)}
+                        />
                       </div>
                     );
                   })}
@@ -305,58 +330,20 @@ export function AdminTab({
               )}
             </CardContent>
           </Card>
-
-          {/* Últimas Despesas */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Receipt className="h-4 w-4" /> Recentes
-                </CardTitle>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-                  <Link to="/expenses">Ver todas</Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {recentExpenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground px-6 pb-4">Nenhuma despesa neste ciclo.</p>
-              ) : (
-                <div className="divide-y">
-                  {recentExpenses.map(expense => (
-                    <div key={expense.id} className="flex items-center justify-between px-6 py-2.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{expense.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {getCategoryLabel(expense.category)} · {format(new Date(expense.purchase_date), "dd/MM")}
-                        </p>
-                      </div>
-                      <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
-                        R$ {Number(expense.amount).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
-
     </div>
   );
 }
 
-function QuickActionLink({ to, icon: Icon, label, desc }: { to: string; icon: any; label: string; desc: string }) {
+function QuickActionLink({ to, icon: Icon, label }: { to: string; icon: any; label: string }) {
   return (
-    <Link to={to} className="flex items-center gap-3 px-6 py-4 hover:bg-muted/50 transition-colors group">
-      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+    <Link to={to} className="flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-all group hover:pl-7">
+      <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
         <Icon className="h-4 w-4 text-primary" />
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium group-hover:text-primary transition-colors">{label}</p>
-        <p className="text-xs text-muted-foreground truncate">{desc}</p>
-      </div>
+      <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{label}</span>
+      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
     </Link>
   );
 }

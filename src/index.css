@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,90 +7,85 @@
 
 @layer base {
   :root {
-    /* Professional Light Theme with Vivid Accents */
+    /* Professional Light Theme - "Fintech Premium" */
     
-    /* Main Background: Very light cool gray/blue tint for depth */
-    --background: 210 40% 98%;
-    /* Main Text: Deep Navy for high contrast and softer than pure black */
+    /* Main Background: Subtle, high-quality off-white/blue tint */
+    --background: 210 40% 98%; 
+    
+    /* Main Text: Deep Navy */
     --foreground: 222 47% 11%;
 
-    /* Cards: Pure white to pop against the background */
+    /* Cards: Pure white with better shadow definition */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: Strong, Trustworthy Royal Blue (Vibrant) */
+    /* Primary: Vibrant Royal Blue - Trust & Energy */
     --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Subtle cool gray for less important actions */
+    /* Secondary: Cool Gray for subtle backgrounds */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222 47% 11%;
 
-    /* Muted: For backgrounds of inputs/disabled states */
+    /* Muted: Lighter gray for less emphasis */
     --muted: 210 40% 96.1%;
     --muted-foreground: 215 16% 47%;
 
-    /* Accent: Vibrant Teal for success/highlight/freshness */
-    --accent: 170 70% 50%;
-    --accent-foreground: 222 47% 11%;
+    /* Accent: Teal for financial positivity */
+    --accent: 170 70% 40%;
+    --accent-foreground: 0 0% 100%;
 
     /* Destructive: Clear Red */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Warning/Success */
+    /* Status Colors */
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 14%;
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    /* Borders: Subtle to keep it clean */
+    /* Borders: Crisp and subtle */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221 83% 53%;
 
-    --radius: 0.75rem; /* Slightly rounder for modern feel */
+    --radius: 0.75rem;
 
-    /* Sidebar: Deep Navy for professional contrast in Light Mode */
+    /* Sidebar: Deep Professional Navy */
     --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%; /* Lighter navy for hover */
+    --sidebar-accent: 217 33% 18%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
+    --sidebar-border: 217 33% 18%;
     --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
     /* Professional Dark Theme */
-    
-    /* Main Background: Deep rich navy (not pure black) */
-    --background: 222 47% 11%;
+    --background: 222 47% 7%;
     --foreground: 210 40% 98%;
 
-    /* Cards: Slightly lighter navy to separate from background */
-    --card: 217 33% 17%;
+    --card: 222 47% 10%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 17%;
+    --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Slightly lighter Royal Blue for visibility on dark */
     --primary: 217 91% 60%;
     --primary-foreground: 222 47% 11%;
 
-    /* Secondary: Darker cool gray */
-    --secondary: 217 33% 17%;
+    --secondary: 217 33% 15%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 217 33% 15%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    /* Accent: Keep the Teal but adjust brightness if needed */
     --accent: 170 70% 50%;
     --accent-foreground: 210 40% 98%;
 
@@ -102,18 +98,17 @@
     --success: 160 55% 38%;
     --success-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --border: 217 33% 15%;
+    --input: 217 33% 15%;
     --ring: 217 91% 60%;
 
-    /* Sidebar in Dark Mode: Matches background or slightly darker */
-    --sidebar-background: 222 47% 8%; /* Darker than main bg */
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent: 217 33% 12%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
+    --sidebar-border: 217 33% 12%;
     --sidebar-ring: 217 91% 60%;
   }
 }
@@ -125,27 +120,34 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-    @apply tracking-tight; /* Modern professional look */
+  /* Typography Hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-medium;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+  
+  /* Serif Utility for specific headings/numbers */
+  .font-serif {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
   }
 }
 
 @layer utilities {
-  .font-serif {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  .card-gradient {
+    @apply bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950;
   }
   
-  /* Add a subtle gradient utility for "Life" */
-  .bg-primary-gradient {
-    @apply bg-gradient-to-r from-primary to-blue-600;
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600;
   }
 }
