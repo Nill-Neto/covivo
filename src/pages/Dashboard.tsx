@@ -93,7 +93,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -119,7 +119,7 @@ export default function Dashboard() {
 
       const { data } = await supabase
         .from("expense_installments" as any)
-        .select("amount, expenses(title, category, credit_card_id)")
+        .select("id, amount, expenses(title, category, credit_card_id, expense_type, purchase_date)")
         .eq("user_id", user!.id)
         .eq("bill_month", targetMonth)
         .eq("bill_year", targetYear);
@@ -215,16 +215,32 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [myPersonalExpenses]);
 
-  const filteredPendingSplits = pendingSplits.filter((s: any) => {
-    // Show all pending splits regardless of date, or filter by logic if needed
-    // Usually pending debts are relevant until paid
-    return true; 
-  });
-
-  const collectivePending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
-  const individualPending = filteredPendingSplits.filter((s: any) => s.expenses?.expense_type === "individual");
+  // Filtering Logic for Pending Splits (Debts)
+  
+  // 1. Collective Debt (Rateio Pendente)
+  const collectivePending = pendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
   const totalCollectivePending = collectivePending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
-  const totalIndividualPending = individualPending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+
+  // 2. Individual Pending (Manual + Installments)
+  // A. Manual pending splits (Cash/Pix/Debit that are pending) - EXCLUDE credit card splits here as they are parcelled
+  const manualIndividualPending = pendingSplits.filter((s: any) => 
+    s.expenses?.expense_type === "individual" && 
+    s.expenses?.payment_method !== "credit_card"
+  );
+
+  // B. Installments for the CURRENT MONTH (Credit Card)
+  // These represent what I need to pay "now" (in this month's bill) for my individual credit card expenses
+  const installmentIndividualPending = billInstallments.filter((i: any) => 
+    i.expenses?.expense_type === "individual"
+  ).map((i: any) => ({
+    id: i.id, // Installment ID
+    amount: i.amount,
+    expenses: i.expenses // { title, category, purchase_date }
+  }));
+
+  // Combine them for the list
+  const individualPending = [...manualIndividualPending, ...installmentIndividualPending];
+  const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
 
   const cardsBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
@@ -374,7 +390,7 @@ export default function Dashboard() {
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
             totalIndividualPending={totalIndividualPending}
-            totalCollectivePending={totalCollectivePending} // Adicionado
+            totalCollectivePending={totalCollectivePending}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
