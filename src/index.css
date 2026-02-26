@@ -6,76 +6,95 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 25% 10%;
+    /* Professional Light Theme with Vivid Accents */
+    
+    /* Main Background: Very light cool gray/blue tint for depth */
+    --background: 210 40% 98%;
+    /* Main Text: Deep Navy for high contrast and softer than pure black */
+    --foreground: 222 47% 11%;
 
+    /* Cards: Pure white to pop against the background */
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 220 65% 18%;
+    /* Primary: Strong, Trustworthy Royal Blue (Vibrant) */
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 215 20% 93%;
-    --secondary-foreground: 220 25% 15%;
+    /* Secondary: Subtle cool gray for less important actions */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 215 18% 94%;
-    --muted-foreground: 215 14% 46%;
+    /* Muted: For backgrounds of inputs/disabled states */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 164 55% 36%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent: Vibrant Teal for success/highlight/freshness */
+    --accent: 170 70% 50%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    /* Destructive: Clear Red */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
+    /* Warning/Success */
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 14%;
-
-    --success: 160 60% 40%;
+    --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    --border: 215 20% 88%;
-    --input: 215 20% 88%;
-    --ring: 220 65% 18%;
+    /* Borders: Subtle to keep it clean */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem; /* Slightly rounder for modern feel */
 
-    --sidebar-background: 220 25% 10%;
-    --sidebar-foreground: 215 18% 85%;
-    --sidebar-primary: 164 55% 45%;
+    /* Sidebar: Deep Navy for professional contrast in Light Mode */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 16%;
-    --sidebar-accent-foreground: 215 18% 85%;
-    --sidebar-border: 220 20% 18%;
-    --sidebar-ring: 164 55% 45%;
+    --sidebar-accent: 217 33% 17%; /* Lighter navy for hover */
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
-    --background: 222 25% 7%;
-    --foreground: 210 25% 95%;
+    /* Professional Dark Theme */
+    
+    /* Main Background: Deep rich navy (not pure black) */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 222 22% 10%;
-    --card-foreground: 210 25% 95%;
+    /* Cards: Slightly lighter navy to separate from background */
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 222 22% 10%;
-    --popover-foreground: 210 25% 95%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 96%;
-    --primary-foreground: 220 65% 18%;
+    /* Primary: Slightly lighter Royal Blue for visibility on dark */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 220 20% 16%;
-    --secondary-foreground: 210 25% 90%;
+    /* Secondary: Darker cool gray */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 18% 15%;
-    --muted-foreground: 215 14% 55%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 164 55% 40%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent: Keep the Teal but adjust brightness if needed */
+    --accent: 170 70% 50%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
 
     --warning: 38 80% 45%;
     --warning-foreground: 38 92% 95%;
@@ -83,18 +102,19 @@
     --success: 160 55% 38%;
     --success-foreground: 0 0% 100%;
 
-    --border: 220 18% 18%;
-    --input: 220 18% 18%;
-    --ring: 210 30% 70%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
 
-    --sidebar-background: 222 25% 5%;
-    --sidebar-foreground: 215 18% 80%;
-    --sidebar-primary: 164 55% 45%;
+    /* Sidebar in Dark Mode: Matches background or slightly darker */
+    --sidebar-background: 222 47% 8%; /* Darker than main bg */
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 22% 12%;
-    --sidebar-accent-foreground: 215 18% 80%;
-    --sidebar-border: 222 18% 12%;
-    --sidebar-ring: 164 55% 45%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -110,13 +130,22 @@
 
   h1,
   h2,
-  h3 {
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    @apply tracking-tight; /* Modern professional look */
   }
 }
 
 @layer utilities {
   .font-serif {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  }
+  
+  /* Add a subtle gradient utility for "Life" */
+  .bg-primary-gradient {
+    @apply bg-gradient-to-r from-primary to-blue-600;
   }
 }
