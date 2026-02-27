@@ -4,6 +4,8 @@ import { Plus, CalendarClock, Calendar, ChevronLeft, ChevronRight } from "lucide
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -47,8 +49,34 @@ export function DashboardHeader({
             </Button>
           </div>
           
-          <Button variant="outline" className="h-10 gap-2" asChild>
-            <Link to="/expenses"><Plus className="h-4 w-4" /> Nova Despesa</Link>
+          <Button variant="outline" className="relative h-10 gap-2 overflow-hidden" asChild>
+            <Link to="/expenses">
+              <div
+                className={cn(
+                  "absolute inset-0 pointer-events-none rounded-[inherit] border-2 border-transparent border-inset [mask-clip:padding-box,border-box]",
+                  "[mask-composite:intersect] [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)]"
+                )}
+              >
+                <motion.div
+                  className={cn(
+                    "absolute aspect-square bg-gradient-to-r from-transparent via-primary to-primary"
+                  )}
+                  animate={{
+                    offsetDistance: ["0%", "100%"],
+                  }}
+                  style={{
+                    width: 20,
+                    offsetPath: `rect(0 auto auto 0 round 10px)`,
+                  }}
+                  transition={{
+                    repeat: Number.POSITIVE_INFINITY,
+                    duration: 5,
+                    ease: "linear",
+                  }}
+                />
+              </div>
+              <Plus className="h-4 w-4" /> Nova Despesa
+            </Link>
           </Button>
         </div>
       </div>
