@@ -80,7 +80,7 @@ export function AppLayout() {
 
   const Logo = () => (
     <Link to="/" className="flex items-center gap-2 font-serif text-xl font-bold tracking-tight">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-sm">
         R
       </div>
       <span className="text-foreground">Republi-K</span>
@@ -120,7 +120,7 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header Superior Fixo */}
-      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-border/60 bg-card/80 px-4 md:px-6 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 shadow-sm">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -190,7 +190,7 @@ export function AppLayout() {
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Desktop */}
-        <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col overflow-y-auto shadow-xl">
+        <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col overflow-y-auto shadow-2xl shadow-sidebar/20">
           <SidebarContent />
         </aside>
 
@@ -259,7 +259,7 @@ function CollapsibleNavGroup({
               )}
             >
               {isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-1 bg-sidebar-primary rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-gradient-to-b from-sidebar-primary to-sidebar-primary/60 rounded-r-full shadow-sm shadow-sidebar-primary/30" />
               )}
               <item.icon
                 className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground")}

@@ -337,19 +337,19 @@ export default function Dashboard() {
       />
 
       <Tabs defaultValue={isAdmin ? "admin" : "republic"} className="space-y-6">
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-2 sm:gap-6">
           {isAdmin && (
-            <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+            <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-accent-foreground data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary text-muted-foreground">
               <Shield className="h-4 w-4 mr-2" /> Administração
             </TabsTrigger>
           )}
-          <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+          <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-accent-foreground data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary text-muted-foreground">
             <Users className="h-4 w-4 mr-2" /> República
           </TabsTrigger>
-          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-accent-foreground data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary text-muted-foreground">
             <User className="h-4 w-4 mr-2" /> Pessoal
           </TabsTrigger>
-          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-accent-foreground data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary text-muted-foreground">
             <CreditCard className="h-4 w-4 mr-2" /> Cartões
           </TabsTrigger>
         </TabsList>
