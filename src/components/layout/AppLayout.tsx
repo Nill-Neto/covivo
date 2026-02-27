@@ -120,7 +120,7 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header Superior Fixo */}
-      <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -128,7 +128,7 @@ export function AppLayout() {
             className="md:hidden shrink-0 h-12 w-12"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            <MenuToggleIcon open={mobileMenuOpen} className="h-8 w-8" />
+            <MenuToggleIcon open={mobileMenuOpen} className="h-8 w-8 scale-125" />
             <span className="sr-only">Menu</span>
           </Button>
 
