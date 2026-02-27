@@ -260,14 +260,14 @@ export default function Members() {
   ] : [];
 
   const footerContent = (isAdmin || viewingMember?.user_id === user?.id) && (
-    <div className="flex items-center justify-between text-sm text-muted-foreground">
-       <span>Dados sensíveis visíveis apenas para você e administradores.</span>
-       {viewingMember?.user_id === user?.id && showCpf === false && (
+    <div className="flex items-center justify-between text-sm text-muted-foreground w-full">
+       <span className="text-[10px] md:text-xs">Dados sensíveis (Admin/Você).</span>
+       {(isAdmin || viewingMember?.user_id === user?.id) && showCpf === false && (
          <Button variant="ghost" size="sm" onClick={() => setShowCpf(true)} className="h-auto p-0 text-primary hover:text-primary/80">
            <Eye className="h-3 w-3 mr-1" /> Mostrar CPF
          </Button>
        )}
-       {viewingMember?.user_id === user?.id && showCpf === true && (
+       {(isAdmin || viewingMember?.user_id === user?.id) && showCpf === true && (
          <Button variant="ghost" size="sm" onClick={() => setShowCpf(false)} className="h-auto p-0 text-primary hover:text-primary/80">
            <EyeOff className="h-3 w-3 mr-1" /> Ocultar CPF
          </Button>
