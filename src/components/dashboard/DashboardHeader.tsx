@@ -5,7 +5,7 @@ import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
