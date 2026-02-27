@@ -34,9 +34,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Pencil, Trash2, Shield, User, Mail, Phone, FileText, Calendar, Eye, EyeOff } from "lucide-react";
+import { Loader2, Pencil, Trash2, Shield, User, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { InfoCard, DetailItem } from "@/components/ui/insurance-card";
 
 export default function Members() {
   const { membership, isAdmin, user } = useAuth();
@@ -247,6 +248,33 @@ export default function Members() {
     );
   }
 
+  // --- Construct InfoCard Props ---
+  const memberDetails: DetailItem[] = viewingMember ? [
+    { label: "Membro desde", value: format(new Date(viewingMember.joined_at), "dd/MM/yyyy", { locale: ptBR }) },
+    { label: "Status", value: "Ativo" },
+    ...(isAdmin || viewingMember.user_id === user?.id ? [
+      { label: "Email", value: loadingContact ? "..." : (contactInfo?.email || "—"), copyable: true, fullWidth: true },
+      { label: "Telefone", value: loadingContact ? "..." : (contactInfo?.phone || "—"), copyable: !!contactInfo?.phone },
+      { label: "CPF", value: loadingCpf ? "..." : (showCpf ? cpfValue! : "•••.•••.•••-••"), copyable: showCpf },
+    ] : [])
+  ] : [];
+
+  const footerContent = (isAdmin || viewingMember?.user_id === user?.id) && (
+    <div className="flex items-center justify-between text-sm text-muted-foreground">
+       <span>Dados sensíveis visíveis apenas para você e administradores.</span>
+       {viewingMember?.user_id === user?.id && showCpf === false && (
+         <Button variant="ghost" size="sm" onClick={() => setShowCpf(true)} className="h-auto p-0 text-primary hover:text-primary/80">
+           <Eye className="h-3 w-3 mr-1" /> Mostrar CPF
+         </Button>
+       )}
+       {viewingMember?.user_id === user?.id && showCpf === true && (
+         <Button variant="ghost" size="sm" onClick={() => setShowCpf(false)} className="h-auto p-0 text-primary hover:text-primary/80">
+           <EyeOff className="h-3 w-3 mr-1" /> Ocultar CPF
+         </Button>
+       )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -385,86 +413,22 @@ export default function Members() {
         </DialogContent>
       </Dialog>
 
-      {/* View Details Modal */}
+      {/* View Details Modal with InfoCard */}
       <Dialog open={!!viewingMember} onOpenChange={(open) => !open && setViewingMember(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Morador</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none">
           {viewingMember && (
-            <div className="space-y-6 pt-2">
-              <div className="flex flex-col items-center justify-center text-center gap-3">
-                <Avatar className="h-20 w-20 border-2 border-primary/10">
-                  <AvatarImage src={viewingMember.profile?.avatar_url} />
-                  <AvatarFallback className="text-xl">
-                    {(viewingMember.profile?.full_name?.trim() || "Morador sem nome").substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-bold">{viewingMember.profile?.full_name?.trim() || "Morador sem nome"}</h3>
-                  <Badge variant={viewingMember.role === "admin" ? "default" : "secondary"} className="mt-1">
-                    {viewingMember.role === "admin" ? "Administrador" : "Morador"}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="space-y-4 border-t pt-4">
-                {(isAdmin || viewingMember.user_id === user?.id) && (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-muted p-2 rounded-full"><Mail className="h-4 w-4 text-muted-foreground" /></div>
-                      <div className="flex-1">
-                        <p className="text-xs text-muted-foreground">Email</p>
-                        <p className="text-sm font-medium">{loadingContact ? <Loader2 className="h-3 w-3 animate-spin" /> : (contactInfo?.email || "Não informado")}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="bg-muted p-2 rounded-full"><Phone className="h-4 w-4 text-muted-foreground" /></div>
-                      <div className="flex-1">
-                        <p className="text-xs text-muted-foreground">Telefone</p>
-                        <p className="text-sm font-medium">{loadingContact ? <Loader2 className="h-3 w-3 animate-spin" /> : (contactInfo?.phone || "Não informado")}</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <div className="bg-muted p-2 rounded-full"><Calendar className="h-4 w-4 text-muted-foreground" /></div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Membro desde</p>
-                    <p className="text-sm font-medium">
-                      {format(new Date(viewingMember.joined_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                    </p>
-                  </div>
-                </div>
-
-                {(isAdmin || viewingMember.user_id === user?.id) && (
-                  <div className="flex items-center gap-3">
-                    <div className="bg-muted p-2 rounded-full"><FileText className="h-4 w-4 text-muted-foreground" /></div>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">CPF</p>
-                      <div className="flex items-center gap-2">
-                        {loadingCpf ? (
-                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                        ) : (
-                          <p className="text-sm font-medium">
-                            {showCpf ? cpfValue : "•••.•••.•••-••"}
-                          </p>
-                        )}
-                        <button
-                          onClick={() => setShowCpf(!showCpf)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          title={showCpf ? "Ocultar" : "Mostrar"}
-                        >
-                          {showCpf ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <InfoCard 
+              title={viewingMember.profile?.full_name?.trim() || "Morador"}
+              subtitle={membership?.group_name}
+              avatarSrc={viewingMember.profile?.avatar_url}
+              badge={
+                <Badge variant={viewingMember.role === "admin" ? "default" : "secondary"} className="w-fit">
+                  {viewingMember.role === "admin" ? "Administrador" : "Morador"}
+                </Badge>
+              }
+              details={memberDetails}
+              footerContent={footerContent}
+            />
           )}
         </DialogContent>
       </Dialog>
