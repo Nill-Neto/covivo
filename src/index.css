@@ -6,30 +6,33 @@
 
 @layer base {
   :root {
-    /* Professional Executive Theme */
+    /* High-End Professional Palette (Navy & Slate) */
     
-    /* Background: Saímos do branco pálido para um azul-gelo profundo e limpo */
-    --background: 220 33% 97%;
+    /* Background: Azul-gelo muito sutil e limpo */
+    --background: 210 40% 98%;
     --foreground: 222 47% 11%;
 
-    /* Cards: Branco puro para contraste máximo com o fundo novo */
+    /* Cards: Branco puro */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: Royal Blue vibrante e profissional */
-    --primary: 221 83% 53%;
+    /* Primary: Navy Blue sofisticado */
+    --primary: 221 39% 11%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 220 20% 92%;
+    /* Accent Color para botões de ação e destaques */
+    --brand: 221 83% 53%;
+
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 220 14% 90%;
+    --accent: 210 40% 96.1%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84.2% 60.2%;
@@ -40,13 +43,13 @@
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 221 83% 53%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
-    /* Sidebar: Navy Profissional */
+    /* Sidebar: Matches the new Hero depth */
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 221 83% 53%;
@@ -58,23 +61,23 @@
   }
 
   .dark {
-    --background: 222 47% 6%;
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
+    --card: 222 47% 7%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
+    --popover: 222 47% 7%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
+    --primary: 210 40% 98%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 15%;
+    --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 15%;
+    --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217 33% 15%;
+    --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 217 91% 60%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
   }
 }
 
@@ -91,10 +94,7 @@
 
 @layer utilities {
   .hero-gradient {
-    @apply bg-gradient-to-br from-[#1e293b] via-[#0f172a] to-[#1e1b4b];
-  }
-  
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+    /* Gradiente Navy Profissional que conversa com a Sidebar */
+    @apply bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a];
   }
 }
