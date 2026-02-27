@@ -32,9 +32,7 @@ export function DashboardHeader({
     <div className="space-y-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-serif text-foreground">
-            Olá, <span className="text-primary">{userName?.split(" ")[0]}</span>
-          </h1>
+          <h1 className="text-3xl font-serif text-foreground">Olá, {userName?.split(" ")[0]}</h1>
           <p className="text-muted-foreground mt-1">{groupName}</p>
         </div>
 
@@ -51,7 +49,7 @@ export function DashboardHeader({
             </Button>
           </div>
           
-          <Button variant="outline" className="relative h-10 gap-2 overflow-hidden border-accent/30 hover:border-accent/50" asChild>
+          <Button variant="outline" className="relative h-10 gap-2 overflow-hidden" asChild>
             <Link to="/expenses">
               <div
                 className={cn(
@@ -61,7 +59,7 @@ export function DashboardHeader({
               >
                 <motion.div
                   className={cn(
-                    "absolute aspect-square bg-gradient-to-r from-transparent via-accent to-primary"
+                    "absolute aspect-square bg-gradient-to-r from-transparent via-primary to-primary"
                   )}
                   animate={{
                     offsetDistance: ["0%", "100%"],
@@ -84,11 +82,11 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm border-primary/20 bg-primary/5">
+        <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
             <CalendarClock className="h-3.5 w-3.5 text-primary" /> 
             Competência: <strong>{format(cycleStart, "dd/MM")}</strong> a <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
         </Badge>
-        <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm border-destructive/20 bg-destructive/5">
+        <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
             <Calendar className="h-3.5 w-3.5 text-destructive" /> 
             Pagar até: <strong>{format(cycleLimitDate, "dd/MM")}</strong>
         </Badge>

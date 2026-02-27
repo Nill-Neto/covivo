@@ -21,53 +21,37 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left panel — Deep navy with gold accent */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-gradient-to-br from-sidebar via-sidebar to-[hsl(220,28%,16%)] p-12 text-sidebar-foreground relative overflow-hidden">
-        {/* Decorative gold accent line */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-60" />
-        
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-primary p-12 text-primary-foreground">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent/80 text-accent-foreground font-bold text-lg shadow-lg shadow-accent/20">
-              R
-            </div>
-            <h1 className="text-4xl font-serif">Republi-K</h1>
-          </div>
-          <p className="mt-3 text-sidebar-foreground/60 font-sans text-sm tracking-widest uppercase">
+          <h1 className="text-4xl font-serif">Republi-K</h1>
+          <p className="mt-2 text-primary-foreground/70 font-sans text-sm tracking-wide uppercase">
             Gestão de moradia compartilhada
           </p>
         </div>
 
         <div className="space-y-8">
           {features.map((f) => (
-            <div key={f.label} className="flex items-start gap-4 group">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent/80 border border-sidebar-border group-hover:border-accent/30 transition-colors">
-                <f.icon className="h-5 w-5 text-accent" />
+            <div key={f.label} className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/10">
+                <f.icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-medium text-sidebar-foreground/90">{f.label}</p>
-                <p className="text-sm text-sidebar-foreground/50">{f.desc}</p>
+                <p className="font-medium">{f.label}</p>
+                <p className="text-sm text-primary-foreground/60">{f.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <p className="text-xs text-sidebar-foreground/30">
+        <p className="text-xs text-primary-foreground/40">
           © {new Date().getFullYear()} Republi-K. Todos os direitos reservados.
         </p>
       </div>
 
-      {/* Right panel — Clean, warm */}
-      <div className="flex flex-1 flex-col items-center justify-center p-8 bg-background">
+      {/* Right panel */}
+      <div className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="w-full max-w-sm space-y-8">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-2 lg:hidden justify-center mb-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold shadow-md">
-              R
-            </div>
-            <span className="text-2xl font-serif font-bold">Republi-K</span>
-          </div>
-
           <div className="text-center lg:text-left">
             <h2 className="text-3xl font-serif text-foreground">Bem-vindo</h2>
             <p className="mt-2 text-muted-foreground">
@@ -78,7 +62,7 @@ export default function Login() {
           <Button
             onClick={signInWithGoogle}
             size="lg"
-            className="w-full gap-3 bg-foreground text-background hover:bg-foreground/90 shadow-lg shadow-foreground/10 transition-all hover:shadow-xl"
+            className="w-full gap-3 bg-foreground text-background hover:bg-foreground/90"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
