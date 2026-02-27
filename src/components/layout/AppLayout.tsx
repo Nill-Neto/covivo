@@ -120,7 +120,7 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header Superior Fixo */}
-      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -190,7 +190,7 @@ export function AppLayout() {
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Desktop */}
-        <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col overflow-y-auto shadow-xl">
+        <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col overflow-y-auto shadow-2xl">
           <SidebarContent />
         </aside>
 
@@ -198,7 +198,7 @@ export function AppLayout() {
         {mobileMenuOpen && (
           <>
             <div 
-              className="absolute inset-0 z-30 md:hidden bg-black/50 backdrop-blur-sm" 
+              className="absolute inset-0 z-30 md:hidden bg-black/60 backdrop-blur-sm" 
               onClick={() => setMobileMenuOpen(false)}
             />
             <div className="absolute top-0 left-0 bottom-0 z-40 w-64 md:hidden bg-sidebar text-sidebar-foreground shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 border-r border-sidebar-border">
@@ -207,9 +207,10 @@ export function AppLayout() {
           </>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background relative">
+        <main className="flex-1 overflow-y-auto bg-muted/30 relative">
           {/* Brilho decorativo de fundo para o topo da página */}
           <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-primary/[0.08] via-transparent to-transparent pointer-events-none -z-10" />
+          <div className="absolute top-0 left-0 w-full h-[60vh] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/[0.05] via-transparent to-transparent pointer-events-none -z-10" />
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/[0.03] blur-[100px] rounded-full pointer-events-none -z-10 -translate-y-1/2 translate-x-1/2" />
           
           <div className="p-4 md:p-8">
