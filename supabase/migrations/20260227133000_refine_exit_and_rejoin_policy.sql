@@ -260,7 +260,9 @@ BEGIN
           AND (gm.left_at IS NULL OR gm.left_at::date > _split.purchase_date)
       LOOP
         INSERT INTO public.expense_splits(expense_id, user_id, amount)
-        VALUES (_split.expense_id, _member.user_id, _split_amount);
+        VALUES (_split.expense_id, _member.user_id, _split_amount)
+        ON CONFLICT (expense_id, user_id)
+        DO UPDATE SET amount = public.expense_splits.amount + EXCLUDED.amount;
       END LOOP;
     ELSE
       SELECT COALESCE(sum(gm.split_percentage), 0)
@@ -287,7 +289,9 @@ BEGIN
       LOOP
         _split_amount := round(_split.amount * _member.pct / _total_pct, 2);
         INSERT INTO public.expense_splits(expense_id, user_id, amount)
-        VALUES (_split.expense_id, _member.user_id, _split_amount);
+        VALUES (_split.expense_id, _member.user_id, _split_amount)
+        ON CONFLICT (expense_id, user_id)
+        DO UPDATE SET amount = public.expense_splits.amount + EXCLUDED.amount;
       END LOOP;
     END IF;
 
