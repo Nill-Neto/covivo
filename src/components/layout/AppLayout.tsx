@@ -6,7 +6,6 @@ import { UserMenu } from "./UserMenu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { Button } from "@/components/ui/button";
 import { MenuToggleIcon } from "@/components/ui/menu-toggle-icon";
-import { BottomNavBar } from "@/components/ui/bottom-nav-bar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -209,13 +208,8 @@ export function AppLayout() {
         )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background relative">
-          <div className="max-w-7xl mx-auto w-full pb-20 md:pb-0">
+          <div className="max-w-7xl mx-auto w-full">
             <Outlet />
-          </div>
-          
-          {/* Bottom Nav Bar - Mobile Only */}
-          <div className="md:hidden">
-            <BottomNavBar stickyBottom />
           </div>
         </main>
       </div>
