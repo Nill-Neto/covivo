@@ -209,26 +209,34 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [myPersonalExpenses]);
 
+  // Filtering Logic for Pending Splits (Debts)
+  
   // 1. Collective Debt (Rateio Pendente)
   const collectivePending = pendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
   const totalCollectivePending = collectivePending.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
 
   // 2. Individual Pending (Manual + Installments)
+  // A. Manual pending splits (Cash/Pix/Debit that are pending) - EXCLUDE credit card splits here as they are parcelled
   const manualIndividualPending = pendingSplits.filter((s: any) => 
     s.expenses?.expense_type === "individual" && 
     s.expenses?.payment_method !== "credit_card"
   );
 
+  // B. Installments for the CURRENT MONTH (Credit Card)
+  // These represent what I need to pay "now" (in this month's bill) for my individual credit card expenses
   const installmentIndividualPending = billInstallments.filter((i: any) => 
     i.expenses?.expense_type === "individual"
   ).map((i: any) => ({
-    id: i.id, 
+    id: i.id, // Installment ID
     amount: i.amount,
-    expenses: i.expenses 
+    expenses: i.expenses // { title, category, purchase_date }
   }));
 
+  // Combine them for the list
   const individualPending = [...manualIndividualPending, ...installmentIndividualPending];
   const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
+
+  // Total User Expenses (Comprometido) = Share + Individual Pending (Cash/Installments)
   const totalUserExpenses = myCollectiveShare + totalIndividualPending;
 
   const cardsBreakdown = useMemo(() => {
@@ -316,7 +324,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-0 animate-in fade-in duration-500 min-h-screen">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <DashboardHeader 
         userName={profile?.full_name}
         groupName={membership?.group_name}
@@ -328,83 +336,79 @@ export default function Dashboard() {
         onPrevMonth={() => setCurrentDate(subMonths(currentDate, 1))}
       />
 
-      <div className="px-1">
-        <Tabs defaultValue={isAdmin ? "admin" : "republic"} className="space-y-8">
-          <TabsList className="w-full justify-start border-b border-black/5 rounded-none h-auto p-0 bg-transparent gap-8">
-            {isAdmin && (
-              <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-4 transition-all hover:text-primary font-bold text-sm tracking-wide">
-                <Shield className="h-4 w-4 mr-2" /> ADMINISTRAÇÃO
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-4 transition-all hover:text-primary font-bold text-sm tracking-wide">
-              <Users className="h-4 w-4 mr-2" /> REPÚBLICA
+      <Tabs defaultValue={isAdmin ? "admin" : "republic"} className="space-y-6">
+        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+          {isAdmin && (
+            <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+              <Shield className="h-4 w-4 mr-2" /> Administração
             </TabsTrigger>
-            <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-4 transition-all hover:text-primary font-bold text-sm tracking-wide">
-              <User className="h-4 w-4 mr-2" /> PESSOAL
-            </TabsTrigger>
-            <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-4 transition-all hover:text-primary font-bold text-sm tracking-wide">
-              <CreditCard className="h-4 w-4 mr-2" /> CARTÕES
-            </TabsTrigger>
-          </TabsList>
+          )}
+          <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+            <Users className="h-4 w-4 mr-2" /> República
+          </TabsTrigger>
+          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+            <User className="h-4 w-4 mr-2" /> Pessoal
+          </TabsTrigger>
+          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
+            <CreditCard className="h-4 w-4 mr-2" /> Cartões
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="pb-12">
-            {isAdmin && (
-              <TabsContent value="admin" className="space-y-6">
-                {adminData ? (
-              <AdminTab 
-                    memberBalances={adminData.balances} 
-                    members={adminData.members} 
-                    pendingPaymentsCount={adminData.pendingPaymentsCount}
-                    collectiveExpenses={collectiveExpenses}
-                    totalMonthExpenses={totalMonthExpenses}
-                    cycleStart={cycleStart}
-                    cycleEnd={cycleEnd}
-                    currentDate={currentDate}
-                  />
-                ) : (
-                  <div className="py-12 text-center text-muted-foreground">Carregando dados administrativos...</div>
-                )}
-              </TabsContent>
-            )}
-
-            <TabsContent value="republic" className="space-y-6">
-              <RepublicTab
+        {isAdmin && (
+          <TabsContent value="admin" className="space-y-6">
+            {adminData ? (
+           <AdminTab 
+                memberBalances={adminData.balances} 
+                members={adminData.members} 
+                pendingPaymentsCount={adminData.pendingPaymentsCount}
                 collectiveExpenses={collectiveExpenses}
                 totalMonthExpenses={totalMonthExpenses}
-                republicChartData={republicChartData}
-                totalCollectivePending={totalCollectivePending}
-                isLate={isLate}
-                onPayRateio={() => setPayRateioOpen(true)}
-              />
-            </TabsContent>
-
-            <TabsContent value="personal" className="space-y-6">
-              <PersonalTab
-                totalIndividualPending={totalIndividualPending}
-                totalCollectivePending={totalCollectivePending}
-                individualPending={individualPending}
-                totalPersonalCash={totalPersonalCash}
-                totalBill={totalBill}
-                totalUserExpenses={totalUserExpenses}
-                myCollectiveShare={myCollectiveShare}
-                personalChartData={personalChartData}
-                myPersonalExpenses={myPersonalExpenses}
-              />
-            </TabsContent>
-
-            <TabsContent value="cards" className="space-y-6">
-              <CardsTab 
-                totalBill={totalBill}
+                cycleStart={cycleStart}
+                cycleEnd={cycleEnd}
                 currentDate={currentDate}
-                cardsChartData={cardsChartData}
-                creditCards={creditCards}
-                cardsBreakdown={cardsBreakdown}
-                billInstallments={billInstallments}
               />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">Carregando dados administrativos...</div>
+            )}
+          </TabsContent>
+        )}
+
+        <TabsContent value="republic" className="space-y-6">
+          <RepublicTab
+            collectiveExpenses={collectiveExpenses}
+            totalMonthExpenses={totalMonthExpenses}
+            republicChartData={republicChartData}
+            totalCollectivePending={totalCollectivePending}
+            isLate={isLate}
+            onPayRateio={() => setPayRateioOpen(true)}
+          />
+        </TabsContent>
+
+        <TabsContent value="personal" className="space-y-6">
+          <PersonalTab
+            totalIndividualPending={totalIndividualPending}
+            totalCollectivePending={totalCollectivePending}
+            individualPending={individualPending}
+            totalPersonalCash={totalPersonalCash}
+            totalBill={totalBill}
+            totalUserExpenses={totalUserExpenses}
+            myCollectiveShare={myCollectiveShare}
+            personalChartData={personalChartData}
+            myPersonalExpenses={myPersonalExpenses}
+          />
+        </TabsContent>
+
+        <TabsContent value="cards" className="space-y-6">
+          <CardsTab 
+            totalBill={totalBill}
+            currentDate={currentDate}
+            cardsChartData={cardsChartData}
+            creditCards={creditCards}
+            cardsBreakdown={cardsBreakdown}
+            billInstallments={billInstallments}
+          />
+        </TabsContent>
+      </Tabs>
 
       <PaymentDialogs
         payRateioOpen={payRateioOpen}

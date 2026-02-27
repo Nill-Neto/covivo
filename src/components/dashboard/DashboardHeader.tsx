@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CalendarClock, Calendar, ChevronLeft, ChevronRight, Sparkles, TrendingUp } from "lucide-react";
+import { Plus, CalendarClock, Calendar, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -29,84 +29,77 @@ export function DashboardHeader({
   onPrevMonth,
 }: DashboardHeaderProps) {
   return (
-    <div className="relative overflow-hidden rounded-3xl hero-gradient p-8 md:p-12 mb-8 shadow-2xl shadow-primary/20">
-      {/* Elementos decorativos de fundo */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600/10 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2" />
-      
-      <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2"
-          >
-             <Badge className="bg-primary/20 text-primary-foreground border-primary/30 hover:bg-primary/30 transition-colors">
-               <TrendingUp className="h-3 w-3 mr-1" />
-               STATUS ATIVO
-             </Badge>
-             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Financeiro</span>
-          </motion.div>
-          
-          <h1 className="text-4xl md:text-5xl font-serif text-white flex items-center gap-3">
-            Olá, {userName?.split(" ")[0]} 
-            <Sparkles className="h-6 w-6 text-yellow-400 animate-pulse" />
-          </h1>
-          
-          <div className="flex items-center gap-3">
-            <div className="h-1 w-12 bg-primary rounded-full" />
-            <p className="text-white/70 text-lg font-medium">
-              {groupName}
-            </p>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative">
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-1">
+             <div className="h-2 w-8 bg-primary rounded-full" />
+             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Status Financeiro</span>
           </div>
+          <h1 className="text-4xl font-serif text-foreground flex items-center gap-2">
+            Olá, {userName?.split(" ")[0]} 
+            <Sparkles className="h-5 w-5 text-primary opacity-40" />
+          </h1>
+          <p className="text-muted-foreground mt-1 flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            {groupName}
+          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-          {/* Seletor de Meses Estilizado */}
-          <div className="flex items-center bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-1.5 shadow-inner">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-10 w-10 text-white hover:bg-white/20 hover:text-white transition-all" 
-              onClick={onPrevMonth}
-            >
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="flex items-center bg-card/80 backdrop-blur-sm border-2 border-primary/10 rounded-xl p-1 shadow-sm h-11">
+            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors" onClick={onPrevMonth}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="px-6 text-base font-bold min-w-[160px] text-center capitalize text-white">
+            <div className="px-4 text-sm font-bold min-w-[150px] text-center capitalize text-primary">
               {format(currentDate, "MMMM yyyy", { locale: ptBR })}
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-10 w-10 text-white hover:bg-white/20 hover:text-white transition-all" 
-              onClick={onNextMonth}
-            >
+            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors" onClick={onNextMonth}>
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
           
-          <Button 
-            className="h-12 gap-2 px-8 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-lg shadow-black/20 border-t border-white/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
-            asChild
-          >
+          <Button className="relative h-11 gap-2 overflow-hidden px-6 shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" asChild>
             <Link to="/expenses">
-              <Plus className="h-5 w-5" /> Nova Despesa
+              <div
+                className={cn(
+                  "absolute inset-0 pointer-events-none rounded-[inherit] border-2 border-transparent border-inset [mask-clip:padding-box,border-box]",
+                  "[mask-composite:intersect] [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)]"
+                )}
+              >
+                <motion.div
+                  className={cn(
+                    "absolute aspect-square bg-gradient-to-r from-transparent via-white/40 to-white/40"
+                  )}
+                  animate={{
+                    offsetDistance: ["0%", "100%"],
+                  }}
+                  style={{
+                    width: 20,
+                    offsetPath: `rect(0 auto auto 0 round 10px)`,
+                  }}
+                  transition={{
+                    repeat: Number.POSITIVE_INFINITY,
+                    duration: 4,
+                    ease: "linear",
+                  }}
+                />
+              </div>
+              <Plus className="h-5 w-5" /> <span className="font-bold">Nova Despesa</span>
             </Link>
           </Button>
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-2 rounded-xl">
-            <CalendarClock className="h-4 w-4 text-primary" /> 
-            <span className="text-xs text-white/60">Ciclo:</span>
-            <strong className="text-xs text-white">{format(cycleStart, "dd/MM")} a {format(subDays(cycleEnd, 1), "dd/MM")}</strong>
-        </div>
-        <div className="flex items-center gap-2 bg-destructive/10 backdrop-blur-sm border border-destructive/20 px-4 py-2 rounded-xl">
-            <Calendar className="h-4 w-4 text-destructive-foreground" /> 
-            <span className="text-xs text-white/60">Vencimento:</span>
-            <strong className="text-xs text-white">{format(cycleLimitDate, "dd/MM")}</strong>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="outline" className="gap-1.5 font-semibold py-1.5 px-4 text-xs bg-card border-primary/20 text-primary shadow-sm">
+            <CalendarClock className="h-3.5 w-3.5" /> 
+            Ciclo: <strong>{format(cycleStart, "dd/MM")}</strong> a <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
+        </Badge>
+        <Badge variant="outline" className="gap-1.5 font-semibold py-1.5 px-4 text-xs bg-destructive/5 border-destructive/20 text-destructive shadow-sm">
+            <Calendar className="h-3.5 w-3.5" /> 
+            Pagar até: <strong>{format(cycleLimitDate, "dd/MM")}</strong>
+        </Badge>
       </div>
     </div>
   );
