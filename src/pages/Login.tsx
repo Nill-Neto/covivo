@@ -22,29 +22,36 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-primary p-12 text-primary-foreground">
-        <div>
-          <h1 className="text-4xl font-serif">Republi-K</h1>
-          <p className="mt-2 text-primary-foreground/70 font-sans text-sm tracking-wide uppercase">
+      <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 flex-col justify-between bg-card p-12 text-foreground dark:bg-background">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-primary/5 dark:from-primary/10 dark:via-transparent dark:to-primary/5" />
+        <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
+        <div className="pointer-events-none absolute bottom-6 right-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
+
+        <div className="relative z-10">
+          <h1 className="text-4xl font-serif text-foreground">Republi-K</h1>
+          <p className="mt-2 font-sans text-sm tracking-wide text-muted-foreground uppercase">
             Gestão de moradia compartilhada
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="relative z-10 space-y-4">
           {features.map((f) => (
-            <div key={f.label} className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/10">
-                <f.icon className="h-5 w-5" />
+            <div
+              key={f.label}
+              className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/60 p-4 shadow-sm backdrop-blur-sm dark:bg-card/60"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <f.icon className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-medium">{f.label}</p>
-                <p className="text-sm text-primary-foreground/60">{f.desc}</p>
+                <p className="font-medium text-foreground">{f.label}</p>
+                <p className="text-sm text-muted-foreground">{f.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <p className="text-xs text-primary-foreground/40">
+        <p className="relative z-10 text-xs text-muted-foreground">
           © {new Date().getFullYear()} Republi-K. Todos os direitos reservados.
         </p>
       </div>
