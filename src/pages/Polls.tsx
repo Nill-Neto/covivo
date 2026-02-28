@@ -192,7 +192,6 @@ export default function Polls() {
         tone="primary"
         icon={<Vote className="h-4 w-4" />}
         badge={<Badge variant="secondary">Colaboração</Badge>}
-
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

@@ -10,11 +10,18 @@ interface PageHeroProps {
   tone?: "default" | "primary" | "warning";
 }
 
+
+const toneStyles: Record<NonNullable<PageHeroProps["tone"]>, string> = {
+  default: "border-border bg-gradient-to-br from-card via-card/95 to-muted/70",
+  primary: "border-primary/25 bg-gradient-to-br from-primary/25 via-primary/10 to-card",
+  warning: "border-warning/35 bg-gradient-to-br from-warning/25 via-warning/10 to-card",
+};
 const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   default: "bg-border",
   primary: "bg-primary",
   warning: "bg-warning",
 };
+
 
 const toneGlowClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   default: "bg-muted/60",

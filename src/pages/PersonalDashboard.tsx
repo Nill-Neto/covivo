@@ -123,7 +123,6 @@ export default function PersonalDashboard() {
         title="Meu Financeiro"
         subtitle="Gastos individuais e faturas."
         icon={<CreditCard className="h-4 w-4" />}
-
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>

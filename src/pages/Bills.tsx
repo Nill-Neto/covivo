@@ -104,6 +104,7 @@ export default function Bills() {
       <PageHero
         title="Faturas"
         subtitle="Parcelas de cartões de crédito."
+        tone="primary"
         icon={<CreditCard className="h-4 w-4" />}
         actions={
           <div className="flex items-center gap-2 rounded-lg border bg-card p-1">

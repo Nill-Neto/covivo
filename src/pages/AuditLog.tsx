@@ -54,6 +54,7 @@ export default function AuditLog() {
       <PageHero
         title="Histórico"
         subtitle="Log de atividades do grupo."
+        tone="default"
         icon={<History className="h-4 w-4" />}
       />
 
