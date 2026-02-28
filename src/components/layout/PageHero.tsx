@@ -12,6 +12,12 @@ interface PageHeroProps {
 
 const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   default: "bg-border",
+  primary: "bg-primary",
+  warning: "bg-warning",
+};
+
+const toneGlowClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
+  default: "bg-muted/60",
   primary: "bg-primary/80",
   warning: "bg-warning/80",
 };

@@ -82,6 +82,8 @@ export default function GroupSettings() {
       <PageHero
         title="Configurações"
         subtitle="Gerencie os dados do grupo."
+        tone="warning"
+        icon={<SlidersHorizontal className="h-4 w-4" />}
       />
 
       <Card>

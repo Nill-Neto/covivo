@@ -293,6 +293,9 @@ export default function Members() {
       <PageHero
         title="Moradores"
         subtitle={`${members?.length ?? 0} membro(s) ativo(s)`}
+        tone="primary"
+        icon={<User className="h-4 w-4" />}
+        badge={<Badge variant="secondary">Grupo ativo</Badge>}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
