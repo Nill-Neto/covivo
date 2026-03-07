@@ -192,7 +192,7 @@ export default function PersonalDashboard() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="pb-2">
             <CardDescription className="text-primary-foreground/70">Fatura Atual (Aberta)</CardDescription>
@@ -215,17 +215,63 @@ export default function PersonalDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-destructive/20 bg-destructive/5">
+        <Card className="border-muted-foreground/20">
           <CardHeader className="pb-2">
-            <CardDescription className="text-destructive">Rateio Coletivo Pendente</CardDescription>
-            <CardTitle className="text-3xl font-bold text-destructive">R$ {totalShared.toFixed(2)}</CardTitle>
+            <CardDescription className="flex items-center gap-1"><Clock className="h-3 w-3" /> Rateio - Competência Atual</CardDescription>
+            <CardTitle className="text-3xl font-bold">R$ {totalCurrentPending.toFixed(2)}</CardTitle>
           </CardHeader>
           <CardContent>
-             <Link to="/payments" className="text-xs font-medium text-destructive hover:underline flex items-center gap-1">
+             <Link to="/payments" className="text-xs font-medium text-muted-foreground hover:underline flex items-center gap-1">
                Ir para pagamentos <ArrowRight className="h-3 w-3" />
              </Link>
           </CardContent>
         </Card>
+
+        <Dialog>
+          <Card className={`border-destructive/20 ${totalPreviousPending > 0 ? "bg-destructive/5" : ""}`}>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Rateio Pendente (Anteriores)</CardDescription>
+              <CardTitle className="text-3xl font-bold text-destructive">R$ {totalPreviousPending.toFixed(2)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {totalPreviousPending > 0 ? (
+                <DialogTrigger asChild>
+                  <button className="text-xs font-medium text-destructive hover:underline flex items-center gap-1">
+                    Ver detalhes <ArrowRight className="h-3 w-3" />
+                  </button>
+                </DialogTrigger>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nenhum débito anterior.</p>
+              )}
+            </CardContent>
+          </Card>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rateio Pendente — Competências Anteriores</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {Object.entries(previousByCompetency).sort(([a], [b]) => a.localeCompare(b)).map(([key, comp]) => (
+                <div key={key}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm">{comp.label}</h4>
+                    <span className="text-sm font-bold text-destructive">R$ {comp.total.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-1 pl-2 border-l-2 border-destructive/20">
+                    {comp.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-xs">
+                        <span className="text-muted-foreground truncate mr-2">{item.title}</span>
+                        <span className="shrink-0">R$ {item.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {Object.keys(previousByCompetency).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum débito de competências anteriores.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
