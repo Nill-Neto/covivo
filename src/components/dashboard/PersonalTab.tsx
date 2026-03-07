@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 
 interface PersonalTabProps {
   totalIndividualPending: number;
-  totalCollectivePending: number;
+  totalCollectivePendingPrevious: number;
+  totalCollectivePendingCurrent: number;
   individualPending: any[];
   totalPersonalCash: number;
   totalBill: number;
@@ -30,7 +31,8 @@ interface PersonalTabProps {
 
 export function PersonalTab({
   totalIndividualPending,
-  totalCollectivePending,
+  totalCollectivePendingPrevious,
+  totalCollectivePendingCurrent,
   individualPending,
   totalPersonalCash,
   totalUserExpenses,
@@ -57,19 +59,22 @@ export function PersonalTab({
         </Card>
 
         {/* Rateio Pendente */}
-        <Card className={`${totalCollectivePending > 0 ? "border-destructive/30 bg-destructive/5" : ""}`}>
+        <Card className={`${totalCollectivePendingPrevious > 0 ? "border-destructive/30 bg-destructive/5" : ""}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className={`text-sm font-medium ${totalCollectivePending > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+            <CardTitle className={`text-sm font-medium ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`}>
               Rateio Pendente
             </CardTitle>
-            <Users className={`h-4 w-4 ${totalCollectivePending > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+            <Users className={`h-4 w-4 ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalCollectivePending > 0 ? "text-destructive" : ""}`}>
-              R$ {totalCollectivePending.toFixed(2)}
+            <div className={`text-2xl font-bold ${totalCollectivePendingPrevious > 0 ? "text-destructive" : ""}`}>
+              R$ {totalCollectivePendingPrevious.toFixed(2)}
             </div>
-            {totalCollectivePending > 0 ? (
-              <p className="text-xs text-destructive mt-1 font-medium">Você deve isso ao grupo.</p>
+            {totalCollectivePendingCurrent > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">Competência atual: R$ {totalCollectivePendingCurrent.toFixed(2)}</p>
+            )}
+            {totalCollectivePendingPrevious > 0 ? (
+              <p className="text-xs text-destructive mt-1 font-medium">Você deve isso ao grupo (competências anteriores).</p>
             ) : (
               <p className="text-xs text-success mt-1 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" /> Em dia com a casa.
