@@ -239,23 +239,86 @@ export default function Dashboard() {
   // Filtering Logic for Pending Splits (Debts)
   
   // 1. Collective Debt (Rateio Pendente)
-  const collectivePending = pendingSplits.filter((s: any) => s.expenses?.expense_type === "collective");
-  const collectivePendingPrevious = collectivePending.filter((s: any) => {
-    const purchaseDate = s.expenses?.purchase_date ? new Date(s.expenses.purchase_date) : null;
-    return purchaseDate ? purchaseDate < cycleStart : false;
-  });
-  const collectivePendingCurrent = collectivePending.filter((s: any) => {
-    const purchaseDate = s.expenses?.purchase_date ? new Date(s.expenses.purchase_date) : null;
-    return purchaseDate ? purchaseDate >= cycleStart && purchaseDate < cycleEnd : false;
-  });
-  const collectivePendingFuture = collectivePending.filter((s: any) => {
-    const purchaseDate = s.expenses?.purchase_date ? new Date(s.expenses.purchase_date) : null;
-    return purchaseDate ? purchaseDate >= cycleEnd : false;
-  });
+  const currentCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+
+  const getCompetenceKeyFromPurchaseDate = (purchaseDate?: string | null) => {
+    if (!purchaseDate) return null;
+
+    const [yearRaw, monthRaw, dayRaw] = purchaseDate.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    const day = Number(dayRaw);
+
+    if (!year || !month || !day) return null;
+
+    let competenceYear = year;
+    let competenceMonth = month;
+
+    if (day >= closingDay) {
+      competenceMonth += 1;
+      if (competenceMonth > 12) {
+        competenceMonth = 1;
+        competenceYear += 1;
+      }
+    }
+
+    return `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
+  };
+
+  const formatCompetenceKey = (key: string) => {
+    const [yearRaw, monthRaw] = key.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+
+    if (!year || !month) return "Sem competência";
+
+    return `${String(month).padStart(2, "0")}/${year}`;
+  };
+
+  const collectivePending = pendingSplits
+    .filter((s: any) => s.expenses?.expense_type === "collective")
+    .map((split: any) => ({
+      ...split,
+      competenceKey: getCompetenceKeyFromPurchaseDate(split.expenses?.purchase_date),
+    }));
+
+  const collectivePendingCurrent = collectivePending.filter((s: any) => s.competenceKey === currentCompetenceKey);
+  const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
+  const collectivePendingFuture = collectivePending.filter((s: any) => !!s.competenceKey && s.competenceKey > currentCompetenceKey);
 
   const totalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const totalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const totalCollectivePendingFuture = collectivePendingFuture.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+
+  const collectivePendingPreviousByCompetence = useMemo(() => {
+    const grouped = collectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
+      const competence = item.competenceKey ? formatCompetenceKey(item.competenceKey) : "Sem competência";
+      if (!acc[competence]) acc[competence] = [];
+      acc[competence].push(item);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped)
+      .map(([competence, items]) => ({
+        competence,
+        items,
+        total: items.reduce((sum, split) => sum + Number(split.amount), 0),
+      }))
+      .sort((a, b) => {
+        if (a.competence === "Sem competência") return 1;
+        if (b.competence === "Sem competência") return -1;
+
+        const [monthA, yearA] = a.competence.split("/").map(Number);
+        const [monthB, yearB] = b.competence.split("/").map(Number);
+
+        if (!monthA || !yearA) return 1;
+        if (!monthB || !yearB) return -1;
+
+        const dateA = new Date(yearA, monthA - 1, 1).getTime();
+        const dateB = new Date(yearB, monthB - 1, 1).getTime();
+        return dateB - dateA;
+      });
+  }, [collectivePendingPrevious]);
 
   // 2. Individual Pending (Manual + Installments)
   // A. Manual pending splits (Cash/Pix/Debit that are pending) - EXCLUDE credit card splits here as they are parcelled
@@ -435,6 +498,8 @@ export default function Dashboard() {
             totalIndividualPending={totalIndividualPending}
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
+            collectivePendingPreviousByCompetence={collectivePendingPreviousByCompetence}
+            collectivePendingCurrent={collectivePendingCurrent}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
