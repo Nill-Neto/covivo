@@ -730,6 +730,13 @@ export default function Expenses() {
                       </div>
                     </div>
                   )}
+
+                  {paymentMethod !== "credit_card" && !editingId && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-dashed">
+                      <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
+                      <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Já está paga?</Label>
+                    </div>
+                  )}
                 </div>
               )}
 
