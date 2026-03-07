@@ -1,15 +1,17 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Calendar, ArrowRight } from "lucide-react";
+import { CreditCard, Calendar, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { getCategoryLabel, CHART_COLORS } from "@/constants/categories";
 import { PageHero } from "@/components/layout/PageHero";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function PersonalDashboard() {
   const { user } = useAuth();
