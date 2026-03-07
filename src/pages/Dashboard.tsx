@@ -13,7 +13,7 @@ import { RepublicTab } from "@/components/dashboard/RepublicTab";
 import { PersonalTab } from "@/components/dashboard/PersonalTab";
 import { CardsTab } from "@/components/dashboard/CardsTab";
 import { AdminTab } from "@/components/dashboard/AdminTab";
-import { PaymentDialogs } from "@/components/dashboard/PaymentDialogs";
+import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
 import { getCategoryLabel } from "@/constants/categories";
 
 export default function Dashboard() {
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [selectedIndividualSplit, setSelectedIndividualSplit] = useState<any>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [rateioScope, setRateioScope] = useState<RateioScope>("previous");
 
   // --- Group Settings & Initial Date Logic ---
   const { data: groupSettings } = useQuery({
@@ -288,16 +289,6 @@ export default function Dashboard() {
     return `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
   };
 
-  const formatCompetenceKey = (key: string) => {
-    const [yearRaw, monthRaw] = key.split("-");
-    const year = Number(yearRaw);
-    const month = Number(monthRaw);
-
-    if (!year || !month) return "Sem competência";
-
-    return `${String(month).padStart(2, "0")}/${year}`;
-  };
-
   const collectivePending = pendingSplits
     .filter((s: any) => s.expenses?.expense_type === "collective")
     .map((split: any) => ({
@@ -307,12 +298,8 @@ export default function Dashboard() {
 
   const collectivePendingCurrent = collectivePending.filter((s: any) => s.competenceKey === currentCompetenceKey);
   const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
-  const collectivePendingFuture = collectivePending.filter((s: any) => !!s.competenceKey && s.competenceKey > currentCompetenceKey);
-
   const totalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const totalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
-  const totalCollectivePendingFuture = collectivePendingFuture.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
-
   const collectivePendingPreviousByCompetence = useMemo(() => {
     const grouped = collectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
       const purchaseDate = item.expenses?.purchase_date ? new Date(item.expenses.purchase_date) : null;
@@ -390,7 +377,7 @@ export default function Dashboard() {
   }, [billInstallments]);
 
 
-  const handlePayRateio = async () => {
+  const handlePayRateio = async (scope: RateioScope) => {
     if (!receiptFile) return;
     setSaving(true);
     try {
@@ -399,13 +386,17 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
+      const amount = scope === "previous" ? totalCollectivePendingPrevious : totalCollectivePendingCurrent;
+
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: null,
         paid_by: user!.id,
-        amount: totalCollectivePendingPrevious,
+        amount,
         receipt_url: urlData.publicUrl,
-        notes: `Pagamento de Rateio - ${format(currentDate, "MMMM/yyyy", { locale: ptBR })}`
+        notes: scope === "previous"
+          ? `Pagamento de Rateio - competências anteriores (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
+          : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
       });
 
       toast({ title: "Pagamento enviado!" });
@@ -510,7 +501,7 @@ export default function Dashboard() {
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
             isLate={isLate}
-            onPayRateio={() => setPayRateioOpen(true)}
+            onPayRateio={(scope) => { setRateioScope(scope); setPayRateioOpen(true); }}
           />
         </TabsContent>
 
@@ -550,12 +541,11 @@ export default function Dashboard() {
         setPayIndividualOpen={setPayIndividualOpen}
         selectedIndividualSplit={selectedIndividualSplit}
         setSelectedIndividualSplit={setSelectedIndividualSplit}
-        totalCollectivePendingPrevious={totalCollectivePendingPrevious}
-        totalCollectivePendingCurrent={totalCollectivePendingCurrent}
-        totalCollectivePendingFuture={totalCollectivePendingFuture}
-        collectivePendingPrevious={collectivePendingPrevious}
-        collectivePendingCurrent={collectivePendingCurrent}
-        collectivePendingFuture={collectivePendingFuture}
+        collectivePendingByScope={{
+          previous: { total: totalCollectivePendingPrevious, items: collectivePendingPrevious },
+          current: { total: totalCollectivePendingCurrent, items: collectivePendingCurrent },
+        }}
+        rateioScope={rateioScope}
         individualPending={individualPending}
         currentDate={currentDate}
         onPayRateio={handlePayRateio}
