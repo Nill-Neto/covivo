@@ -11,7 +11,8 @@ interface RepublicTabProps {
   collectiveExpenses: any[];
   totalMonthExpenses: number;
   republicChartData: any[];
-  totalCollectivePending: number;
+  totalCollectivePendingPrevious: number;
+  totalCollectivePendingCurrent: number;
   isLate: boolean;
   onPayRateio: () => void;
 }
@@ -20,7 +21,8 @@ export function RepublicTab({
   collectiveExpenses,
   totalMonthExpenses,
   republicChartData,
-  totalCollectivePending,
+  totalCollectivePendingPrevious,
+  totalCollectivePendingCurrent,
   isLate,
   onPayRateio,
 }: RepublicTabProps) {
@@ -28,19 +30,24 @@ export function RepublicTab({
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* KPI Cards */}
-        <Card className={`col-span-1 lg:col-span-2 relative overflow-hidden transition-all ${isLate && totalCollectivePending > 0 ? "border-destructive bg-destructive/5" : ""}`}>
+        <Card className={`col-span-1 lg:col-span-2 relative overflow-hidden transition-all ${isLate && totalCollectivePendingPrevious > 0 ? "border-destructive bg-destructive/5" : ""}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio (Pendente)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">R$ {totalCollectivePending.toFixed(2)}</div>
-            {isLate && totalCollectivePending > 0 && (
+            <div className="text-3xl font-bold text-foreground">R$ {totalCollectivePendingPrevious.toFixed(2)}</div>
+            {totalCollectivePendingCurrent > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Competência atual: R$ {totalCollectivePendingCurrent.toFixed(2)}
+              </p>
+            )}
+            {isLate && totalCollectivePendingPrevious > 0 && (
               <p className="text-xs text-destructive font-bold mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3"/> Pagamento em Atraso
               </p>
             )}
-            {totalCollectivePending > 0 && (
+            {totalCollectivePendingPrevious > 0 && (
               <Button className="mt-4 w-full sm:w-auto" variant={isLate ? "destructive" : "default"} onClick={onPayRateio}>
                 Realizar Pagamento
               </Button>
