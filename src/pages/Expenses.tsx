@@ -139,7 +139,7 @@ export default function Expenses() {
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
   // --- Date Cycle Logic ---
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading } = useCycleDates(membership?.group_id);
+  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading, closingDay: groupClosingDay } = useCycleDates(membership?.group_id);
 
   useEffect(() => {
     if (!editingId && activeTab !== "recurring") {
