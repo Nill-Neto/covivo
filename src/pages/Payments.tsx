@@ -309,33 +309,32 @@ export default function Payments() {
         Exibindo competência: <strong>{format(cycleStart, "dd/MM")}</strong> até <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
       </div>
 
-      <Tabs defaultValue={isAdmin ? "pending" : "all"}>
-        <TabsList>
-          {isAdmin && <TabsTrigger value="pending">Pendentes</TabsTrigger>}
-          <TabsTrigger value="all">Todos</TabsTrigger>
-        </TabsList>
+      <TabsList>
+        {isAdmin && <TabsTrigger value="pending">Pendentes</TabsTrigger>}
+        <TabsTrigger value="all">Todos</TabsTrigger>
+      </TabsList>
 
-        {isAdmin && (
-          <TabsContent value="pending" className="space-y-3 mt-4">
-            {payments?.filter((p) => p.status === "pending").length === 0 && (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento pendente nesta competência.</CardContent></Card>
-            )}
-            {payments?.filter((p) => p.status === "pending").map((p: any) => (
-              <PaymentCard key={p.id} payment={p} isAdmin onConfirm={handleConfirm} />
-            ))}
-          </TabsContent>
-        )}
-
-        <TabsContent value="all" className="space-y-3 mt-4">
-          {payments?.length === 0 && (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento registrado nesta competência.</CardContent></Card>
+      {isAdmin && (
+        <TabsContent value="pending" className="space-y-3 mt-4">
+          {payments?.filter((p) => p.status === "pending").length === 0 && (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento pendente nesta competência.</CardContent></Card>
           )}
-          {payments?.map((p: any) => (
-            <PaymentCard key={p.id} payment={p} isAdmin={isAdmin} onConfirm={handleConfirm} />
+          {payments?.filter((p) => p.status === "pending").map((p: any) => (
+            <PaymentCard key={p.id} payment={p} isAdmin onConfirm={handleConfirm} />
           ))}
         </TabsContent>
-      </Tabs>
+      )}
+
+      <TabsContent value="all" className="space-y-3 mt-4">
+        {payments?.length === 0 && (
+          <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento registrado nesta competência.</CardContent></Card>
+        )}
+        {payments?.map((p: any) => (
+          <PaymentCard key={p.id} payment={p} isAdmin={isAdmin} onConfirm={handleConfirm} />
+        ))}
+      </TabsContent>
     </div>
+    </Tabs>
   );
 }
 
