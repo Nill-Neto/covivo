@@ -7,6 +7,7 @@ import { User, Users, CreditCard, Shield } from "lucide-react";
 import { format, subDays, isAfter, isSameDay, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { parseLocalDate } from "@/lib/utils";
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { RepublicTab } from "@/components/dashboard/RepublicTab";
@@ -337,7 +338,7 @@ export default function Dashboard() {
   const totalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const collectivePendingPreviousByCompetence = useMemo(() => {
     const grouped = collectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
-      const purchaseDate = item.expenses?.purchase_date ? new Date(item.expenses.purchase_date) : null;
+      const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
       const competence = purchaseDate ? format(purchaseDate, "MM/yyyy") : "Sem competência";
       if (!acc[competence]) acc[competence] = [];
       acc[competence].push(item);

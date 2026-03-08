@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
+import { parseLocalDate } from "@/lib/utils";
 import {
   Users, ArrowRight, RefreshCw, DollarSign, AlertTriangle,
   TrendingUp, Receipt, Settings, ClipboardList, BarChart3,
@@ -73,7 +74,7 @@ export function AdminTab({
 
   const recentExpenses = useMemo(() =>
     [...collectiveExpenses]
-      .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
+      .sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime())
       .slice(0, 6),
     [collectiveExpenses]
   );
@@ -378,7 +379,7 @@ export function AdminTab({
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{expense.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {getCategoryLabel(expense.category)} · {format(new Date(expense.purchase_date), "dd/MM")}
+                          {getCategoryLabel(expense.category)} · {format(parseLocalDate(expense.purchase_date), "dd/MM")}
                         </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">

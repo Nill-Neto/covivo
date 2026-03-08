@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, L
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
+import { parseLocalDate } from "@/lib/utils";
 
 interface RepublicTabProps {
   collectiveExpenses: any[];
@@ -174,7 +175,7 @@ export function RepublicTab({
                         <div>
                           <p className="text-sm font-medium leading-none">{e.title}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {e.category} • {format(new Date(e.purchase_date), "dd MMM")}
+                            {e.category} • {format(parseLocalDate(e.purchase_date), "dd MMM")}
                           </p>
                         </div>
                       </div>

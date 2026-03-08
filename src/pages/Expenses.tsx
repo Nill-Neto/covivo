@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { parseLocalDate } from "@/lib/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -953,7 +954,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {format(new Date(expense.purchase_date || expense.created_at), "dd/MM/yyyy")}
+                <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date || expense.created_at), "dd/MM/yyyy")}
               </span>
               {expense.payment_method === "credit_card" && (
                 <span>
@@ -1028,7 +1029,7 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Próximo vencimento: {format(new Date(recurring.next_due_date), "dd/MM/yyyy")}
+              Próximo vencimento: {format(parseLocalDate(recurring.next_due_date), "dd/MM/yyyy")}
             </p>
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">

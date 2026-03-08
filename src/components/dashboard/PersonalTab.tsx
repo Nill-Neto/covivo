@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { parseLocalDate } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
 import { 
@@ -245,7 +246,7 @@ export function PersonalTab({
                                     {getCategoryLabel(item.expenses?.category)}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground">
-                                    {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                    {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
                                   </span>
                                 </div>
                               </div>
@@ -311,7 +312,7 @@ export function PersonalTab({
                                     {getCategoryLabel(e.category)}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground">
-                                    {e.purchase_date ? format(new Date(e.purchase_date), "dd/MM/yyyy") : ""} • {methodMap[e.payment_method] || e.payment_method}
+                                    {e.purchase_date ? format(parseLocalDate(e.purchase_date), "dd/MM/yyyy") : ""} • {methodMap[e.payment_method] || e.payment_method}
                                   </span>
                                 </div>
                               </div>
@@ -358,7 +359,7 @@ export function PersonalTab({
                     <p className="text-sm">Nenhuma despesa individual nesta competência.</p>
                   </div>
                 ) : (
-                  [...myPersonalExpenses].sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime()).map(e => (
+                  [...myPersonalExpenses].sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime()).map(e => (
                     <div key={e.id} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-0 last:pb-0 hover:bg-muted/30 p-2 rounded-md transition-colors">
                       <div className="flex flex-col gap-1">
                         <p className="text-sm font-medium">{e.title}</p>
@@ -367,7 +368,7 @@ export function PersonalTab({
                             {getCategoryLabel(e.category)}
                           </Badge>
                           <span className="text-[10px] text-muted-foreground">
-                            {format(new Date(e.purchase_date), "dd/MM")} • {e.payment_method === 'credit_card' ? 'Cartão' : 'À vista'}
+                            {format(parseLocalDate(e.purchase_date), "dd/MM")} • {e.payment_method === 'credit_card' ? 'Cartão' : 'À vista'}
                           </span>
                         </div>
                       </div>
