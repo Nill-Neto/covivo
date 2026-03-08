@@ -246,7 +246,7 @@ export function PersonalTab({
                                     {getCategoryLabel(item.expenses?.category)}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground">
-                                    {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                    {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
                                   </span>
                                 </div>
                               </div>
