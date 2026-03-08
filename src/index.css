@@ -72,15 +72,15 @@
   .dark {
     /* Professional Dark Theme */
     
-    /* Main Background: Deep rich navy (not pure black) */
-    --background: 222 47% 11%;
+    /* Main Background: Lighter navy */
+    --background: 217 33% 17%;
     --foreground: 210 40% 98%;
 
-    /* Cards: Slightly lighter navy to separate from background */
-    --card: 217 33% 17%;
+    /* Cards: Slightly lighter to separate from background */
+    --card: 215 28% 22%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 17%;
+    --popover: 215 28% 22%;
     --popover-foreground: 210 40% 98%;
 
     /* Primary: Slightly lighter Royal Blue for visibility on dark */
@@ -88,14 +88,14 @@
     --primary-foreground: 222 47% 11%;
 
     /* Secondary: Darker cool gray */
-    --secondary: 217 33% 17%;
+    --secondary: 215 28% 22%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 215 28% 22%;
     --muted-foreground: 215 20.2% 65.1%;
 
     /* Accent: Standard Hover State (Changed from Teal to Subtle Dark Blue) */
-    --accent: 217 33% 17%;
+    --accent: 215 28% 22%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -107,12 +107,12 @@
     --success: 160 55% 38%;
     --success-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --border: 215 28% 22%;
+    --input: 215 28% 22%;
     --ring: 217 91% 60%;
 
-    /* Sidebar in Dark Mode: Matches background or slightly darker */
-    --sidebar-background: 222 47% 8%; /* Darker than main bg */
+    /* Sidebar in Dark Mode: Deep dark navy */
+    --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
