@@ -64,7 +64,7 @@ export function PersonalTab({
       
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Comprometido (Mês) */}
-        <Card className="sm:col-span-1 bg-primary text-primary-foreground border-0 shadow-md">
+        <Card className="bg-primary text-primary-foreground border-0 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-primary-foreground/90">Total Comprometido</CardTitle>
             <Wallet className="h-4 w-4 text-primary-foreground/70" />
