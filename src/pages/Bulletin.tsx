@@ -23,6 +23,8 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Pin, Trash2, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PageHero } from "@/components/layout/PageHero";
+import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
 interface BulletinPost {
   id: string;
