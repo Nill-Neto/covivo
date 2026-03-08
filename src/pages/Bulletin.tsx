@@ -115,15 +115,16 @@ export default function Bulletin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-serif">Mural de Avisos</h1>
-          <p className="text-muted-foreground mt-1">Comunicados e recados para a república.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Novo Aviso</Button>
-          </DialogTrigger>
+      <PageHero
+        title="Mural de Avisos"
+        subtitle="Comunicados e recados para a república."
+        tone="primary"
+        icon={<MessageSquare className="h-4 w-4" />}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />Novo Aviso</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Publicar Aviso</DialogTitle></DialogHeader>
             <div className="space-y-4">
