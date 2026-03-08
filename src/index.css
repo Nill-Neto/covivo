@@ -30,7 +30,7 @@
 
     /* Muted: For backgrounds of inputs/disabled states */
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215 16% 44%;
+    --muted-foreground: 215 20% 42%;
 
     /* Accent: Standard Hover State (Changed from Teal to Subtle Slate) */
     --accent: 210 40% 96.1%;
