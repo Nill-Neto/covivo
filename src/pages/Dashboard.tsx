@@ -518,28 +518,30 @@ export default function Dashboard() {
       />
 
       <div className="space-y-6">
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+        {!heroCompact && (
+        <TabsList className="w-full justify-start overflow-x-auto bg-transparent gap-2 h-auto p-0">
           {!isPersonalFinancePage && isAdmin && (
-            <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
-              <Shield className="h-4 w-4 mr-2" /> Administração
+            <TabsTrigger value="admin" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
+              <Shield className="h-3.5 w-3.5 mr-1.5" /> Admin
             </TabsTrigger>
           )}
           {!isPersonalFinancePage && (
-            <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
-              <Users className="h-4 w-4 mr-2" /> República
+            <TabsTrigger value="republic" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
+              <Users className="h-3.5 w-3.5 mr-1.5" /> República
             </TabsTrigger>
           )}
           {isPersonalFinancePage && (
             <>
-              <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
-                <User className="h-4 w-4 mr-2" /> Dashboard Pessoal
+              <TabsTrigger value="personal" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
+                <User className="h-3.5 w-3.5 mr-1.5" /> Pessoal
               </TabsTrigger>
-              <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
-                <CreditCard className="h-4 w-4 mr-2" /> Cartões
+              <TabsTrigger value="cards" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
+                <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Cartões
               </TabsTrigger>
             </>
           )}
         </TabsList>
+        )}
 
         {!isPersonalFinancePage && isAdmin && (
           <TabsContent value="admin" className="space-y-6">
