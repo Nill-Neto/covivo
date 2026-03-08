@@ -265,7 +265,7 @@ export function PersonalTab({
                     </div>
                     
                     <div className="border-t">
-                      <ScrollArea className="max-h-[50vh]">
+                      <div className="overflow-y-auto max-h-[50vh]">
                         <div className="divide-y">
                           {individualPending.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
