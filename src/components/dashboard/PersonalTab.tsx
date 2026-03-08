@@ -264,8 +264,8 @@ export function PersonalTab({
                       </span>
                     </div>
                     
-                    <div className="flex-1 min-h-0 border-t">
-                      <ScrollArea className="max-h-[40vh]">
+                    <div className="flex-1 min-h-0 overflow-hidden border-t">
+                      <ScrollArea className="h-full max-h-[50vh]">
                         <div className="divide-y">
                           {individualPending.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
