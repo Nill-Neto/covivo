@@ -193,6 +193,12 @@ export function CardsTab({
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
+  const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
+    const dateA = a.expenses?.purchase_date || "";
+    const dateB = b.expenses?.purchase_date || "";
+    return dateB.localeCompare(dateA);
+  });
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-6 md:grid-cols-3">
