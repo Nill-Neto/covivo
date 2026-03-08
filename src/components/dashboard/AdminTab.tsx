@@ -94,7 +94,7 @@ export function AdminTab({
   const cycleLabel = format(currentDate, "MMMM 'de' yyyy", { locale: ptBR });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Quick Actions - moved to top */}
       <Card>
@@ -232,7 +232,7 @@ export function AdminTab({
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Saldo dos Moradores - 2 cols */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
@@ -313,7 +313,7 @@ export function AdminTab({
         </Card>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Categoria de Despesas */}
           <Card>
             <CardHeader className="pb-3">
