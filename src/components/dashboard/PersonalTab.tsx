@@ -361,7 +361,7 @@ export function PersonalTab({
                           );
                         })}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
