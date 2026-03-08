@@ -13,6 +13,8 @@ interface PageHeroProps {
   tone?: "default" | "primary" | "warning";
   /** Tabs element rendered inside the hero when in compact/sticky mode */
   compactTabs?: ReactNode;
+  /** Called when compact state changes */
+  onCompactChange?: (isCompact: boolean) => void;
 }
 
 const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
