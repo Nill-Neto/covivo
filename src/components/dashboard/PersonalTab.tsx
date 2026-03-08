@@ -336,8 +336,8 @@ export function PersonalTab({
                     </span>
                   </div>
 
-                  <div className="flex-1 min-h-0 border-t">
-                    <ScrollArea className="max-h-[45vh]">
+                  <div className="flex-1 min-h-0 overflow-hidden border-t">
+                    <ScrollArea className="h-full max-h-[50vh]">
                       <div className="divide-y">
                         {cashExpenses.map((e: any) => {
                           const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
