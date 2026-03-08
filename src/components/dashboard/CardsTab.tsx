@@ -261,7 +261,10 @@ export function CardsTab({
                 <Card
                   key={card.id}
                   className="flex flex-col justify-between hover:shadow-md transition-all border-l-4 border-l-primary/80 cursor-pointer"
-                  onClick={() => setSelectedCard(card)}
+                  onClick={() => {
+                    if (editCardOpen || !!deletingCard) return;
+                    setSelectedCard(card);
+                  }}
                 >
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex justify-between items-start gap-3">
