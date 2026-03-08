@@ -337,7 +337,7 @@ export function PersonalTab({
                   </div>
 
                   <div className="border-t">
-                    <ScrollArea className="max-h-[50vh]">
+                    <div className="overflow-y-auto max-h-[50vh]">
                       <div className="divide-y">
                         {cashExpenses.map((e: any) => {
                           const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
