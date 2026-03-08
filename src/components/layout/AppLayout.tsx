@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationBell } from "./NotificationBell";
@@ -74,6 +74,16 @@ export function AppLayout() {
   const { membership, isAdmin } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleScroll = () => setIsScrolled(el.scrollTop > 20);
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const sidebarGroups = isAdmin ? [...mainNavGroups, adminGroup] : mainNavGroups;
 
@@ -118,9 +128,14 @@ export function AppLayout() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Header Superior Fixo */}
+      {/* Header Superior Fixo — scroll-aware */}
       <motion.header
-        className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        className={cn(
+          "z-50 flex h-16 shrink-0 items-center justify-between px-4 md:px-6 transition-all duration-300",
+          isScrolled
+            ? "border-b bg-background/80 backdrop-blur-lg shadow-sm"
+            : "border-b border-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        )}
         initial={{ opacity: 0, y: -12, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ type: "spring", bounce: 0.3, duration: 0.7 }}
@@ -211,7 +226,9 @@ export function AppLayout() {
           </>
         )}
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background relative">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-8 bg-background relative">
+          {/* Radial gradient background — same effect as landing */}
+          <div className="pointer-events-none absolute inset-0 -z-10 [background:radial-gradient(125%_125%_at_50%_0%,transparent_50%,hsl(var(--primary)/0.08)_100%)]" />
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>
