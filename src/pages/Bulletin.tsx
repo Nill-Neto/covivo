@@ -148,7 +148,7 @@ export default function Bulletin() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <ScrollRevealGroup preset="blur-slide" className="space-y-4">
           {posts.map((post) => (
             <Card key={post.id} className={post.pinned ? "border-primary/50 bg-primary/5" : ""}>
               <CardHeader className="pb-2">
