@@ -9,6 +9,14 @@ import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface CardsTabProps {
   totalBill: number;
@@ -28,7 +36,6 @@ export function CardsTab({
   billInstallments,
 }: CardsTabProps) {
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
-
   const donutData: DonutChartSegment[] = cardsChartData.map((entry, index) => ({
     label: entry.name,
     value: entry.value,
@@ -158,38 +165,85 @@ export function CardsTab({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {creditCards.map(card => {
               const billValue = cardsBreakdown[card.id] || 0;
+              const cardInstallments = billInstallments.filter((i: any) => i.expenses?.credit_card_id === card.id);
+              const cardTotal = cardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
               return (
-                <Card key={card.id} className="flex flex-col justify-between hover:shadow-md transition-all border-l-4 border-l-primary/80">
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-base font-semibold">{card.label}</CardTitle>
-                        <p className="text-xs text-muted-foreground capitalize font-medium">{card.brand}</p>
+                <Dialog key={card.id}>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Abrir fatura do cartão ${card.label}`}
+                      className="rounded-lg border bg-card text-card-foreground shadow-sm flex flex-col justify-between hover:shadow-md transition-all border-l-4 border-l-primary/80 cursor-pointer text-left"
+                    >
+                      <CardHeader className="pb-2 pt-4 px-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-base font-semibold">{card.label}</CardTitle>
+                            <p className="text-xs text-muted-foreground capitalize font-medium">{card.brand}</p>
+                          </div>
+                          <Badge variant="outline" className="font-mono text-[10px] bg-background">Final {card.due_day}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-4">
+                        <div className="mb-4 mt-2">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Fatura Atual</p>
+                          <p className="text-2xl font-bold text-primary">R$ {billValue.toFixed(2)}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[10px] bg-muted/40 p-2 rounded border border-border/50">
+                          <div>
+                            <span className="text-muted-foreground block">Fecha dia</span>
+                            <span className="font-bold text-foreground">{card.closing_day}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">Vence dia</span>
+                            <span className="font-bold text-foreground">{card.due_day}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Fatura - {card.label}</DialogTitle>
+                      <DialogDescription>
+                        Competência {format(currentDate, "MMMM/yyyy")}
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div className="rounded-lg border bg-muted/20 p-3">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Total da Fatura</p>
+                        <p className="text-2xl font-bold text-primary">R$ {cardTotal.toFixed(2)}</p>
                       </div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background">Final {card.due_day}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    <div className="mb-4 mt-2">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Fatura Atual</p>
-                      <p className="text-2xl font-bold text-primary">R$ {billValue.toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-[10px] bg-muted/40 p-2 rounded border border-border/50">
-                      <div>
-                        <span className="text-muted-foreground block">Fecha dia</span>
-                        <span className="font-bold text-foreground">{card.closing_day}</span>
+
+                      <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
+                        {cardInstallments.map((item: any, index: number) => (
+                          <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
+                            <div className="min-w-0 pr-3">
+                              <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.expenses?.category} • Parcela {item.installment_number}
+                              </p>
+                            </div>
+                            <p className="text-sm font-bold">R$ {Number(item.amount).toFixed(2)}</p>
+                          </div>
+                        ))}
+
+                        {cardInstallments.length === 0 && (
+                          <div className="p-6 text-center text-sm text-muted-foreground">
+                            Nenhum lançamento encontrado para este cartão nesta competência.
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block">Vence dia</span>
-                        <span className="font-bold text-foreground">{card.due_day}</span>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </DialogContent>
+                </Dialog>
               );
             })}
-            
+
             {/* Add Card Button */}
             <Link to="/personal/cards" className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5">
               <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
@@ -230,6 +284,7 @@ export function CardsTab({
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
