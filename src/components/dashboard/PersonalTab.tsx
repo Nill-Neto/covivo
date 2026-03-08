@@ -121,7 +121,7 @@ export function PersonalTab({
                   </div>
 
                   <div className="border-t">
-                    <ScrollArea className="max-h-[50vh]">
+                    <div className="overflow-y-auto max-h-[50vh]">
                       <div className="divide-y">
                         {collectivePendingPreviousByCompetence.map((group) => (
                           <div key={group.competence} className="px-5 py-4 space-y-2.5">
