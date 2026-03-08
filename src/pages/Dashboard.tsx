@@ -32,29 +32,17 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [rateioScope, setRateioScope] = useState<RateioScope>("previous");
 
-  const [activeTab, setActiveTab] = useState<string>(isPersonalFinancePage ? "personal" : (isAdmin ? "admin" : "republic"));
+  const firstAvailableTab = useMemo(() => {
+    if (isPersonalFinancePage) return "personal";
+    if (isAdmin) return "admin";
+    return "republic";
+  }, [isPersonalFinancePage, isAdmin]);
+
+  const [activeTab, setActiveTab] = useState<string>(firstAvailableTab);
 
   useEffect(() => {
-    setActiveTab(isPersonalFinancePage ? "personal" : (isAdmin ? "admin" : "republic"));
-  }, [isPersonalFinancePage, isAdmin]);
-
-  const firstAvailableTab = useMemo(() => {
-    if (isPersonalFinancePage) return "personal";
-    if (isAdmin) return "admin";
-    return "republic";
-  }, [isPersonalFinancePage, isAdmin]);
-
-  const firstAvailableTab = useMemo(() => {
-    if (isPersonalFinancePage) return "personal";
-    if (isAdmin) return "admin";
-    return "republic";
-  }, [isPersonalFinancePage, isAdmin]);
-
-  const firstAvailableTab = useMemo(() => {
-    if (isPersonalFinancePage) return "personal";
-    if (isAdmin) return "admin";
-    return "republic";
-  }, [isPersonalFinancePage, isAdmin]);
+    setActiveTab(firstAvailableTab);
+  }, [firstAvailableTab]);
 
   // --- Group Settings & Initial Date Logic ---
   const { data: groupSettings } = useQuery({
@@ -153,7 +141,7 @@ export default function Dashboard() {
     enabled: collectivePendingExpenseIds.length > 0,
   });
 
-  const { data: creditCards = [] } = useQuery({
+  const { data: creditCards = [], isLoading: isLoadingCreditCards } = useQuery({
     queryKey: ["my-credit-cards", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("credit_cards").select("*").eq("user_id", user!.id);
@@ -162,7 +150,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const { data: billInstallments = [] } = useQuery({
+  const { data: billInstallments = [], isLoading: isLoadingBillInstallments } = useQuery({
     queryKey: ["bill-installments-dashboard", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
       const targetMonth = currentDate.getMonth() + 1; 
@@ -480,7 +468,7 @@ export default function Dashboard() {
         onPrevMonth={() => setCurrentDate(subMonths(currentDate, 1))}
       />
 
-      <Tabs defaultValue={isPersonalFinancePage ? "personal" : (isAdmin ? "admin" : "republic")} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
           {!isPersonalFinancePage && isAdmin && (
             <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
@@ -563,6 +551,7 @@ export default function Dashboard() {
             creditCards={creditCards}
             cardsBreakdown={cardsBreakdown}
             billInstallments={billInstallments}
+            isLoading={isLoadingCreditCards || isLoadingBillInstallments}
           />
         </TabsContent>
       </Tabs>
