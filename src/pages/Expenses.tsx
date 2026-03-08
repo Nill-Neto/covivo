@@ -934,8 +934,8 @@ export default function Expenses() {
             />
           ))}
         </TabsContent>
-      </Tabs>
-    </div>
+      </div>
+    </Tabs>
   );
 }
 
