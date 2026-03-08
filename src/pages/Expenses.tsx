@@ -612,6 +612,7 @@ export default function Expenses() {
     <div className="space-y-6">
       <PageHero
         compactTabs={compactTabsList}
+        onCompactChange={setHeroCompact}
         title="Despesas"
         subtitle="Gestão financeira do grupo"
         tone="primary"
