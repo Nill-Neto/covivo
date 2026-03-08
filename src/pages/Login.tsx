@@ -96,7 +96,7 @@ export default function Login() {
             Ao entrar, você concorda com os termos de uso e política de privacidade.
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
