@@ -344,8 +344,8 @@ export function PersonalTab({
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-12">
-        <Card className="md:col-span-8 lg:col-span-8">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-12">
+        <Card className="lg:col-span-8">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> Despesas Individuais (Competência)
