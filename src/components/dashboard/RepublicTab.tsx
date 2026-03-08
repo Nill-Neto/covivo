@@ -175,7 +175,7 @@ export function RepublicTab({
                         <div>
                           <p className="text-sm font-medium leading-none">{e.title}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {e.category} • {format(new Date(e.purchase_date), "dd MMM")}
+                            {e.category} • {format(parseLocalDate(e.purchase_date), "dd MMM")}
                           </p>
                         </div>
                       </div>

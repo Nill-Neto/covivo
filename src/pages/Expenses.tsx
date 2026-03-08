@@ -1028,7 +1028,7 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Próximo vencimento: {format(new Date(recurring.next_due_date), "dd/MM/yyyy")}
+              Próximo vencimento: {format(parseLocalDate(recurring.next_due_date), "dd/MM/yyyy")}
             </p>
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">

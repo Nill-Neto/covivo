@@ -368,7 +368,7 @@ export function PersonalTab({
                             {getCategoryLabel(e.category)}
                           </Badge>
                           <span className="text-[10px] text-muted-foreground">
-                            {format(new Date(e.purchase_date), "dd/MM")} • {e.payment_method === 'credit_card' ? 'Cartão' : 'À vista'}
+                            {format(parseLocalDate(e.purchase_date), "dd/MM")} • {e.payment_method === 'credit_card' ? 'Cartão' : 'À vista'}
                           </span>
                         </div>
                       </div>
