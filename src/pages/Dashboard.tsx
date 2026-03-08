@@ -477,23 +477,23 @@ export default function Dashboard() {
   };
 
   const compactTabsList = (
-    <TabsList className="w-full justify-start rounded-none h-auto p-0 bg-transparent gap-4">
+    <TabsList className="w-full justify-start overflow-x-auto bg-transparent gap-2 h-auto p-0">
       {!isPersonalFinancePage && isAdmin && (
-        <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+        <TabsTrigger value="admin" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
           <Shield className="h-3.5 w-3.5 mr-1.5" /> Admin
         </TabsTrigger>
       )}
       {!isPersonalFinancePage && (
-        <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+        <TabsTrigger value="republic" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
           <Users className="h-3.5 w-3.5 mr-1.5" /> República
         </TabsTrigger>
       )}
       {isPersonalFinancePage && (
         <>
-          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+          <TabsTrigger value="personal" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
             <User className="h-3.5 w-3.5 mr-1.5" /> Pessoal
           </TabsTrigger>
-          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+          <TabsTrigger value="cards" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">
             <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Cartões
           </TabsTrigger>
         </>

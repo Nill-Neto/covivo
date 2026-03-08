@@ -131,10 +131,10 @@ export function AppLayout() {
       {/* Header Superior Fixo — scroll-aware */}
       <motion.header
         className={cn(
-          "z-50 flex h-16 shrink-0 items-center justify-between px-4 md:px-6 transition-all duration-300",
+          "z-50 flex h-16 shrink-0 items-center justify-between px-4 md:px-6 transition-all duration-300 border-b",
           isScrolled
-            ? "border-b bg-background/80 backdrop-blur-lg shadow-sm"
-            : "border-b border-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+            ? "bg-card/80 backdrop-blur-xl shadow-sm"
+            : "bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60"
         )}
         initial={{ opacity: 0, y: -12, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -226,7 +226,7 @@ export function AppLayout() {
           </>
         )}
 
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-8 bg-background relative">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 pt-3 md:px-8 md:pt-4 bg-background relative">
           {/* Decorative background — radial gradients + blurred shapes */}
           <div className="pointer-events-none absolute inset-0 -z-10 [background:radial-gradient(125%_125%_at_50%_0%,transparent_40%,hsl(var(--primary)/0.08)_100%)]" />
           <div className="pointer-events-none absolute -top-24 -right-24 -z-10 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
