@@ -34,6 +34,7 @@ export default function ShoppingLists() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [openNew, setOpenNew] = useState(false);
+  const [heroCompact, setHeroCompact] = useState(false);
   const [newList, setNewList] = useState({ name: "", list_type: "collective" });
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
@@ -164,11 +165,12 @@ export default function ShoppingLists() {
 
   return (
     <Tabs defaultValue="active">
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHero
         title="Listas de Compras"
         subtitle="Coletivas e individuais"
         compactTabs={compactTabsList}
+        onCompactChange={setHeroCompact}
         tone="primary"
         icon={<ShoppingCart className="h-4 w-4" />}
         actions={
@@ -270,10 +272,12 @@ export default function ShoppingLists() {
         </div>
       ) : (
         <>
-          <TabsList>
-            <TabsTrigger value="active">Ativas ({activeLists.length})</TabsTrigger>
-            <TabsTrigger value="completed">Concluídas ({completedLists.length})</TabsTrigger>
-          </TabsList>
+          {!heroCompact && (
+            <TabsList className="w-full justify-start overflow-x-auto bg-transparent gap-2 h-auto p-0">
+              <TabsTrigger value="active" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Ativas ({activeLists.length})</TabsTrigger>
+              <TabsTrigger value="completed" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Concluídas ({completedLists.length})</TabsTrigger>
+            </TabsList>
+          )}
           <TabsContent value="active" className="space-y-3 mt-4">
             {activeLists.length === 0 ? (
               <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma lista ativa.</CardContent></Card>

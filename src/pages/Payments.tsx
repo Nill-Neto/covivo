@@ -25,6 +25,7 @@ export default function Payments() {
   
   const [open, setOpen] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [heroCompact, setHeroCompact] = useState(false);
   
   // Alterado para array de IDs
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
@@ -216,9 +217,10 @@ export default function Payments() {
 
   return (
     <Tabs defaultValue={defaultTab}>
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHero
         compactTabs={compactTabsList}
+        onCompactChange={setHeroCompact}
         title="Pagamentos"
         subtitle="Histórico de pagamentos."
         tone="primary"
@@ -309,10 +311,12 @@ export default function Payments() {
         Exibindo competência: <strong>{format(cycleStart, "dd/MM")}</strong> até <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
       </div>
 
-      <TabsList>
-        {isAdmin && <TabsTrigger value="pending">Pendentes</TabsTrigger>}
-        <TabsTrigger value="all">Todos</TabsTrigger>
-      </TabsList>
+      {!heroCompact && (
+        <TabsList className="w-full justify-start overflow-x-auto bg-transparent gap-2 h-auto p-0">
+          {isAdmin && <TabsTrigger value="pending" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Pendentes</TabsTrigger>}
+          <TabsTrigger value="all" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Todos</TabsTrigger>
+        </TabsList>
+      )}
 
       {isAdmin && (
         <TabsContent value="pending" className="space-y-3 mt-4">

@@ -13,6 +13,8 @@ interface PageHeroProps {
   tone?: "default" | "primary" | "warning";
   /** Tabs element rendered inside the hero when in compact/sticky mode */
   compactTabs?: ReactNode;
+  /** Called when compact state changes */
+  onCompactChange?: (isCompact: boolean) => void;
 }
 
 const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
@@ -38,6 +40,7 @@ export function PageHero({
   icon,
   tone = "default",
   compactTabs,
+  onCompactChange,
 }: PageHeroProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -48,7 +51,6 @@ export function PageHero({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // When the sentinel scrolls out of view, go compact
         setIsCompact(!entry.isIntersecting);
       },
       { threshold: 0, rootMargin: "-1px 0px 0px 0px" }
@@ -57,6 +59,10 @@ export function PageHero({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    onCompactChange?.(isCompact);
+  }, [isCompact, onCompactChange]);
 
   return (
     <>
