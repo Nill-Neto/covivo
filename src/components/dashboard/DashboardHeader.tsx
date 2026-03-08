@@ -159,6 +159,13 @@ export function DashboardHeader({
             </Badge>
           </AnimatedGroup>
         )}
+
+        {/* Compact tabs — shown only when sticky */}
+        {isCompact && compactTabs && (
+          <div className="mt-2 -mb-1 border-t border-border/40 pt-2">
+            {compactTabs}
+          </div>
+        )}
       </motion.section>
     </>
   );
