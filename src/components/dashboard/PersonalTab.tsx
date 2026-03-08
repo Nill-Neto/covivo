@@ -62,9 +62,9 @@ export function PersonalTab({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Comprometido (Mês) */}
-        <Card className="sm:col-span-1 bg-primary text-primary-foreground border-0 shadow-md">
+        <Card className="bg-primary text-primary-foreground border-0 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-primary-foreground/90">Total Comprometido</CardTitle>
             <Wallet className="h-4 w-4 text-primary-foreground/70" />
@@ -344,8 +344,8 @@ export function PersonalTab({
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-12">
-        <Card className="md:col-span-8 lg:col-span-8">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-12">
+        <Card className="lg:col-span-8">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> Despesas Individuais (Competência)
@@ -381,7 +381,7 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="lg:col-span-4 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Categorias (Pessoal)</CardTitle>
           </CardHeader>
