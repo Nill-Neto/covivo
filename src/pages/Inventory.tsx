@@ -24,6 +24,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Package, Plus, AlertTriangle, Minus, PlusCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PageHero } from "@/components/layout/PageHero";
+import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
 const categories = [
   { value: "limpeza", label: "Limpeza" },
