@@ -342,7 +342,7 @@ export function CardsTab({
                           }}
                           aria-label={`Editar cartão ${card.label}`}
                         >
-                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                          <Settings className="h-4 w-4 text-muted-foreground" />
                         </button>
                         <button
                           type="button"
