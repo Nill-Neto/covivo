@@ -255,7 +255,7 @@ export default function Polls() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <ScrollRevealGroup preset="blur-slide" className="space-y-4">
           {polls.map((poll) => {
             const isOpen = poll.status === "open";
             const canManage = poll.created_by === user?.id || isAdmin;
