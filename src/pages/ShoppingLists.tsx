@@ -155,11 +155,20 @@ export default function ShoppingLists() {
   const currentList = lists.find((l) => l.id === selectedList);
   const purchasedCount = listItems.filter((i) => i.purchased).length;
 
+  const compactTabsList = !selectedList ? (
+    <TabsList className="w-full justify-start overflow-x-auto bg-transparent gap-2 h-auto p-0">
+      <TabsTrigger value="active" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Ativas ({activeLists.length})</TabsTrigger>
+      <TabsTrigger value="completed" className="data-[state=active]:bg-primary/15 data-[state=active]:text-primary text-xs font-semibold px-2.5 py-1.5 rounded-md">Concluídas ({completedLists.length})</TabsTrigger>
+    </TabsList>
+  ) : undefined;
+
   return (
+    <Tabs defaultValue="active">
     <div className="space-y-6">
       <PageHero
         title="Listas de Compras"
         subtitle="Coletivas e individuais"
+        compactTabs={compactTabsList}
         tone="primary"
         icon={<ShoppingCart className="h-4 w-4" />}
         actions={
