@@ -5,7 +5,7 @@ import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
+import { motion, type Variants } from "framer-motion";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -18,6 +18,24 @@ interface DashboardHeaderProps {
   onPrevMonth: () => void;
 }
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.05 },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 12, filter: "blur(8px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { type: "spring" as const, bounce: 0.3, duration: 0.8 },
+  },
+};
+
 export function DashboardHeader({
   userName,
   groupName,
@@ -29,14 +47,19 @@ export function DashboardHeader({
   onPrevMonth,
 }: DashboardHeaderProps) {
   return (
-    <div className="space-y-4">
+    <motion.div
+      className="space-y-4"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+        <motion.div variants={itemVariants}>
           <h1 className="text-3xl font-serif text-foreground">Olá, {userName?.split(" ")[0]}</h1>
           <p className="text-muted-foreground mt-1">{groupName}</p>
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <motion.div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center" variants={itemVariants}>
           <div className="flex items-center bg-card border rounded-lg p-1 shadow-sm h-10">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrevMonth}>
               <ChevronLeft className="h-4 w-4" />
@@ -78,10 +101,10 @@ export function DashboardHeader({
               <Plus className="h-4 w-4" /> Nova Despesa
             </Link>
           </Button>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <motion.div className="flex flex-wrap gap-2" variants={itemVariants}>
         <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
             <CalendarClock className="h-3.5 w-3.5 text-primary" /> 
             Competência: <strong>{format(cycleStart, "dd/MM")}</strong> a <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
@@ -90,7 +113,7 @@ export function DashboardHeader({
             <Calendar className="h-3.5 w-3.5 text-destructive" /> 
             Pagar até: <strong>{format(cycleLimitDate, "dd/MM")}</strong>
         </Badge>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

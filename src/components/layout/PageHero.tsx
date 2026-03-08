@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { motion, type Variants } from "framer-motion";
 
 interface PageHeroProps {
   title: ReactNode;
@@ -9,7 +10,6 @@ interface PageHeroProps {
   icon?: ReactNode;
   tone?: "default" | "primary" | "warning";
 }
-
 
 const toneStyles: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   default: "border-border bg-gradient-to-br from-card via-card/95 to-muted/70",
@@ -22,11 +22,40 @@ const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   warning: "bg-warning",
 };
 
-
 const toneGlowClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
   default: "bg-muted/60",
   primary: "bg-primary/80",
   warning: "bg-warning/80",
+};
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 12, filter: "blur(8px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { type: "spring" as const, bounce: 0.3, duration: 0.8 },
+  },
+};
+
+const accentVariants: Variants = {
+  hidden: { scaleX: 0, opacity: 0 },
+  visible: {
+    scaleX: 1,
+    opacity: 1,
+    transition: { type: "spring" as const, bounce: 0.2, duration: 0.6 },
+  },
 };
 
 export function PageHero({
@@ -38,26 +67,43 @@ export function PageHero({
   tone = "default",
 }: PageHeroProps) {
   return (
-    <section className="relative overflow-hidden rounded-xl border bg-card/70 p-5 backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:p-6">
-      <div className={cn("absolute inset-x-0 top-0 h-1", toneAccentClass[tone])} aria-hidden="true" />
+    <motion.section
+      className="relative overflow-hidden rounded-xl border bg-card/70 p-5 backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:p-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div
+        className={cn("absolute inset-x-0 top-0 h-1 origin-left", toneAccentClass[tone])}
+        variants={accentVariants}
+        aria-hidden="true"
+      />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
           {(badge || icon) && (
-            <div className="mb-3 flex items-center gap-2 text-muted-foreground">
+            <motion.div className="mb-3 flex items-center gap-2 text-muted-foreground" variants={itemVariants}>
               {icon ? <span className="shrink-0">{icon}</span> : null}
               {badge}
-            </div>
+            </motion.div>
           )}
 
-          <h1 className="text-3xl font-serif tracking-tight">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p> : null}
+          <motion.h1 className="text-3xl font-serif tracking-tight" variants={itemVariants}>
+            {title}
+          </motion.h1>
+          {subtitle ? (
+            <motion.p className="mt-1 text-sm text-muted-foreground sm:text-base" variants={itemVariants}>
+              {subtitle}
+            </motion.p>
+          ) : null}
         </div>
 
         {actions ? (
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">{actions}</div>
+          <motion.div className="flex flex-wrap items-center gap-2 lg:justify-end" variants={itemVariants}>
+            {actions}
+          </motion.div>
         ) : null}
       </div>
-    </section>
+    </motion.section>
   );
 }

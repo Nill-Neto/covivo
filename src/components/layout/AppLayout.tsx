@@ -119,7 +119,12 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header Superior Fixo */}
-      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <motion.header
+        className="z-50 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        initial={{ opacity: 0, y: -12, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ type: "spring", bounce: 0.3, duration: 0.7 }}
+      >
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -184,7 +189,7 @@ export function AppLayout() {
           <NotificationBell />
           <UserMenu />
         </div>
-      </header>
+      </motion.header>
 
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="flex flex-1 overflow-hidden relative">
