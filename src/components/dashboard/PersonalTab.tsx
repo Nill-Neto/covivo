@@ -58,7 +58,7 @@ export function PersonalTab({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         {/* Total Comprometido (Mês) */}
         <Card className="sm:col-span-1 bg-primary text-primary-foreground border-0 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
