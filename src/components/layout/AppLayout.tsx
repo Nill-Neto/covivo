@@ -189,7 +189,7 @@ export function AppLayout() {
           <NotificationBell />
           <UserMenu />
         </div>
-      </header>
+      </motion.header>
 
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="flex flex-1 overflow-hidden relative">
