@@ -11,6 +11,8 @@ interface PageHeroProps {
   badge?: ReactNode;
   icon?: ReactNode;
   tone?: "default" | "primary" | "warning";
+  /** Tabs element rendered inside the hero when in compact/sticky mode */
+  compactTabs?: ReactNode;
 }
 
 const toneAccentClass: Record<NonNullable<PageHeroProps["tone"]>, string> = {
@@ -35,6 +37,7 @@ export function PageHero({
   badge,
   icon,
   tone = "default",
+  compactTabs,
 }: PageHeroProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -137,6 +140,13 @@ export function PageHero({
             )
           ) : null}
         </div>
+
+        {/* Compact tabs — shown only when sticky */}
+        {isCompact && compactTabs && (
+          <div className="mt-2 -mb-1 border-t border-border/40 pt-2">
+            {compactTabs}
+          </div>
+        )}
       </motion.section>
     </>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, CalendarClock, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -19,6 +19,7 @@ interface DashboardHeaderProps {
   cycleLimitDate: Date;
   onNextMonth: () => void;
   onPrevMonth: () => void;
+  compactTabs?: ReactNode;
 }
 
 export function DashboardHeader({
@@ -30,6 +31,7 @@ export function DashboardHeader({
   cycleLimitDate,
   onNextMonth,
   onPrevMonth,
+  compactTabs,
 }: DashboardHeaderProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -156,6 +158,13 @@ export function DashboardHeader({
               Pagar até: <strong>{format(cycleLimitDate, "dd/MM")}</strong>
             </Badge>
           </AnimatedGroup>
+        )}
+
+        {/* Compact tabs — shown only when sticky */}
+        {isCompact && compactTabs && (
+          <div className="mt-2 -mb-1 border-t border-border/40 pt-2">
+            {compactTabs}
+          </div>
         )}
       </motion.section>
     </>

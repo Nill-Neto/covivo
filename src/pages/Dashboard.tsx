@@ -476,8 +476,33 @@ export default function Dashboard() {
     }
   };
 
+  const compactTabsList = (
+    <TabsList className="w-full justify-start rounded-none h-auto p-0 bg-transparent gap-4">
+      {!isPersonalFinancePage && isAdmin && (
+        <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+          <Shield className="h-3.5 w-3.5 mr-1.5" /> Admin
+        </TabsTrigger>
+      )}
+      {!isPersonalFinancePage && (
+        <TabsTrigger value="republic" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+          <Users className="h-3.5 w-3.5 mr-1.5" /> República
+        </TabsTrigger>
+      )}
+      {isPersonalFinancePage && (
+        <>
+          <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+            <User className="h-3.5 w-3.5 mr-1.5" /> Pessoal
+          </TabsTrigger>
+          <TabsTrigger value="cards" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-foreground data-[state=active]:bg-primary/15 data-[state=active]:text-primary px-2 py-1.5 text-xs font-semibold transition-all">
+            <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Cartões
+          </TabsTrigger>
+        </>
+      )}
+    </TabsList>
+  );
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8 animate-in fade-in duration-500">
       <DashboardHeader 
         userName={profile?.full_name}
         groupName={membership?.group_name}
@@ -487,9 +512,10 @@ export default function Dashboard() {
         cycleLimitDate={cycleLimitDate}
         onNextMonth={() => setCurrentDate(addMonths(currentDate, 1))}
         onPrevMonth={() => setCurrentDate(subMonths(currentDate, 1))}
+        compactTabs={compactTabsList}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <div className="space-y-6">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
           {!isPersonalFinancePage && isAdmin && (
             <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3 transition-all hover:text-primary">
@@ -575,7 +601,7 @@ export default function Dashboard() {
             isLoading={isLoadingCreditCards || isLoadingBillInstallments}
           />
         </TabsContent>
-      </Tabs>
+      </div>
 
       <PaymentDialogs
         payRateioOpen={payRateioOpen}
@@ -597,6 +623,6 @@ export default function Dashboard() {
         receiptFile={receiptFile}
         setReceiptFile={setReceiptFile}
       />
-    </div>
+    </Tabs>
   );
 }
