@@ -1,9 +1,18 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, CreditCard, Plus, PieChart as PieChartIcon } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2, Settings, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
@@ -16,6 +25,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CardsTabProps {
   totalBill: number;
@@ -26,6 +45,31 @@ interface CardsTabProps {
   billInstallments: any[];
 }
 
+const cardSchema = z.object({
+  label: z.string().min(3, "Informe o apelido do cartão"),
+  brand: z.string().min(1, "Selecione a bandeira"),
+  closing_day: z.coerce.number().int().min(1).max(31),
+  due_day: z.coerce.number().int().min(1).max(31),
+  limit_amount: z
+    .string()
+    .optional()
+    .refine(
+      (value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0),
+      "Informe um limite válido",
+    ),
+});
+
+type CardFormValues = z.infer<typeof cardSchema>;
+
+const brandOptions = [
+  { value: "visa", label: "Visa" },
+  { value: "mastercard", label: "Mastercard" },
+  { value: "elo", label: "Elo" },
+  { value: "hipercard", label: "Hipercard" },
+  { value: "american_express", label: "American Express" },
+  { value: "outros", label: "Outros" },
+];
+
 export function CardsTab({
   totalBill,
   currentDate,
@@ -34,8 +78,122 @@ export function CardsTab({
   cardsBreakdown,
   billInstallments,
 }: CardsTabProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<any | null>(null);
+  const [addCardOpen, setAddCardOpen] = useState(false);
+  const [editCardOpen, setEditCardOpen] = useState(false);
+  const [editingCard, setEditingCard] = useState<any | null>(null);
+  const [deletingCard, setDeletingCard] = useState<any | null>(null);
+
+  const form = useForm<CardFormValues>({
+    resolver: zodResolver(cardSchema),
+    defaultValues: {
+      label: "",
+      brand: "",
+      closing_day: 5,
+      due_day: 10,
+      limit_amount: "",
+    },
+  });
+
+  const editForm = useForm<CardFormValues>({
+    resolver: zodResolver(cardSchema),
+    defaultValues: {
+      label: "",
+      brand: "",
+      closing_day: 5,
+      due_day: 10,
+      limit_amount: "",
+    },
+  });
+
+  const createCard = useMutation({
+    mutationFn: async (values: CardFormValues) => {
+      const limitAmount = values.limit_amount ? Number(values.limit_amount) : null;
+      const { error } = await supabase.from("credit_cards").insert({
+        user_id: user!.id,
+        label: values.label.trim(),
+        brand: values.brand,
+        closing_day: values.closing_day,
+        due_day: values.due_day,
+        limit_amount: limitAmount,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-credit-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+      form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+      setAddCardOpen(false);
+      toast({ title: "Cartão salvo", description: "Cartão adicionado com sucesso." });
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const onSubmitNewCard = (values: CardFormValues) => {
+    createCard.mutate(values);
+  };
+
+  const updateCard = useMutation({
+    mutationFn: async (values: CardFormValues) => {
+      if (!editingCard) return;
+      const limitAmount = values.limit_amount ? Number(values.limit_amount) : null;
+      const { error } = await supabase.from("credit_cards").update({
+        label: values.label.trim(),
+        brand: values.brand,
+        closing_day: values.closing_day,
+        due_day: values.due_day,
+        limit_amount: limitAmount,
+      }).eq("id", editingCard.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-credit-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+      setEditCardOpen(false);
+      setEditingCard(null);
+      toast({ title: "Cartão atualizado" });
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteCard = useMutation({
+    mutationFn: async () => {
+      if (!deletingCard) return;
+      const { error } = await supabase.from("credit_cards").delete().eq("id", deletingCard.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-credit-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+      if (selectedCard?.id === deletingCard?.id) {
+        setSelectedCard(null);
+      }
+      setDeletingCard(null);
+      toast({ title: "Cartão removido" });
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const onSubmitEditCard = (values: CardFormValues) => {
+    updateCard.mutate(values);
+  };
+
+  const handleOpenEdit = (card: any) => {
+    setSelectedCard(null);
+    setDeletingCard(null);
+    setEditingCard(card);
+    editForm.reset({
+      label: card.label,
+      brand: card.brand,
+      closing_day: card.closing_day,
+      due_day: card.due_day,
+      limit_amount: card.limit_amount !== null ? String(card.limit_amount) : "",
+    });
+    setEditCardOpen(true);
+  };
 
   const donutData: DonutChartSegment[] = cardsChartData.map((entry, index) => ({
     label: entry.name,
@@ -165,7 +323,7 @@ export function CardsTab({
               </div>
               <p className="text-muted-foreground font-medium mb-1">Nenhum cartão cadastrado</p>
               <p className="text-xs text-muted-foreground/70 mb-4 max-w-[200px]">Cadastre seus cartões para controlar as faturas automaticamente.</p>
-              <Button variant="outline" asChild><Link to="/personal/cards">Cadastrar Cartão</Link></Button>
+              <Button variant="outline" onClick={() => setAddCardOpen(true)}>Cadastrar Cartão</Button>
             </CardContent>
           </Card>
         ) : (
@@ -176,15 +334,43 @@ export function CardsTab({
                 <Card
                   key={card.id}
                   className="flex flex-col justify-between hover:shadow-md transition-all border-l-4 border-l-primary/80 cursor-pointer"
-                  onClick={() => setSelectedCard(card)}
+                  onClick={() => {
+                    if (editCardOpen || !!deletingCard) return;
+                    setSelectedCard(card);
+                  }}
                 >
                   <CardHeader className="pb-2 pt-4 px-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-base font-semibold">{card.label}</CardTitle>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base font-semibold truncate">{card.label}</CardTitle>
                         <p className="text-xs text-muted-foreground capitalize font-medium">{card.brand}</p>
                       </div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background">Final {card.due_day}</Badge>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border/60 bg-background hover:bg-muted transition-colors"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenEdit(card);
+                          }}
+                          aria-label={`Editar cartão ${card.label}`}
+                        >
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          type="button"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border/60 bg-background hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedCard(null);
+                            setEditCardOpen(false);
+                            setDeletingCard(card);
+                          }}
+                          aria-label={`Excluir cartão ${card.label}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
@@ -204,17 +390,21 @@ export function CardsTab({
                       </div>
                     </div>
                   </CardContent>
-                </button>
+                </Card>
               );
             })}
             
             {/* Add Card Button */}
-            <Link to="/personal/cards" className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5">
+            <button
+              type="button"
+              onClick={() => setAddCardOpen(true)}
+              className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5"
+            >
               <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
                 <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
               </div>
               <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Adicionar Cartão</span>
-            </Link>
+            </button>
           </div>
         )}
       </div>
@@ -248,6 +438,248 @@ export function CardsTab({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={addCardOpen}
+        onOpenChange={(open) => {
+          setAddCardOpen(open);
+          if (!open) {
+            form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar cartão</DialogTitle>
+            <DialogDescription>Cadastre um novo cartão para acompanhar as faturas nesta aba.</DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form className="space-y-4" onSubmit={form.handleSubmit(onSubmitNewCard)}>
+              <FormField
+                control={form.control}
+                name="label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apelido</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Nubank" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bandeira</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a bandeira" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {brandOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="closing_day"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia de fechamento</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={31} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="due_day"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia de vencimento</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={31} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="limit_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Limite (opcional)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} step="0.01" placeholder="R$" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" className="w-full" disabled={createCard.isPending || !user}>
+                {createCard.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar cartão
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editCardOpen}
+        onOpenChange={(open) => {
+          setEditCardOpen(open);
+          if (!open) {
+            setEditingCard(null);
+            editForm.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cartão</DialogTitle>
+            <DialogDescription>Altere as informações do cartão selecionado.</DialogDescription>
+          </DialogHeader>
+
+          <Form {...editForm}>
+            <form className="space-y-4" onSubmit={editForm.handleSubmit(onSubmitEditCard)}>
+              <FormField
+                control={editForm.control}
+                name="label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apelido</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Nubank" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bandeira</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a bandeira" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {brandOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={editForm.control}
+                  name="closing_day"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia de fechamento</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={31} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="due_day"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia de vencimento</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={31} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="limit_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Limite (opcional)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} step="0.01" placeholder="R$" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" className="w-full" disabled={updateCard.isPending || !user || !editingCard}>
+                {updateCard.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar alterações
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletingCard} onOpenChange={(open) => !open && setDeletingCard(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cartão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá o cartão {deletingCard?.label ? `"${deletingCard.label}"` : "selecionado"}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                deleteCard.mutate();
+              }}
+              disabled={deleteCard.isPending}
+            >
+              {deleteCard.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>
         <DialogContent className="sm:max-w-2xl">
