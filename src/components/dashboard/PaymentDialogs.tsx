@@ -88,54 +88,65 @@ export function PaymentDialogs({
     <>
       {/* Rateio Payment Dialog */}
       <Dialog open={payRateioOpen} onOpenChange={setPayRateioOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{selectedScopeLabel}</DialogTitle>
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+          <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              {selectedScopeLabel}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {rateioScope === "previous"
+                ? "Pagamento das competências anteriores"
+                : `Competência atual (${format(currentDate, "MMMM/yy", { locale: ptBR })})`}
+            </p>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="p-4 bg-muted/50 rounded-lg text-center">
-              <p className="text-sm text-muted-foreground">
-                {rateioScope === "previous"
-                  ? "Pagamento das competências anteriores"
-                  : `Competência atual (${format(currentDate, "MMMM/yy", { locale: ptBR })})`}
-              </p>
-              <p className="text-3xl font-bold text-primary mt-1">R$ {selectedScopeData.total.toFixed(2)}</p>
-            </div>
-            {selectedScopeData.items.length > 0 && (
-              <div className="border rounded-md p-3 bg-card">
-                 <p className="text-xs font-semibold text-muted-foreground mb-2">Detalhamento:</p>
-                 <ScrollArea className="h-[120px] pr-2">
-                    <div className="space-y-2">
-                      {rateioScope === "previous"
-                        ? groupedPreviousEntries.map(([competence, items]) => (
-                            <div key={competence} className="space-y-1.5">
-                              <p className="text-xs font-semibold text-muted-foreground">{competence}</p>
-                              {items.map((s) => (
-                                <div key={s.id} className="flex justify-between text-sm border-b pb-1 border-muted last:border-0">
-                                  <span className="truncate pr-2 flex-1">{s.expenses?.title}</span>
-                                  <span className="font-medium">R$ {Number(s.amount).toFixed(2)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ))
-                        : selectedScopeData.items.map((s) => (
-                            <div key={s.id} className="flex justify-between text-sm border-b pb-1 border-muted last:border-0">
-                              <span className="truncate pr-2 flex-1">{s.expenses?.title}</span>
-                              <span className="font-medium">R$ {Number(s.amount).toFixed(2)}</span>
+
+          {/* Summary Banner */}
+          <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 text-center">
+            <p className="text-sm text-muted-foreground">Valor total</p>
+            <p className="text-2xl font-bold text-primary mt-0.5 tabular-nums">
+              R$ {selectedScopeData.total.toFixed(2)}
+            </p>
+          </div>
+
+          {selectedScopeData.items.length > 0 && (
+            <div className="mx-5 mb-4 border rounded-lg overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/40 border-b">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
+              </div>
+              <ScrollArea className="max-h-[140px]">
+                <div className="divide-y">
+                  {rateioScope === "previous"
+                    ? groupedPreviousEntries.map(([competence, items]) => (
+                        <div key={competence} className="px-4 py-2.5 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground">{competence}</p>
+                          {items.map((s) => (
+                            <div key={s.id} className="flex justify-between text-sm py-0.5">
+                              <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                              <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
                             </div>
                           ))}
-                    </div>
-                 </ScrollArea>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Comprovante *</Label>
-              <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                        </div>
+                      ))
+                    : selectedScopeData.items.map((s) => (
+                        <div key={s.id} className="flex justify-between text-sm px-4 py-2.5">
+                          <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                          <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
+                        </div>
+                      ))}
+                </div>
+              </ScrollArea>
             </div>
-            <DialogFooter>
+          )}
+
+          <div className="px-5 pb-5 space-y-4 shrink-0">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Comprovante *</Label>
+              <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} className="cursor-pointer" />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setPayRateioOpen(false)}>Cancelar</Button>
               <Button onClick={() => onPayRateio(rateioScope)} disabled={saving || !receiptFile}>
-                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Enviar
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Enviar Comprovante
               </Button>
             </DialogFooter>
           </div>
