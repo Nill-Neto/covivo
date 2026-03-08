@@ -39,7 +39,7 @@ const mainNavGroups = [
   {
     title: "Moradia",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Painel Geral" },
+      { to: "/dashboard", icon: LayoutDashboard, label: "Painel Geral" },
       { to: "/expenses", icon: Receipt, label: "Despesas" },
       { to: "/payments", icon: CreditCard, label: "Pagamentos" },
       { to: "/inventory", icon: Package, label: "Estoque" },
