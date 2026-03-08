@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
@@ -26,6 +25,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CardsTabProps {
   totalBill: number;
@@ -255,12 +264,35 @@ export function CardsTab({
                   onClick={() => setSelectedCard(card)}
                 >
                   <CardHeader className="pb-2 pt-4 px-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-base font-semibold">{card.label}</CardTitle>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base font-semibold truncate">{card.label}</CardTitle>
                         <p className="text-xs text-muted-foreground capitalize font-medium">{card.brand}</p>
                       </div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background">Final {card.due_day}</Badge>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border/60 bg-background hover:bg-muted transition-colors"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenEdit(card);
+                          }}
+                          aria-label={`Editar cartão ${card.label}`}
+                        >
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          type="button"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border/60 bg-background hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDeletingCard(card);
+                          }}
+                          aria-label={`Excluir cartão ${card.label}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
