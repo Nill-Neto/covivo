@@ -31,6 +31,7 @@ export function DashboardHeader({
   cycleLimitDate,
   onNextMonth,
   onPrevMonth,
+  compactTabs,
 }: DashboardHeaderProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
