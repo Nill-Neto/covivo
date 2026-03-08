@@ -37,6 +37,7 @@ export function PageHero({
   badge,
   icon,
   tone = "default",
+  compactTabs,
 }: PageHeroProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
