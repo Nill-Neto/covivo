@@ -105,6 +105,7 @@ export default function Expenses() {
 
   // UI State
   const [activeTab, setActiveTab] = useState("all");
+  const [heroCompact, setHeroCompact] = useState(false);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
