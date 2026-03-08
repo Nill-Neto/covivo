@@ -18,6 +18,7 @@ import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/cat
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -191,6 +192,12 @@ export function CardsTab({
     : [];
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
+  const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
+    const dateA = a.expenses?.purchase_date || "";
+    const dateB = b.expenses?.purchase_date || "";
+    return dateB.localeCompare(dateA);
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -396,45 +403,55 @@ export function CardsTab({
 
       <Card>
         <CardHeader className="pb-3 border-b bg-muted/5">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Últimos Lançamentos</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            Lançamentos da Competência ({billInstallments.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="divide-y">
-            {billInstallments.slice(0, 5).map((i: any, idx: number) => {
-              const totalInstallments = i.expenses?.installments ?? 1;
-              const isAVista = totalInstallments <= 1;
-              const purchaseDate = i.expenses?.purchase_date;
-              return (
-                <div key={idx} className="flex justify-between items-center py-3 hover:bg-muted/10 px-2 -mx-2 transition-colors rounded-sm">
-                  <div className="min-w-0 pr-4 flex flex-col gap-0.5">
-                    <span className="text-sm font-medium truncate text-foreground/90">{i.expenses?.title}</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] text-muted-foreground bg-muted inline-block w-fit px-1.5 rounded-sm">
-                        {getCategoryLabel(i.expenses?.category || "other")}
-                      </span>
-                      {purchaseDate && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {format(new Date(purchaseDate + "T00:00:00"), "dd/MM/yyyy")}
+          <ScrollArea className="max-h-[400px]">
+            <div className="divide-y">
+              {sortedInstallments.map((i: any, idx: number) => {
+                const totalInstallments = i.expenses?.installments ?? 1;
+                const isAVista = totalInstallments <= 1;
+                const purchaseDate = i.expenses?.purchase_date;
+                const cardLabel = creditCards.find((c: any) => c.id === i.expenses?.credit_card_id)?.label;
+                return (
+                  <div key={idx} className="flex justify-between items-center py-3 hover:bg-muted/10 px-2 -mx-2 transition-colors rounded-sm">
+                    <div className="min-w-0 pr-4 flex flex-col gap-0.5">
+                      <span className="text-sm font-medium truncate text-foreground/90">{i.expenses?.title}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground bg-muted inline-block w-fit px-1.5 rounded-sm">
+                          {getCategoryLabel(i.expenses?.category || "other")}
                         </span>
-                      )}
+                        {cardLabel && (
+                          <span className="text-[10px] text-primary/70 bg-primary/10 inline-block w-fit px-1.5 rounded-sm">
+                            {cardLabel}
+                          </span>
+                        )}
+                        {purchaseDate && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(purchaseDate + "T00:00:00"), "dd/MM/yyyy")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-sm block">R$ {Number(i.amount).toFixed(2)}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {isAVista ? "À vista" : `Parc. ${i.installment_number}/${totalInstallments}`}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-bold text-sm block">R$ {Number(i.amount).toFixed(2)}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {isAVista ? "À vista" : `Parc. ${i.installment_number}/${totalInstallments}`}
-                    </span>
-                  </div>
+                );
+              })}
+              {billInstallments.length === 0 && (
+                <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
+                  <div className="h-1 w-12 bg-border rounded-full opacity-50 mb-1"></div>
+                  Nenhum lançamento nesta fatura.
                 </div>
-              );
-            })}
-            {billInstallments.length === 0 && (
-              <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
-                <div className="h-1 w-12 bg-border rounded-full opacity-50 mb-1"></div>
-                Nenhum lançamento nesta fatura.
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
 
