@@ -31,10 +31,12 @@ export function RepublicTab({
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* KPI Cards */}
-        <Card className={`col-span-1 lg:col-span-2 relative overflow-hidden transition-all ${isLate && totalCollectivePendingPrevious > 0 ? "border-destructive bg-destructive/5" : ""}`}>
+        <Card className={`col-span-1 lg:col-span-2 relative overflow-hidden border-l-4 ${isLate && totalCollectivePendingPrevious > 0 ? "border-l-destructive" : "border-l-primary"} bg-card shadow-sm`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Meu Rateio (Pendente)</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isLate && totalCollectivePendingPrevious > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
+              <DollarSign className={`h-4 w-4 ${isLate && totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-primary"}`} />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">R$ {totalCollectivePendingPrevious.toFixed(2)}</div>
