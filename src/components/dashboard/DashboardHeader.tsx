@@ -5,7 +5,9 @@ import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion, type Variants } from "framer-motion";
+import { motion } from "framer-motion";
+import { AnimatedGroup } from "@/components/ui/animated-group";
+import { TextEffect } from "@/components/ui/text-effect";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -18,24 +20,6 @@ interface DashboardHeaderProps {
   onPrevMonth: () => void;
 }
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.05 },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12, filter: "blur(8px)" },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    transition: { type: "spring" as const, bounce: 0.3, duration: 0.8 },
-  },
-};
-
 export function DashboardHeader({
   userName,
   groupName,
@@ -47,19 +31,32 @@ export function DashboardHeader({
   onPrevMonth,
 }: DashboardHeaderProps) {
   return (
-    <motion.div
-      className="space-y-4"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <div className="space-y-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <motion.div variants={itemVariants}>
-          <h1 className="text-3xl font-serif text-foreground">Olá, {userName?.split(" ")[0]}</h1>
-          <p className="text-muted-foreground mt-1">{groupName}</p>
-        </motion.div>
+        <div>
+          <TextEffect
+            preset="blur"
+            per="word"
+            as="h1"
+            className="text-3xl font-serif text-foreground"
+            delay={0.05}
+          >
+            {`Olá, ${userName?.split(" ")[0] ?? ""}`}
+          </TextEffect>
+          {groupName ? (
+            <TextEffect
+              preset="fade"
+              per="word"
+              as="p"
+              className="text-muted-foreground mt-1"
+              delay={0.25}
+            >
+              {groupName}
+            </TextEffect>
+          ) : null}
+        </div>
 
-        <motion.div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center" variants={itemVariants}>
+        <AnimatedGroup preset="blur-slide" className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <div className="flex items-center bg-card border rounded-lg p-1 shadow-sm h-10">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrevMonth}>
               <ChevronLeft className="h-4 w-4" />
@@ -101,10 +98,10 @@ export function DashboardHeader({
               <Plus className="h-4 w-4" /> Nova Despesa
             </Link>
           </Button>
-        </motion.div>
+        </AnimatedGroup>
       </div>
 
-      <motion.div className="flex flex-wrap gap-2" variants={itemVariants}>
+      <AnimatedGroup preset="blur-slide" className="flex flex-wrap gap-2">
         <Badge variant="outline" className="gap-1.5 font-normal py-1 px-3 text-sm">
             <CalendarClock className="h-3.5 w-3.5 text-primary" /> 
             Competência: <strong>{format(cycleStart, "dd/MM")}</strong> a <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
@@ -113,7 +110,7 @@ export function DashboardHeader({
             <Calendar className="h-3.5 w-3.5 text-destructive" /> 
             Pagar até: <strong>{format(cycleLimitDate, "dd/MM")}</strong>
         </Badge>
-      </motion.div>
-    </motion.div>
+      </AnimatedGroup>
+    </div>
   );
 }
