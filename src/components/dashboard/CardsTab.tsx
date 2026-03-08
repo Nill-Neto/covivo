@@ -234,13 +234,13 @@ export function CardsTab({
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           transition={{ duration: 0.2 }}
-                          className="flex flex-col items-center justify-center text-center p-2"
+                          className="flex flex-col items-center justify-center text-center px-1"
                         >
-                          <p className="text-muted-foreground text-xs font-medium truncate max-w-[140px] uppercase tracking-wider">
+                          <p className="text-muted-foreground text-[10px] font-medium truncate max-w-[150px] uppercase tracking-wider leading-tight">
                             {displayLabel}
                           </p>
-                          <p className="text-2xl font-bold text-foreground">
-                            R$ {displayValue.toFixed(2)}
+                          <p className="text-lg font-bold text-foreground tabular-nums whitespace-nowrap">
+                            R$ {displayValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                           {activeSegment && (
                             <p className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full mt-1">
@@ -274,7 +274,7 @@ export function CardsTab({
                         </span>
                       </div>
                       <span className="font-semibold tabular-nums">
-                        R$ {segment.value.toFixed(2)}
+                        R$ {segment.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   ))}
