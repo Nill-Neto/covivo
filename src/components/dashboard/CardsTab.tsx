@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2, Settings, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
@@ -342,7 +342,7 @@ export function CardsTab({
                           }}
                           aria-label={`Editar cartão ${card.label}`}
                         >
-                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                          <Settings className="h-4 w-4 text-muted-foreground" />
                         </button>
                         <button
                           type="button"
