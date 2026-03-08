@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [rateioScope, setRateioScope] = useState<RateioScope>("previous");
   const [activeTab, setActiveTab] = useState(isPersonalFinancePage ? "personal" : (isAdmin ? "admin" : "republic"));
+  const [heroCompact, setHeroCompact] = useState(false);
 
   useEffect(() => {
     if (isPersonalFinancePage) {
