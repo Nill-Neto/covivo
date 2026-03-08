@@ -25,6 +25,7 @@ export default function Payments() {
   
   const [open, setOpen] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [heroCompact, setHeroCompact] = useState(false);
   
   // Alterado para array de IDs
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
