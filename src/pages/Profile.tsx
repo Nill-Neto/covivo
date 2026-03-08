@@ -88,7 +88,7 @@ export default function Profile() {
     .toUpperCase();
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-4 max-w-2xl">
       <PageHero
         title="Meu Perfil"
         subtitle="Gerencie suas informações pessoais"
