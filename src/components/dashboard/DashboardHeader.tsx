@@ -33,6 +33,7 @@ export function DashboardHeader({
   onNextMonth,
   onPrevMonth,
   compactTabs,
+  onCompactChange,
 }: DashboardHeaderProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,10 @@ export function DashboardHeader({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    onCompactChange?.(isCompact);
+  }, [isCompact, onCompactChange]);
 
   return (
     <>
