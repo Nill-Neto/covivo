@@ -216,7 +216,7 @@ export function CardsTab({
             <CardTitle className="text-sm font-medium">Composição da Fatura</CardTitle>
             <PieChartIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="h-auto md:h-[280px] flex flex-col md:flex-row items-center justify-center gap-8 p-6">
+          <CardContent className="h-auto flex flex-col md:flex-row items-center justify-center gap-6 p-4 md:p-6">
             {donutData.length > 0 ? (
               <>
                 <div className="relative">
@@ -240,11 +240,11 @@ export function CardsTab({
                             {displayLabel}
                           </p>
                           <p className="text-2xl font-bold text-foreground">
-                            R$ {displayValue.toFixed(0)}
+                            R$ {displayValue.toFixed(2)}
                           </p>
                           {activeSegment && (
                             <p className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full mt-1">
-                              {displayPercentage.toFixed(0)}%
+                              {displayPercentage.toFixed(1)}%
                             </p>
                           )}
                         </motion.div>
@@ -253,7 +253,7 @@ export function CardsTab({
                   />
                 </div>
                 
-                <div className="flex flex-col space-y-2 w-full max-w-[240px] overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full max-w-full md:max-w-[240px] overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
                   {donutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -274,7 +274,7 @@ export function CardsTab({
                         </span>
                       </div>
                       <span className="font-semibold tabular-nums">
-                        R$ {segment.value.toFixed(0)}
+                        R$ {segment.value.toFixed(2)}
                       </span>
                     </div>
                   ))}
