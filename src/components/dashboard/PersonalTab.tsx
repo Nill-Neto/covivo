@@ -43,10 +43,13 @@ export function PersonalTab({
   collectivePendingCurrent,
   individualPending,
   totalPersonalCash,
+  totalBill,
   totalUserExpenses,
   myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
+}: PersonalTabProps) {
+  const totalSpentCompetence = totalPersonalCash + totalBill + myCollectiveShare;
 }: PersonalTabProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPreviousCollectiveOpen, setIsPreviousCollectiveOpen] = useState(false);
