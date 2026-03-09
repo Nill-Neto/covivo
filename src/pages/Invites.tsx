@@ -8,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Send, Copy, RefreshCw, UserPlus } from "lucide-react";
+import { Loader2, Send, Copy, RefreshCw, UserPlus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { PageHero } from "@/components/layout/PageHero";
-import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
 const emailSchema = z.string().trim().email("Email inválido").max(255);
 
@@ -145,6 +144,23 @@ export default function Invites() {
     onSettled: () => setRegeneratingId(null),
   });
 
+  const deleteInvite = useMutation({
+    mutationFn: async (inviteId: string) => {
+      const { error } = await supabase
+        .from("invites")
+        .delete()
+        .eq("id", inviteId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invites"] });
+      toast({ title: "Convite excluído" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleSend = () => {
     const result = emailSchema.safeParse(email);
     if (!result.success) {
@@ -241,9 +257,32 @@ export default function Invites() {
                             <RefreshCw className="h-4 w-4" />
                           )}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteInvite.mutate(inv.id)}
+                          disabled={deleteInvite.isPending}
+                          title="Excluir convite"
+                          aria-label={`Excluir convite para ${inv.email}`}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </>
                     )}
-
+                    {inv.status !== "pending" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteInvite.mutate(inv.id)}
+                        disabled={deleteInvite.isPending}
+                        title="Excluir convite"
+                        aria-label={`Excluir convite para ${inv.email}`}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
