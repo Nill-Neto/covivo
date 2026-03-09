@@ -37,6 +37,65 @@ const BackgroundPathsDemoPage = lazy(() => import("./pages/BackgroundPathsDemoPa
 
 const queryClient = new QueryClient();
 
+const AppShell = () => {
+  const { pathname } = useLocation();
+  const showGlobalBackground = pathname !== "/background-paths-demo";
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-white dark:bg-neutral-950">
+      {showGlobalBackground && <BackgroundPathsLayer />}
+      <div className="relative z-10">
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          }
+        >
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/invite" element={<AcceptInvite />} />
+            <Route path="/sidebar-demo" element={<SidebarDemoPage />} />
+            <Route path="/background-paths-demo" element={<BackgroundPathsDemoPage />} />
+
+            {/* Authenticated routes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard key="dashboard-general" />} />
+              <Route path="/expenses" element={<Expenses />} />
+              <Route path="/payments" element={<Payments />} />
+              <Route path="/recurring" element={<RecurringExpenses />} />
+              <Route path="/members" element={<Members />} />
+              <Route path="/invites" element={<Invites />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/shopping" element={<ShoppingLists />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<GroupSettings />} />
+              <Route path="/bulletin" element={<Bulletin />} />
+              <Route path="/rules" element={<HouseRules />} />
+              <Route path="/polls" element={<Polls />} />
+              <Route path="/audit-log" element={<AuditLog />} />
+              <Route path="/groups/new" element={<NewGroup />} />
+              <Route path="/personal/dashboard" element={<PersonalDashboard />} />
+              <Route path="/personal/financas" element={<Dashboard />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </div>
+    </div>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <div className="relative min-h-screen overflow-hidden bg-white dark:bg-neutral-950">
