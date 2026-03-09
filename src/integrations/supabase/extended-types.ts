@@ -112,15 +112,47 @@ type UpdatedGroupsTable = Omit<Database["public"]["Tables"]["groups"], "Row" | "
   };
 };
 
+type UpdatedProfilesTable = Omit<Database["public"]["Tables"]["profiles"], "Row" | "Insert" | "Update"> & {
+  Row: Database["public"]["Tables"]["profiles"]["Row"] & {
+    nickname: string | null;
+  };
+  Insert: Database["public"]["Tables"]["profiles"]["Insert"] & {
+    nickname?: string | null;
+  };
+  Update: Database["public"]["Tables"]["profiles"]["Update"] & {
+    nickname?: string | null;
+  };
+};
+
+type UpdatedProfileSensitiveTable = Omit<Database["public"]["Tables"]["profile_sensitive"], "Row" | "Insert" | "Update"> & {
+  Row: Database["public"]["Tables"]["profile_sensitive"]["Row"] & {
+    rg_front_url: string | null;
+    rg_back_url: string | null;
+    rg_digital_url: string | null;
+  };
+  Insert: Database["public"]["Tables"]["profile_sensitive"]["Insert"] & {
+    rg_front_url?: string | null;
+    rg_back_url?: string | null;
+    rg_digital_url?: string | null;
+  };
+  Update: Database["public"]["Tables"]["profile_sensitive"]["Update"] & {
+    rg_front_url?: string | null;
+    rg_back_url?: string | null;
+    rg_digital_url?: string | null;
+  };
+};
+
 type PublicSchema = Database["public"];
 
 export type ExtendedDatabase = Omit<Database, "public"> & {
   public: Omit<PublicSchema, "Tables"> & {
-    Tables: Omit<PublicSchema["Tables"], "expenses" | "groups"> & {
+    Tables: Omit<PublicSchema["Tables"], "expenses" | "groups" | "profiles" | "profile_sensitive"> & {
       credit_cards: CreditCardTable;
       expenses: UpdatedExpensesTable;
       expense_installments: ExpenseInstallmentsTable;
       groups: UpdatedGroupsTable;
+      profiles: UpdatedProfilesTable;
+      profile_sensitive: UpdatedProfileSensitiveTable;
     };
   };
 };
