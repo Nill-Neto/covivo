@@ -325,25 +325,32 @@ function GroupTab() {
 }
 
 export default function GroupSettings() {
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
   const [heroCompact, setHeroCompact] = useState(false);
 
-  const compactTabsList = (
-    <TabsList className={tabListClass}>
+  const tabItems = (
+    <>
       <TabsTrigger value="account" className={tabTriggerClass}>
         <User className="h-3.5 w-3.5 mr-1.5" /> Conta
       </TabsTrigger>
-      <TabsTrigger value="group" className={tabTriggerClass}>
-        <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Grupo
-      </TabsTrigger>
-    </TabsList>
+      {isAdmin && (
+        <TabsTrigger value="group" className={tabTriggerClass}>
+          <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Grupo
+        </TabsTrigger>
+      )}
+    </>
+  );
+
+  const compactTabsList = (
+    <TabsList className={tabListClass}>{tabItems}</TabsList>
   );
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 animate-in fade-in duration-500">
       <PageHero
         title="Configurações"
-        subtitle="Gerencie sua conta e o grupo."
+        subtitle={isAdmin ? "Gerencie sua conta e o grupo." : "Gerencie sua conta."}
         tone="primary"
         icon={<SlidersHorizontal className="h-4 w-4" />}
         compactTabs={compactTabsList}
@@ -352,23 +359,18 @@ export default function GroupSettings() {
 
       <div className="space-y-4">
         {!heroCompact && (
-          <TabsList className={tabListClass}>
-            <TabsTrigger value="account" className={tabTriggerClass}>
-              <User className="h-3.5 w-3.5 mr-1.5" /> Conta
-            </TabsTrigger>
-            <TabsTrigger value="group" className={tabTriggerClass}>
-              <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Grupo
-            </TabsTrigger>
-          </TabsList>
+          <TabsList className={tabListClass}>{tabItems}</TabsList>
         )}
 
         <TabsContent value="account" className="space-y-4 mt-4">
           <AccountTab />
         </TabsContent>
 
-        <TabsContent value="group" className="space-y-4 mt-4">
-          <GroupTab />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="group" className="space-y-4 mt-4">
+            <GroupTab />
+          </TabsContent>
+        )}
       </div>
     </Tabs>
   );
