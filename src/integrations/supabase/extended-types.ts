@@ -101,14 +101,35 @@ type UpdatedGroupsTable = Omit<Database["public"]["Tables"]["groups"], "Row" | "
   Row: Database["public"]["Tables"]["groups"]["Row"] & {
     closing_day: number;
     due_day: number;
+    street: string | null;
+    street_number: string | null;
+    complement: string | null;
+    neighborhood: string | null;
+    city: string | null;
+    state: string | null;
+    zip_code: string | null;
   };
   Insert: Database["public"]["Tables"]["groups"]["Insert"] & {
     closing_day?: number;
     due_day?: number;
+    street?: string | null;
+    street_number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
   };
   Update: Database["public"]["Tables"]["groups"]["Update"] & {
     closing_day?: number;
     due_day?: number;
+    street?: string | null;
+    street_number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
   };
 };
 
@@ -142,6 +163,48 @@ type UpdatedProfileSensitiveTable = Omit<Database["public"]["Tables"]["profile_s
   };
 };
 
+type GroupFeesTable = {
+  Row: {
+    id: string;
+    group_id: string;
+    title: string;
+    amount: number;
+    fee_type: string;
+    description: string | null;
+    active: boolean;
+    created_at: string;
+  };
+  Insert: {
+    id?: string;
+    group_id: string;
+    title: string;
+    amount: number;
+    fee_type?: string;
+    description?: string | null;
+    active?: boolean;
+    created_at?: string;
+  };
+  Update: {
+    id?: string;
+    group_id?: string;
+    title?: string;
+    amount?: number;
+    fee_type?: string;
+    description?: string | null;
+    active?: boolean;
+    created_at?: string;
+  };
+  Relationships: [
+    {
+      foreignKeyName: "group_fees_group_id_fkey";
+      columns: ["group_id"];
+      isOneToOne: false;
+      referencedRelation: "groups";
+      referencedColumns: ["id"];
+    }
+  ];
+};
+
 type PublicSchema = Database["public"];
 
 export type ExtendedDatabase = Omit<Database, "public"> & {
@@ -151,6 +214,7 @@ export type ExtendedDatabase = Omit<Database, "public"> & {
       expenses: UpdatedExpensesTable;
       expense_installments: ExpenseInstallmentsTable;
       groups: UpdatedGroupsTable;
+      group_fees: GroupFeesTable;
       profiles: UpdatedProfilesTable;
       profile_sensitive: UpdatedProfileSensitiveTable;
     };

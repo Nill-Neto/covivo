@@ -9,9 +9,13 @@ import { TermsStep } from "@/components/onboarding/TermsStep";
 import { ProfileStep } from "@/components/onboarding/ProfileStep";
 import { DocumentsStep } from "@/components/onboarding/DocumentsStep";
 import { CardsStep } from "@/components/onboarding/CardsStep";
-import { GroupStep } from "@/components/onboarding/GroupStep";
+import { GroupSettingsStep, type GroupAddress } from "@/components/onboarding/GroupSettingsStep";
+import { RecurringExpensesStep, type RecurringExpenseEntry } from "@/components/onboarding/RecurringExpensesStep";
+import { MandatoryFeesStep, type FeeEntry } from "@/components/onboarding/MandatoryFeesStep";
+import { OptionalFeesStep } from "@/components/onboarding/OptionalFeesStep";
+import { HouseRulesOnboardingStep, type HouseRuleEntry } from "@/components/onboarding/HouseRulesOnboardingStep";
 
-type Step = "terms" | "profile" | "documents" | "cards" | "group";
+type Step = "terms" | "profile" | "documents" | "cards" | "groupSettings" | "recurringExpenses" | "mandatoryFees" | "optionalFees" | "houseRules";
 type SplittingRule = "equal" | "percentage";
 
 export default function Onboarding() {
@@ -32,18 +36,33 @@ export default function Onboarding() {
   const [cpfError, setCpfError] = useState("");
   const [docFiles, setDocFiles] = useState<{ rgFrontUrl: string | null; rgBackUrl: string | null; rgDigitalUrl: string | null } | null>(null);
 
-  // Group
+  // Group settings
   const [groupName, setGroupName] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
   const [splittingRule, setSplittingRule] = useState<SplittingRule>("equal");
+  const [closingDay, setClosingDay] = useState(1);
+  const [dueDay, setDueDay] = useState(10);
+  const [address, setAddress] = useState<GroupAddress>({
+    street: "", number: "", complement: "",
+    neighborhood: "", city: "", state: "", zipCode: "",
+  });
+
+  // Recurring expenses
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseEntry[]>([]);
+
+  // Fees
+  const [mandatoryFees, setMandatoryFees] = useState<FeeEntry[]>([]);
+  const [optionalFees, setOptionalFees] = useState<FeeEntry[]>([]);
+
+  // House rules
+  const [houseRules, setHouseRules] = useState<HouseRuleEntry[]>([]);
 
   const [saving, setSaving] = useState(false);
 
   const hasInviteFlow = useMemo(() => !!membership || inviteFlag, [membership, inviteFlag]);
 
-  // Invited users: 4 steps (terms, profile, documents, cards)
-  // New admins: 5 steps (terms, profile, documents, cards, group)
-  const totalSteps = hasInviteFlow ? 4 : 5;
+  // Invited users: 4 steps | New admins: 9 steps
+  const totalSteps = hasInviteFlow ? 4 : 9;
 
   useEffect(() => {
     if (membership) clearInvite();
@@ -97,7 +116,7 @@ export default function Onboarding() {
         clearInvite();
         navigate("/dashboard", { replace: true });
       } else {
-        setStep("group");
+        setStep("groupSettings");
       }
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -106,21 +125,92 @@ export default function Onboarding() {
     }
   };
 
-  const handleCreateGroup = async () => {
-    if (!groupName.trim()) {
+  const handleFinishOnboarding = async () => {
+    if (!user || !groupName.trim()) {
       toast({ title: "Erro", description: "Informe o nome do grupo.", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("create_group_with_admin", {
+      // 1. Create group
+      const { data: groupId, error: groupErr } = await supabase.rpc("create_group_with_admin", {
         _name: groupName.trim(),
         _description: groupDescription.trim() || null,
         _splitting_rule: splittingRule,
       });
-      if (error) throw error;
+      if (groupErr) throw groupErr;
 
-      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user!.id);
+      // 2. Update group with address + closing/due days
+      const { error: updateErr } = await supabase
+        .from("groups")
+        .update({
+          street: address.street.trim() || null,
+          street_number: address.number.trim() || null,
+          complement: address.complement.trim() || null,
+          neighborhood: address.neighborhood.trim() || null,
+          city: address.city.trim() || null,
+          state: address.state.trim() || null,
+          zip_code: address.zipCode.replace(/\D/g, "") || null,
+          closing_day: closingDay,
+          due_day: dueDay,
+        })
+        .eq("id", groupId);
+      if (updateErr) throw updateErr;
+
+      // 3. Insert recurring expenses
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      nextMonth.setDate(1);
+      const nextDueDate = nextMonth.toISOString().slice(0, 10);
+
+      for (const exp of recurringExpenses) {
+        if (!exp.title.trim() || !exp.amount) continue;
+        const { error } = await supabase.from("recurring_expenses").insert({
+          group_id: groupId,
+          created_by: user.id,
+          title: exp.title.trim(),
+          amount: parseFloat(exp.amount),
+          category: exp.category || "other",
+          frequency: "monthly",
+          next_due_date: nextDueDate,
+          expense_type: "collective",
+        });
+        if (error) throw error;
+      }
+
+      // 4. Insert fees
+      const allFees = [
+        ...mandatoryFees.map(f => ({ ...f, fee_type: "mandatory" as const })),
+        ...optionalFees.map(f => ({ ...f, fee_type: "optional" as const })),
+      ];
+      for (const fee of allFees) {
+        if (!fee.title.trim() || !fee.amount) continue;
+        const { error } = await supabase.from("group_fees").insert({
+          group_id: groupId,
+          title: fee.title.trim(),
+          amount: parseFloat(fee.amount),
+          fee_type: fee.fee_type,
+          description: fee.description?.trim() || null,
+        });
+        if (error) throw error;
+      }
+
+      // 5. Insert house rules
+      for (let i = 0; i < houseRules.length; i++) {
+        const rule = houseRules[i];
+        if (!rule.title.trim()) continue;
+        const { error } = await supabase.from("house_rules").insert({
+          group_id: groupId,
+          created_by: user.id,
+          title: rule.title.trim(),
+          description: rule.description?.trim() || null,
+          sort_order: i + 1,
+        });
+        if (error) throw error;
+      }
+
+      // 6. Complete onboarding
+      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user.id);
       await Promise.all([refreshProfile(), refreshMembership()]);
 
       toast({ title: "Grupo criado!", description: `"${groupName}" está pronto. Convide seus moradores.` });
@@ -179,19 +269,65 @@ export default function Onboarding() {
           onFinish={handleFinishCards}
         />
       );
-    case "group":
+    case "groupSettings":
       return (
-        <GroupStep
+        <GroupSettingsStep
           groupName={groupName}
+          address={address}
           groupDescription={groupDescription}
+          closingDay={closingDay}
+          dueDay={dueDay}
           splittingRule={splittingRule}
-          saving={saving}
           totalSteps={totalSteps}
           onGroupNameChange={setGroupName}
+          onAddressChange={setAddress}
           onGroupDescriptionChange={setGroupDescription}
+          onClosingDayChange={setClosingDay}
+          onDueDayChange={setDueDay}
           onSplittingRuleChange={setSplittingRule}
           onBack={() => setStep("cards")}
-          onSubmit={handleCreateGroup}
+          onContinue={() => setStep("recurringExpenses")}
+        />
+      );
+    case "recurringExpenses":
+      return (
+        <RecurringExpensesStep
+          expenses={recurringExpenses}
+          totalSteps={totalSteps}
+          onExpensesChange={setRecurringExpenses}
+          onBack={() => setStep("groupSettings")}
+          onContinue={() => setStep("mandatoryFees")}
+        />
+      );
+    case "mandatoryFees":
+      return (
+        <MandatoryFeesStep
+          fees={mandatoryFees}
+          totalSteps={totalSteps}
+          onFeesChange={setMandatoryFees}
+          onBack={() => setStep("recurringExpenses")}
+          onContinue={() => setStep("optionalFees")}
+        />
+      );
+    case "optionalFees":
+      return (
+        <OptionalFeesStep
+          fees={optionalFees}
+          totalSteps={totalSteps}
+          onFeesChange={setOptionalFees}
+          onBack={() => setStep("mandatoryFees")}
+          onContinue={() => setStep("houseRules")}
+        />
+      );
+    case "houseRules":
+      return (
+        <HouseRulesOnboardingStep
+          rules={houseRules}
+          saving={saving}
+          totalSteps={totalSteps}
+          onRulesChange={setHouseRules}
+          onBack={() => setStep("optionalFees")}
+          onSubmit={handleFinishOnboarding}
         />
       );
   }

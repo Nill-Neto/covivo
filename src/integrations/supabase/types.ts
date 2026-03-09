@@ -289,6 +289,47 @@ export type Database = {
           },
         ]
       }
+      group_fees: {
+        Row: {
+          active: boolean
+          amount: number
+          created_at: string
+          description: string | null
+          fee_type: string
+          group_id: string
+          id: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          created_at?: string
+          description?: string | null
+          fee_type?: string
+          group_id: string
+          id?: string
+          title: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          created_at?: string
+          description?: string | null
+          fee_type?: string
+          group_id?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_fees_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           active: boolean
@@ -332,37 +373,58 @@ export type Database = {
       }
       groups: {
         Row: {
+          city: string | null
           closing_day: number | null
+          complement: string | null
           created_at: string
           created_by: string | null
           description: string | null
           due_day: number | null
           id: string
           name: string
+          neighborhood: string | null
           splitting_rule: Database["public"]["Enums"]["splitting_rule"]
+          state: string | null
+          street: string | null
+          street_number: string | null
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
+          city?: string | null
           closing_day?: number | null
+          complement?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           due_day?: number | null
           id?: string
           name: string
+          neighborhood?: string | null
           splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
+          city?: string | null
           closing_day?: number | null
+          complement?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           due_day?: number | null
           id?: string
           name?: string
+          neighborhood?: string | null
           splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
