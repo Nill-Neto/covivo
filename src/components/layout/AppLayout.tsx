@@ -75,7 +75,8 @@ const adminGroup = {
 export function AppLayout() {
   const { membership, isAdmin } = useAuth();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -88,6 +89,20 @@ export function AppLayout() {
   }, []);
 
   const sidebarGroups = isAdmin ? [...mainNavGroups, adminGroup] : mainNavGroups;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const syncSidebarState = () => {
+      setIsMobileViewport(mediaQuery.matches);
+      setMenuOpen(!mediaQuery.matches);
+    };
+
+    syncSidebarState();
+
+    mediaQuery.addEventListener("change", syncSidebarState);
+    return () => mediaQuery.removeEventListener("change", syncSidebarState);
+  }, []);
 
   const Logo = () => (
     <Link to="/dashboard" className="flex items-center gap-2 font-serif text-xl font-bold tracking-tight">
@@ -111,7 +126,7 @@ export function AppLayout() {
               title={group.title} 
               items={group.items} 
               location={location} 
-              onItemClick={() => setMobileMenuOpen(false)}
+              onItemClick={() => isMobileViewport && setMenuOpen(false)}
             />
           ))}
 
@@ -120,7 +135,7 @@ export function AppLayout() {
               title="Convivência" 
               items={convenienceItems} 
               location={location} 
-              onItemClick={() => setMobileMenuOpen(false)}
+              onItemClick={() => isMobileViewport && setMenuOpen(false)}
             />
           </div>
         </nav>
@@ -146,10 +161,10 @@ export function AppLayout() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden shrink-0 h-12 w-12"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="h-12 w-12 shrink-0"
+            onClick={() => setMenuOpen(!menuOpen)}
           >
-            <MenuToggleIcon open={mobileMenuOpen} className="h-8 w-8 scale-125" />
+            <MenuToggleIcon open={menuOpen} className="h-8 w-8 scale-125" />
             <span className="sr-only">Menu</span>
           </Button>
 
