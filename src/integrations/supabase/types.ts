@@ -809,16 +809,25 @@ export type Database = {
         Row: {
           cpf: string
           created_at: string
+          rg_back_url: string | null
+          rg_digital_url: string | null
+          rg_front_url: string | null
           user_id: string
         }
         Insert: {
           cpf: string
           created_at?: string
+          rg_back_url?: string | null
+          rg_digital_url?: string | null
+          rg_front_url?: string | null
           user_id: string
         }
         Update: {
           cpf?: string
           created_at?: string
+          rg_back_url?: string | null
+          rg_digital_url?: string | null
+          rg_front_url?: string | null
           user_id?: string
         }
         Relationships: []
@@ -830,6 +839,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          nickname: string | null
           onboarding_completed: boolean
           phone: string | null
           updated_at: string
@@ -840,6 +850,7 @@ export type Database = {
           email?: string
           full_name?: string
           id: string
+          nickname?: string | null
           onboarding_completed?: boolean
           phone?: string | null
           updated_at?: string
@@ -850,6 +861,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          nickname?: string | null
           onboarding_completed?: boolean
           phone?: string | null
           updated_at?: string
