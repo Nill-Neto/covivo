@@ -42,6 +42,7 @@ export default function Onboarding() {
   const [splittingRule, setSplittingRule] = useState<SplittingRule>("equal");
   const [closingDay, setClosingDay] = useState(1);
   const [dueDay, setDueDay] = useState(10);
+  const [adminParticipatesInSplits, setAdminParticipatesInSplits] = useState(true);
   const [address, setAddress] = useState<GroupAddress>({
     street: "", number: "", complement: "",
     neighborhood: "", city: "", state: "", zipCode: "",
@@ -157,7 +158,15 @@ export default function Onboarding() {
         .eq("id", groupId);
       if (updateErr) throw updateErr;
 
-      // 3. Insert recurring expenses
+      // 3. Set admin split participation
+      const { error: membershipErr } = await supabase
+        .from("group_members")
+        .update({ participates_in_splits: adminParticipatesInSplits })
+        .eq("group_id", groupId)
+        .eq("user_id", user.id);
+      if (membershipErr) throw membershipErr;
+
+      // 4. Insert recurring expenses
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       nextMonth.setDate(1);
@@ -178,7 +187,7 @@ export default function Onboarding() {
         if (error) throw error;
       }
 
-      // 4. Insert fees
+      // 5. Insert fees
       const allFees = [
         ...mandatoryFees.map(f => ({ ...f, fee_type: "mandatory" as const })),
         ...optionalFees.map(f => ({ ...f, fee_type: "optional" as const })),
@@ -195,7 +204,7 @@ export default function Onboarding() {
         if (error) throw error;
       }
 
-      // 5. Insert house rules
+      // 6. Insert house rules
       for (let i = 0; i < houseRules.length; i++) {
         const rule = houseRules[i];
         if (!rule.title.trim()) continue;
@@ -209,7 +218,7 @@ export default function Onboarding() {
         if (error) throw error;
       }
 
-      // 6. Complete onboarding
+      // 7. Complete onboarding
       await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user.id);
       await Promise.all([refreshProfile(), refreshMembership()]);
 
@@ -278,6 +287,7 @@ export default function Onboarding() {
           closingDay={closingDay}
           dueDay={dueDay}
           splittingRule={splittingRule}
+          adminParticipatesInSplits={adminParticipatesInSplits}
           totalSteps={totalSteps}
           onGroupNameChange={setGroupName}
           onAddressChange={setAddress}
@@ -285,6 +295,7 @@ export default function Onboarding() {
           onClosingDayChange={setClosingDay}
           onDueDayChange={setDueDay}
           onSplittingRuleChange={setSplittingRule}
+          onAdminParticipatesInSplitsChange={setAdminParticipatesInSplits}
           onBack={() => setStep("cards")}
           onContinue={() => setStep("recurringExpenses")}
         />

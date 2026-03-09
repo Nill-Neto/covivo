@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { OnboardingShell } from "./OnboardingShell";
 import { toast } from "@/hooks/use-toast";
@@ -26,6 +27,7 @@ interface GroupSettingsStepProps {
   closingDay: number;
   dueDay: number;
   splittingRule: SplittingRule;
+  adminParticipatesInSplits: boolean;
   totalSteps: number;
   onGroupNameChange: (v: string) => void;
   onAddressChange: (a: GroupAddress) => void;
@@ -33,14 +35,15 @@ interface GroupSettingsStepProps {
   onClosingDayChange: (v: number) => void;
   onDueDayChange: (v: number) => void;
   onSplittingRuleChange: (v: SplittingRule) => void;
+  onAdminParticipatesInSplitsChange: (v: boolean) => void;
   onBack: () => void;
   onContinue: () => void;
 }
 
 export function GroupSettingsStep({
-  groupName, address, groupDescription, closingDay, dueDay, splittingRule, totalSteps,
+  groupName, address, groupDescription, closingDay, dueDay, splittingRule, adminParticipatesInSplits, totalSteps,
   onGroupNameChange, onAddressChange, onGroupDescriptionChange,
-  onClosingDayChange, onDueDayChange, onSplittingRuleChange,
+  onClosingDayChange, onDueDayChange, onSplittingRuleChange, onAdminParticipatesInSplitsChange,
   onBack, onContinue,
 }: GroupSettingsStepProps) {
   const [fetchingCep, setFetchingCep] = useState(false);
@@ -162,6 +165,16 @@ export function GroupSettingsStep({
             ? "Despesas coletivas divididas igualmente entre todos."
             : "Cada morador terá um percentual definido por você."}
         </p>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Participar dos rateios</Label>
+          <p className="text-xs text-muted-foreground">
+            Desative se você apenas administra o grupo e não participa das despesas.
+          </p>
+        </div>
+        <Switch checked={adminParticipatesInSplits} onCheckedChange={onAdminParticipatesInSplitsChange} />
       </div>
 
       <div className="flex gap-3">
