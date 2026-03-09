@@ -7,6 +7,7 @@ import { GroupSwitcher } from "./GroupSwitcher";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { Button } from "@/components/ui/button";
 import { MenuToggleIcon } from "@/components/ui/menu-toggle-icon";
+import { TextRoll } from "@/components/ui/animated-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -251,25 +252,35 @@ function SidebarNavLink({
     <Link
       to={item.to}
       onClick={onClick}
-      className={cn(
-        "group flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-all relative overflow-hidden",
-        menuOpen ? "px-3" : "px-0 justify-center h-10 w-10 mx-auto",
-        isActive
-          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm font-semibold"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-      )}
+      className="block w-full outline-none"
     >
-      {isActive && (
-        <div className={cn("absolute left-0 bg-sidebar-primary", menuOpen ? "inset-y-2 w-1 rounded-r-full" : "inset-y-0 w-1 rounded-r-md")} />
-      )}
-      <item.icon
+      <motion.div
+        initial="initial"
+        whileHover="hovered"
         className={cn(
-          "shrink-0 transition-colors",
-          menuOpen ? "h-[18px] w-[18px]" : "h-5 w-5",
-          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
+          "group flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-all relative overflow-hidden",
+          menuOpen ? "px-3" : "px-0 justify-center h-10 w-10 mx-auto",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm font-semibold"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
-      />
-      {menuOpen && <span className="truncate">{item.label}</span>}
+      >
+        {isActive && (
+          <div className={cn("absolute left-0 bg-sidebar-primary", menuOpen ? "inset-y-2 w-1 rounded-r-full" : "inset-y-0 w-1 rounded-r-md")} />
+        )}
+        <item.icon
+          className={cn(
+            "shrink-0 transition-colors relative z-10",
+            menuOpen ? "h-[18px] w-[18px]" : "h-5 w-5",
+            isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
+          )}
+        />
+        {menuOpen && (
+          <div className="flex-1 min-w-0">
+            <TextRoll className="w-full text-left tracking-wide">{item.label}</TextRoll>
+          </div>
+        )}
+      </motion.div>
     </Link>
   );
 
