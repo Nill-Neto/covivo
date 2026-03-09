@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft } from "lucide-react";
@@ -15,7 +16,7 @@ import type { GroupAddress } from "@/components/onboarding/GroupSettingsStep";
 type SplittingRule = "equal" | "percentage";
 
 export default function NewGroup() {
-  const { refreshMembership, setActiveGroupId } = useAuth();
+  const { user, refreshMembership, setActiveGroupId } = useAuth();
   const navigate = useNavigate();
 
   const [groupName, setGroupName] = useState("");
