@@ -137,7 +137,7 @@ export default function Invites() {
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
+      <div className="space-y-3 min-h-[20rem]">
         <h3 className="text-sm font-medium text-muted-foreground">Convites enviados</h3>
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
