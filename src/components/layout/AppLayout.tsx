@@ -29,8 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
+import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarCoreItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Painel Geral" },
@@ -100,7 +99,7 @@ export function AppLayout() {
   );
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col">
+    <div className={cn("flex h-full flex-col", isMobileViewport ? "w-[230px]" : "w-full")}>
       <div className={cn("flex-1 overflow-y-auto py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", menuOpen ? "px-3" : "px-2")}>
         <nav className="space-y-1">
           {sidebarItems.map((item) => (
@@ -135,7 +134,7 @@ export function AppLayout() {
       {/* Header Superior Fixo — scroll-aware */}
       <motion.header
         className={cn(
-          "z-50 flex h-16 shrink-0 items-center justify-between px-4 md:px-6 transition-all duration-300 border-b",
+          "z-50 flex h-16 shrink-0 items-center justify-between px-4 md:px-6 transition-all duration-300 border-b relative",
           isScrolled
             ? "bg-card/80 backdrop-blur-xl shadow-sm"
             : "bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60"
@@ -204,23 +203,40 @@ export function AppLayout() {
 
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="relative flex flex-1 overflow-hidden">
-        <div 
-          className="z-20 h-full flex shrink-0"
+        {/* Overlay para mobile */}
+        <AnimatePresence>
+          {isMobileViewport && menuOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 bg-background/80 backdrop-blur-sm"
+              onClick={() => setMenuOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar animada */}
+        <motion.div 
+          className={cn(
+            "z-40 h-full flex flex-col shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl overflow-hidden",
+            isMobileViewport ? "absolute left-0 top-0 bottom-0 w-[230px]" : "relative"
+          )}
+          initial={false}
+          animate={
+            isMobileViewport 
+              ? { x: menuOpen ? 0 : "-100%" } 
+              : { width: menuOpen ? 230 : 64, x: 0 }
+          }
+          transition={{ type: "spring", bounce: 0, duration: 0.3 }}
           onMouseEnter={() => !isMobileViewport && setMenuOpen(true)}
           onMouseLeave={() => !isMobileViewport && setMenuOpen(false)}
         >
-          <Sidebar 
-            open={menuOpen} 
-            setOpen={setMenuOpen}
-          >
-            <SidebarBody className="justify-between gap-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl !max-w-[230px]">
-              <SidebarContent />
-            </SidebarBody>
-          </Sidebar>
-        </div>
+          <SidebarContent />
+        </motion.div>
 
         <main ref={mainRef} className="relative flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 pt-1 md:px-8 md:pt-2">
-          {/* Decorative background — clipped to prevent scroll overflow */}
+          {/* Fundo decorativo */}
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute inset-0 [background:radial-gradient(125%_125%_at_50%_0%,transparent_40%,hsl(var(--primary)/0.08)_100%)]" />
             <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
