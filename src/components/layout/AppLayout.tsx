@@ -220,8 +220,8 @@ export function AppLayout() {
               ? cn("absolute left-0 top-0 bottom-0 z-40 transition-transform duration-300", !menuOpen && "-translate-x-full")
               : "relative z-20"
           )}
-          onMouseEnter={() => !isMobileViewport && setMenuOpen(true)}
-          onMouseLeave={() => !isMobileViewport && setMenuOpen(false)}
+          onMouseEnter={() => setMenuOpen(true)}
+          onMouseLeave={() => setMenuOpen(false)}
         >
           <Sidebar 
             open={isMobileViewport ? true : menuOpen} 
