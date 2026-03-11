@@ -169,8 +169,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    isMountedRef.current = true;
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const user = session?.user ?? null;
