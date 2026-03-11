@@ -32,11 +32,17 @@ const Polls = lazy(() => import("./pages/Polls"));
 const PersonalDashboard = lazy(() => import("./pages/PersonalDashboard"));
 const NewGroup = lazy(() => import("./pages/NewGroup"));
 const Admin = lazy(() => import("./pages/Admin"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SidebarDemoPage = lazy(() => import("./pages/SidebarDemoPage"));
 const BackgroundPathsDemoPage = lazy(() => import("./pages/BackgroundPathsDemoPage"));
 
 const queryClient = new QueryClient();
+
+// Smart redirector for the /dashboard path
+const DashboardRedirect = () => {
+  const { isAdmin } = useAuth();
+  // Redireciona para a aba de despesas ao invés de forçar a visualização em Minhas Finanças
+  return <Navigate to={isAdmin ? "/admin" : "/expenses"} replace />;
+};
 
 const AppShell = () => {
   const { pathname } = useLocation();
@@ -70,7 +76,7 @@ const AppShell = () => {
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<DashboardRedirect />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/payments" element={<Payments />} />
               <Route path="/recurring" element={<RecurringExpenses />} />

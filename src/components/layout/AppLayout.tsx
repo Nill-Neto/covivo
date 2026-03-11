@@ -25,7 +25,7 @@ import {
   MessageSquare,
   BookOpen,
   Vote,
-  Home,
+  Wallet,
   Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,11 +33,11 @@ import { motion } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 
 const sidebarCoreItems = [
-  { to: "/dashboard", icon: Home, label: "Painel Geral" },
   { to: "/expenses", icon: Receipt, label: "Despesas" },
   { to: "/payments", icon: CreditCard, label: "Pagamentos" },
   { to: "/inventory", icon: Package, label: "Estoque" },
   { to: "/shopping", icon: ShoppingCart, label: "Compras" },
+  { to: "/personal/dashboard", icon: Wallet, label: "Minhas Finanças" },
 ];
 
 const adminItems = [
