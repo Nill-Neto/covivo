@@ -176,8 +176,16 @@ export default function Admin() {
     enabled: !!membership?.group_id && !!collectiveExpenses && isAdmin
   });
 
+  if (!membership) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
   if (!isAdmin) {
-    return <div className="p-8 text-center text-muted-foreground">Acesso restrito a administradores.</div>;
+    return <div className="p-8 text-center text-foreground">Acesso restrito a administradores.</div>;
   }
 
   return (
