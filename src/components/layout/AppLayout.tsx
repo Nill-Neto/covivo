@@ -99,29 +99,30 @@ export function AppLayout() {
     </Link>
   );
 
+  const isExpanded = isMobileViewport || menuOpen;
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
-      <div className={cn("flex-1 overflow-y-auto py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", menuOpen ? "px-3" : "px-2")}>
+      <div className={cn("flex-1 overflow-y-auto py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", isExpanded ? "px-3" : "px-2")}>
         <nav className="space-y-1">
           {sidebarItems.map((item) => (
             <SidebarNavLink
               key={item.to}
               item={item}
               location={location}
-              onClick={() => setMenuOpen(false)} // Sempre fecha ao clicar num item
-              menuOpen={menuOpen}
+              onClick={() => setMenuOpen(false)}
+              menuOpen={isExpanded}
             />
           ))}
 
-          {/* Links de convivência aparecem na sidebar apenas em telas menores (mobile) */}
           <div className="md:hidden pt-4 mt-4 border-t border-sidebar-border space-y-1">
             {convenienceItems.map((item) => (
               <SidebarNavLink
                 key={item.to}
                 item={item}
                 location={location}
-                onClick={() => setMenuOpen(false)} // Sempre fecha ao clicar num item
-                menuOpen={menuOpen}
+                onClick={() => setMenuOpen(false)}
+                menuOpen={isExpanded}
               />
             ))}
           </div>
@@ -204,13 +205,26 @@ export function AppLayout() {
 
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="relative flex flex-1 overflow-hidden">
+        {/* Backdrop mobile */}
+        {isMobileViewport && menuOpen && (
+          <div 
+            className="absolute inset-0 z-30 bg-background/80 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+
         <div 
-          className="z-20 h-full flex shrink-0"
+          className={cn(
+            "h-full flex shrink-0",
+            isMobileViewport 
+              ? cn("absolute left-0 top-0 bottom-0 z-40 transition-transform duration-300", !menuOpen && "-translate-x-full")
+              : "relative z-20"
+          )}
           onMouseEnter={() => !isMobileViewport && setMenuOpen(true)}
           onMouseLeave={() => !isMobileViewport && setMenuOpen(false)}
         >
           <Sidebar 
-            open={menuOpen} 
+            open={isMobileViewport ? true : menuOpen} 
             setOpen={setMenuOpen}
           >
             <SidebarBody className="justify-between gap-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl !max-w-[230px]">

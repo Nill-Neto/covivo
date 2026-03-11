@@ -70,12 +70,7 @@ export const Sidebar = ({
 };
 
 export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
-  return (
-    <>
-      <DesktopSidebar {...props} />
-      <MobileSidebar {...(props as any)} />
-    </>
-  );
+  return <DesktopSidebar {...props} />;
 };
 
 export const DesktopSidebar = ({ className, children, ...props }: React.ComponentProps<typeof motion.div>) => {
@@ -84,7 +79,7 @@ export const DesktopSidebar = ({ className, children, ...props }: React.Componen
   return (
     <motion.div
       className={cn(
-        "hidden h-full flex-shrink-0 bg-neutral-100 dark:bg-neutral-800 md:flex md:flex-col",
+        "h-full flex-shrink-0 bg-neutral-100 dark:bg-neutral-800 flex flex-col",
         className,
       )}
       animate={{
