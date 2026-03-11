@@ -40,8 +40,7 @@ const queryClient = new QueryClient();
 // Smart redirector for the /dashboard path
 const DashboardRedirect = () => {
   const { isAdmin } = useAuth();
-  // Redireciona para a aba de despesas ao invés de forçar a visualização em Minhas Finanças
-  return <Navigate to={isAdmin ? "/admin" : "/expenses"} replace />;
+  return <Navigate to={isAdmin ? "/admin" : "/personal/dashboard"} replace />;
 };
 
 const AppShell = () => {
