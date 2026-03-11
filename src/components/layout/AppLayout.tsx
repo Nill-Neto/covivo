@@ -204,13 +204,26 @@ export function AppLayout() {
 
       {/* Conteúdo Principal (Sidebar + Main) */}
       <div className="relative flex flex-1 overflow-hidden">
+        {/* Backdrop mobile */}
+        {isMobileViewport && menuOpen && (
+          <div 
+            className="absolute inset-0 z-30 bg-background/80 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+
         <div 
-          className="z-20 h-full flex shrink-0"
+          className={cn(
+            "h-full flex shrink-0",
+            isMobileViewport 
+              ? cn("absolute left-0 top-0 bottom-0 z-40 transition-transform duration-300", !menuOpen && "-translate-x-full")
+              : "relative z-20"
+          )}
           onMouseEnter={() => !isMobileViewport && setMenuOpen(true)}
           onMouseLeave={() => !isMobileViewport && setMenuOpen(false)}
         >
           <Sidebar 
-            open={menuOpen} 
+            open={isMobileViewport ? true : menuOpen} 
             setOpen={setMenuOpen}
           >
             <SidebarBody className="justify-between gap-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl !max-w-[230px]">
