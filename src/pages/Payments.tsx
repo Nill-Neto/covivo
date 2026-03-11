@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -293,23 +292,9 @@ export default function Payments() {
     );
   }
 
-  const defaultTab = isAdmin ? "pending" : "all";
-
-  const tabTriggerClass = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm text-foreground/60 text-xs font-semibold px-3 py-1.5 rounded-md transition-all";
-  const tabListClass = "w-full justify-start overflow-x-auto bg-muted/50 rounded-lg p-1 h-auto gap-1";
-
-  const compactTabsList = (
-    <TabsList className={tabListClass}>
-      {isAdmin && <TabsTrigger value="pending" className={tabTriggerClass}>Pendentes</TabsTrigger>}
-      <TabsTrigger value="all" className={tabTriggerClass}>Todos</TabsTrigger>
-    </TabsList>
-  );
-
   return (
-    <Tabs defaultValue={defaultTab}>
     <div className="space-y-4">
       <PageHero
-        compactTabs={compactTabsList}
         onCompactChange={setHeroCompact}
         title="Pagamentos"
         subtitle="Histórico de pagamentos."
@@ -401,32 +386,57 @@ export default function Payments() {
         Exibindo competência: <strong>{format(cycleStart, "dd/MM")}</strong> até <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
       </div>
 
-      {!heroCompact && (
-        <TabsList className={tabListClass}>
-          {isAdmin && <TabsTrigger value="pending" className={tabTriggerClass}>Pendentes</TabsTrigger>}
-          <TabsTrigger value="all" className={tabTriggerClass}>Todos</TabsTrigger>
-        </TabsList>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card de Pendentes */}
+        <Card className="border-l-4 border-l-warning bg-card shadow-sm flex flex-col">
+          <CardContent className="p-0 flex-1 flex flex-col">
+            <div className="p-4 border-b bg-muted/20">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-warning"></div>
+                Pendentes
+                <Badge variant="secondary" className="ml-auto">
+                  {payments?.filter((p) => p.status === "pending").length || 0}
+                </Badge>
+              </h3>
+              <p className="text-sm text-muted-foreground">Aguardando confirmação</p>
+            </div>
+            <div className="p-4 space-y-3 flex-1 overflow-auto">
+              {payments?.filter((p) => p.status === "pending").length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">Nenhum pagamento pendente.</div>
+              ) : (
+                payments?.filter((p) => p.status === "pending").map((p: any) => (
+                  <PaymentItem key={p.id} payment={p} isAdmin={isAdmin} onConfirm={handleConfirm} onManage={openManage} />
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-      {isAdmin && (
-        <TabsContent value="pending" className="space-y-3 mt-4">
-          {payments?.filter((p) => p.status === "pending").length === 0 && (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento pendente nesta competência.</CardContent></Card>
-          )}
-          {payments?.filter((p) => p.status === "pending").map((p: any) => (
-            <PaymentCard key={p.id} payment={p} isAdmin onConfirm={handleConfirm} onManage={openManage} />
-          ))}
-        </TabsContent>
-      )}
-
-      <TabsContent value="all" className="space-y-3 mt-4">
-        {payments?.length === 0 && (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum pagamento registrado nesta competência.</CardContent></Card>
-        )}
-        {payments?.map((p: any) => (
-          <PaymentCard key={p.id} payment={p} isAdmin={isAdmin} onConfirm={handleConfirm} onManage={openManage} />
-        ))}
-      </TabsContent>
+        {/* Card de Histórico (Todos/Confirmados/Recusados) */}
+        <Card className="border-l-4 border-l-success bg-card shadow-sm flex flex-col">
+          <CardContent className="p-0 flex-1 flex flex-col">
+            <div className="p-4 border-b bg-muted/20">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success"></div>
+                Histórico
+                <Badge variant="secondary" className="ml-auto">
+                  {payments?.filter((p) => p.status !== "pending").length || 0}
+                </Badge>
+              </h3>
+              <p className="text-sm text-muted-foreground">Confirmados e recusados</p>
+            </div>
+            <div className="p-4 space-y-3 flex-1 overflow-auto">
+              {payments?.filter((p) => p.status !== "pending").length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">Nenhum pagamento no histórico.</div>
+              ) : (
+                payments?.filter((p) => p.status !== "pending").map((p: any) => (
+                  <PaymentItem key={p.id} payment={p} isAdmin={isAdmin} onConfirm={handleConfirm} onManage={openManage} />
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Modal de Gerenciamento de Pagamentos (Admin) */}
       <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
@@ -500,11 +510,10 @@ export default function Payments() {
       </Dialog>
 
     </div>
-    </Tabs>
   );
 }
 
-function PaymentCard({ payment, isAdmin, onConfirm, onManage }: { payment: any; isAdmin: boolean; onConfirm: (id: string, status: "confirmed" | "rejected") => void; onManage?: (payment: any) => void }) {
+function PaymentItem({ payment, isAdmin, onConfirm, onManage }: { payment: any; isAdmin: boolean; onConfirm: (id: string, status: "confirmed" | "rejected") => void; onManage?: (payment: any) => void }) {
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
     pending: { label: "Pendente", variant: "secondary" },
     confirmed: { label: "Confirmado", variant: "default" },
@@ -513,45 +522,43 @@ function PaymentCard({ payment, isAdmin, onConfirm, onManage }: { payment: any; 
   const s = statusMap[payment.status] ?? statusMap.pending;
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">{payment.payer_name}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {format(new Date(payment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-            </p>
-            {payment.notes && <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>}
-            {payment.receipt_url && (
-              <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1">
-                <ImageIcon className="h-3 w-3" /> Ver comprovante
-              </a>
-            )}
-          </div>
-          <div className="text-right shrink-0 flex flex-col items-end gap-2">
-            <div className="flex items-center gap-1">
-              <p className="text-lg font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
-              {isAdmin && onManage && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)}>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <Badge variant={s.variant}>{s.label}</Badge>
-            {isAdmin && payment.status === "pending" && (
-              <div className="flex gap-1 mt-1">
-                <Button size="sm" variant="default" className="h-7 gap-1" onClick={() => onConfirm(payment.id, "confirmed")}>
-                  <Check className="h-3 w-3" /> Confirmar
-                </Button>
-                <Button size="sm" variant="destructive" className="h-7 gap-1" onClick={() => onConfirm(payment.id, "rejected")}>
-                  <X className="h-3 w-3" /> Recusar
-                </Button>
-              </div>
-            )}
-          </div>
+    <div className="p-3 bg-background border rounded-lg shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm">{payment.payer_name}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {format(new Date(payment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          </p>
+          {payment.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{payment.notes}</p>}
+          {payment.receipt_url && (
+            <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
+              <ImageIcon className="h-3 w-3" /> Ver comprovante
+            </a>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
+            {isAdmin && onManage && (
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)}>
+                <Settings className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          <Badge variant={s.variant} className="text-[10px] px-1.5 py-0 h-4">{s.label}</Badge>
+          {isAdmin && payment.status === "pending" && (
+            <div className="flex gap-1 mt-1">
+              <Button size="icon" variant="default" className="h-6 w-6" onClick={() => onConfirm(payment.id, "confirmed")}>
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button size="icon" variant="destructive" className="h-6 w-6" onClick={() => onConfirm(payment.id, "rejected")}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
