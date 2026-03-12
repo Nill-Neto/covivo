@@ -26,7 +26,6 @@ import {
   MessageSquare,
   BookOpen,
   Vote,
-  Wallet,
   Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,11 +38,9 @@ const sidebarCoreItems = [
   { to: "/payments", icon: CreditCard, label: "Pagamentos" },
   { to: "/inventory", icon: Package, label: "Estoque" },
   { to: "/shopping", icon: ShoppingCart, label: "Compras" },
-  { to: "/personal/financas", icon: Wallet, label: "Minhas Finanças" },
 ];
 
 const adminItems = [
-  { to: "/admin", icon: Shield, label: "Administração" },
   { to: "/recurring", icon: RefreshCw, label: "Recorrências" },
   { to: "/invites", icon: UserPlus, label: "Convites" },
   { to: "/audit-log", icon: ScrollText, label: "Histórico" },
@@ -75,7 +72,9 @@ export function AppLayout() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const sidebarItems = isAdmin ? [...sidebarCoreItems, ...adminItems] : sidebarCoreItems;
+  const sidebarItems = isAdmin
+    ? [{ to: "/admin", icon: Shield, label: "Administração" }, ...sidebarCoreItems, ...adminItems]
+    : sidebarCoreItems;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
