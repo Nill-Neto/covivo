@@ -1141,6 +1141,28 @@ export type Database = {
         Args: { _payment_id: string; _status?: string }
         Returns: undefined
       }
+      complete_onboarding_with_group_setup: {
+        Args: {
+          _admin_participates_in_splits?: boolean
+          _city?: string
+          _closing_day?: number
+          _complement?: string
+          _description?: string
+          _due_day?: number
+          _fees?: Json
+          _house_rules?: Json
+          _name: string
+          _neighborhood?: string
+          _operation_id: string
+          _recurring_expenses?: Json
+          _splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
+          _state?: string
+          _street?: string
+          _street_number?: string
+          _zip_code?: string
+        }
+        Returns: Json
+      }
       create_audit_log: {
         Args: {
           _action: string

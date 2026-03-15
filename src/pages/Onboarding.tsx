@@ -59,6 +59,7 @@ export default function Onboarding() {
   const [houseRules, setHouseRules] = useState<HouseRuleEntry[]>([]);
 
   const [saving, setSaving] = useState(false);
+  const [onboardingOperationId] = useState(() => crypto.randomUUID());
 
   const hasInviteFlow = useMemo(() => !!membership || inviteFlag, [membership, inviteFlag]);
 
@@ -133,100 +134,54 @@ export default function Onboarding() {
     }
     setSaving(true);
     try {
-      // 1. Create group
-      const { data: groupId, error: groupErr } = await supabase.rpc("create_group_with_admin", {
-        _name: groupName.trim(),
-        _description: groupDescription.trim() || null,
-        _splitting_rule: splittingRule,
-      });
-      if (groupErr) throw groupErr;
-
-      // 2. Update group with address + closing/due days
-      const { error: updateErr } = await supabase
-        .from("groups")
-        .update({
-          street: address.street.trim() || null,
-          street_number: address.number.trim() || null,
-          complement: address.complement.trim() || null,
-          neighborhood: address.neighborhood.trim() || null,
-          city: address.city.trim() || null,
-          state: address.state.trim() || null,
-          zip_code: address.zipCode.replace(/\D/g, "") || null,
-          closing_day: closingDay,
-          due_day: dueDay,
-        })
-        .eq("id", groupId);
-      if (updateErr) throw updateErr;
-
-      // 3. Set admin split participation
-      const { error: membershipErr } = await supabase
-        .from("group_members")
-        .update({ participates_in_splits: adminParticipatesInSplits })
-        .eq("group_id", groupId)
-        .eq("user_id", user.id);
-      if (membershipErr) throw membershipErr;
-
-      // 4. Insert recurring expenses
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      nextMonth.setDate(1);
-      const nextDueDate = nextMonth.toISOString().slice(0, 10);
-
-      for (const exp of recurringExpenses) {
-        if (!exp.title.trim() || !exp.amount) continue;
-        const { error } = await supabase.from("recurring_expenses").insert({
-          group_id: groupId,
-          created_by: user.id,
-          title: exp.title.trim(),
-          amount: parseFloat(exp.amount),
-          category: exp.category || "other",
-          frequency: "monthly",
-          next_due_date: nextDueDate,
-          expense_type: "collective",
-        });
-        if (error) throw error;
-      }
-
-      // 5. Insert fees
       const allFees = [
         ...mandatoryFees.map(f => ({ ...f, fee_type: "mandatory" as const })),
         ...optionalFees.map(f => ({ ...f, fee_type: "optional" as const })),
       ];
-      for (const fee of allFees) {
-        if (!fee.title.trim() || !fee.amount) continue;
-        const { error } = await supabase.from("group_fees").insert({
-          group_id: groupId,
-          title: fee.title.trim(),
-          amount: parseFloat(fee.amount),
-          fee_type: fee.fee_type,
-          description: fee.description?.trim() || null,
-        });
-        if (error) throw error;
+
+      const { error: rpcError } = await supabase.rpc("complete_onboarding_with_group_setup", {
+        _operation_id: onboardingOperationId,
+        _name: groupName.trim(),
+        _description: groupDescription.trim() || null,
+        _splitting_rule: splittingRule,
+        _closing_day: closingDay,
+        _due_day: dueDay,
+        _street: address.street.trim() || null,
+        _street_number: address.number.trim() || null,
+        _complement: address.complement.trim() || null,
+        _neighborhood: address.neighborhood.trim() || null,
+        _city: address.city.trim() || null,
+        _state: address.state.trim() || null,
+        _zip_code: address.zipCode.replace(/\D/g, "") || null,
+        _admin_participates_in_splits: adminParticipatesInSplits,
+        _recurring_expenses: recurringExpenses,
+        _fees: allFees,
+        _house_rules: houseRules,
+      });
+
+      if (rpcError) {
+        const details = `${rpcError.message ?? ""} ${rpcError.details ?? ""}`.toLowerCase();
+        let description = "Não foi possível concluir o onboarding. Tente novamente.";
+
+        if (rpcError.code === "22023" || details.includes("validation")) {
+          description = "Alguns dados informados são inválidos. Revise os campos e tente novamente.";
+        } else if (rpcError.code === "42501" || details.includes("permission")) {
+          description = "Você não tem permissão para concluir este onboarding. Faça login novamente.";
+        } else if (rpcError.code === "23505" || details.includes("conflict")) {
+          description = "Houve um conflito ao concluir o onboarding (possível retry já processado). Atualize a página.";
+        }
+
+        throw new Error(description);
       }
 
-      // 6. Insert house rules
-      for (let i = 0; i < houseRules.length; i++) {
-        const rule = houseRules[i];
-        if (!rule.title.trim()) continue;
-        const { error } = await supabase.from("house_rules").insert({
-          group_id: groupId,
-          created_by: user.id,
-          title: rule.title.trim(),
-          description: rule.description?.trim() || null,
-          sort_order: i + 1,
-        });
-        if (error) throw error;
-      }
-
-      // 7. Complete onboarding
-      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user.id);
       await Promise.all([refreshProfile(), refreshMembership()]);
 
       toast({ title: "Grupo criado!", description: `"${groupName}" está pronto. Convide seus moradores.` });
       clearInvite();
       navigate("/dashboard", { replace: true });
-    } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha inesperada ao finalizar onboarding.";
+      toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
