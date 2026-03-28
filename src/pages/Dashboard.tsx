@@ -458,7 +458,6 @@ export default function Dashboard() {
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
             isLate={isLate}
-            onPayRateio={(scope) => { setRateioScope(scope); setPayRateioOpen(true); }}
           />
         </TabsContent>
 
@@ -476,6 +475,7 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
+            onPayRateio={(scope) => { setRateioScope(scope); setPayRateioOpen(true); }}
           />
         </TabsContent>
 

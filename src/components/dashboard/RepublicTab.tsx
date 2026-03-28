@@ -15,7 +15,6 @@ interface RepublicTabProps {
   totalCollectivePendingPrevious: number;
   totalCollectivePendingCurrent: number;
   isLate: boolean;
-  onPayRateio: (scope: "previous" | "current") => void;
 }
 
 export function RepublicTab({
@@ -25,7 +24,6 @@ export function RepublicTab({
   totalCollectivePendingPrevious,
   totalCollectivePendingCurrent,
   isLate,
-  onPayRateio,
 }: RepublicTabProps) {
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -49,20 +47,6 @@ export function RepublicTab({
               <p className="text-xs text-destructive font-bold mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3"/> Pagamento em Atraso
               </p>
-            )}
-            {(totalCollectivePendingPrevious > 0 || totalCollectivePendingCurrent > 0) && (
-              <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                {totalCollectivePendingPrevious > 0 && (
-                  <Button className="w-full sm:w-auto" variant={isLate ? "destructive" : "default"} onClick={() => onPayRateio("previous")}>
-                    Pagar competências anteriores
-                  </Button>
-                )}
-                {totalCollectivePendingCurrent > 0 && (
-                  <Button className="w-full sm:w-auto" variant="outline" onClick={() => onPayRateio("current")}>
-                    Pagar competência atual
-                  </Button>
-                )}
-              </div>
             )}
           </CardContent>
         </Card>
