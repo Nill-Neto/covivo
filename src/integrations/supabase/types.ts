@@ -335,8 +335,10 @@ export type Database = {
           active: boolean
           group_id: string
           id: string
+          is_resident: boolean
           joined_at: string
           left_at: string | null
+          participates_in_collective_expenses_default: boolean
           participates_in_splits: boolean
           split_percentage: number | null
           user_id: string
@@ -345,8 +347,10 @@ export type Database = {
           active?: boolean
           group_id: string
           id?: string
+          is_resident?: boolean
           joined_at?: string
           left_at?: string | null
+          participates_in_collective_expenses_default?: boolean
           participates_in_splits?: boolean
           split_percentage?: number | null
           user_id: string
@@ -355,8 +359,10 @@ export type Database = {
           active?: boolean
           group_id?: string
           id?: string
+          is_resident?: boolean
           joined_at?: string
           left_at?: string | null
+          participates_in_collective_expenses_default?: boolean
           participates_in_splits?: boolean
           split_percentage?: number | null
           user_id?: string
