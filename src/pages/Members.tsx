@@ -100,7 +100,7 @@ export default function Members() {
     queryFn: async () => {
       const { data: groupMembers, error: gmErr } = await supabase
         .from("group_members")
-        .select("user_id, split_percentage, joined_at, active, is_resident, participates_in_splits, participates_in_collective_expenses_default")
+        .select("*")
         .eq("group_id", membership!.group_id)
         .eq("active", true);
       if (gmErr) throw gmErr;
@@ -247,8 +247,8 @@ export default function Members() {
         _reason: reason,
       });
       if (error) throw error;
-      return data as RemoveGroupMemberRpcResponse;
-    },
+            return data as unknown as RemoveGroupMemberRpcResponse;
+          },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });

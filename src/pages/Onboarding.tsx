@@ -155,9 +155,9 @@ export default function Onboarding() {
         _state: address.state.trim() || null,
         _zip_code: address.zipCode.replace(/\D/g, "") || null,
         _admin_participates_in_splits: adminParticipatesInSplits,
-        _recurring_expenses: recurringExpenses,
+        _recurring_expenses: recurringExpenses as unknown as import("@/integrations/supabase/types").Json,
         _fees: allFees,
-        _house_rules: houseRules,
+        _house_rules: houseRules as unknown as import("@/integrations/supabase/types").Json,
       });
 
       if (rpcError) {

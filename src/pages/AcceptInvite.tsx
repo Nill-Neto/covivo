@@ -48,7 +48,7 @@ export default function AcceptInvite() {
       const { data, error } = await supabase.rpc("accept_invite", { _token: token! });
       if (error) throw error;
 
-      const result = data as AcceptInviteRpcResponse;
+      const result = data as unknown as AcceptInviteRpcResponse;
       if (!result.success) {
 
         setStatus("error");
