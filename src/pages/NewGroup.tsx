@@ -141,7 +141,7 @@ export default function NewGroup() {
               id="groupName"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder='Ex: "República Central"'
+              placeholder='Ex: "Casa Aurora"'
             />
           </div>
 
