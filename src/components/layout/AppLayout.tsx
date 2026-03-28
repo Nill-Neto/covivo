@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config/brand";
 import { motion } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 import { BRANDING } from "@/config/branding";

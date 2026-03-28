@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInviteFlag } from "@/hooks/useInviteFlag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { APP_NAME } from "@/config/brand";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { BRANDING } from "@/config/branding";

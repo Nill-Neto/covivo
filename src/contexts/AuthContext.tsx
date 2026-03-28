@@ -47,7 +47,8 @@ interface AuthContextType extends AuthState {
   refreshMembership: () => Promise<void>;
 }
 
-const ACTIVE_GROUP_KEY = "republi-k-active-group";
+const ACTIVE_GROUP_KEY = "covivo-active-group";
+const LEGACY_ACTIVE_GROUP_KEY = "republi-k-active-group";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session: null,
     profile: null,
     memberships: [],
-    activeGroupId: localStorage.getItem(ACTIVE_GROUP_KEY),
+    activeGroupId: localStorage.getItem(ACTIVE_GROUP_KEY) ?? localStorage.getItem(LEGACY_ACTIVE_GROUP_KEY),
     loading: true,
   });
 
@@ -147,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (activeGroupId) {
           localStorage.setItem(ACTIVE_GROUP_KEY, activeGroupId);
+          localStorage.removeItem(LEGACY_ACTIVE_GROUP_KEY);
         }
 
         return {
@@ -214,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setActiveGroupId = useCallback((groupId: string) => {
     localStorage.setItem(ACTIVE_GROUP_KEY, groupId);
+    localStorage.removeItem(LEGACY_ACTIVE_GROUP_KEY);
     setState((prev) => ({ ...prev, activeGroupId: groupId }));
   }, []);
 

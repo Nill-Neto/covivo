@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { TextEffect } from '@/components/ui/text-effect'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/config/brand'
 
 const transitionVariants = {
     item: {

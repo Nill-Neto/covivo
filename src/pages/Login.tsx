@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_NAME } from "@/config/brand";
 import { Home, Shield, Users, BarChart3 } from "lucide-react";
 import { BRANDING } from "@/config/branding";
 
