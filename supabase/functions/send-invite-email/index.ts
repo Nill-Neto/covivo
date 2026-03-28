@@ -50,14 +50,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const inviteLink = `https://republi-k.lovable.app/invite?token=${token}`;
+    const appName = "Covivo";
+    const appPublicUrl = (Deno.env.get("APP_PUBLIC_URL") || "https://republi-k.lovable.app").replace(/\/$/, "");
+    const inviteLink = `${appPublicUrl}/invite?token=${token}`;
 
     const resend = new Resend(resendApiKey);
 
     const { data, error } = await resend.emails.send({
-      from: "Republi-K <onboarding@resend.dev>",
+      from: `${appName} <onboarding@resend.dev>`,
       to: [email],
-      subject: `${inviterName || "Alguém"} te convidou para ${groupName || "uma república"} no Republi-K`,
+      subject: `${inviterName || "Alguém"} te convidou para ${groupName || "uma moradia compartilhada"} no ${appName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -69,10 +71,10 @@ Deno.serve(async (req) => {
           <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
             <h1 style="color: #18181b; font-size: 24px; margin: 0 0 16px 0;">Você foi convidado! 🏠</h1>
             <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-              ${inviterName || "Um morador"} te convidou para participar ${groupName ? `da república <strong>${groupName}</strong>` : "de uma república"} no Republi-K.
+              ${inviterName || "Um morador"} te convidou para participar ${groupName ? `da moradia <strong>${groupName}</strong>` : "de uma moradia compartilhada"} no ${appName}.
             </p>
             <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
-              O Republi-K ajuda a organizar despesas, pagamentos e a convivência na república. Clique no botão abaixo para aceitar o convite:
+              O ${appName} ajuda a organizar despesas, pagamentos e a convivência na moradia compartilhada. Clique no botão abaixo para aceitar o convite:
             </p>
             <a href="${inviteLink}" style="display: inline-block; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
               Aceitar Convite

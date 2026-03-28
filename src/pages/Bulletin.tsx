@@ -117,7 +117,7 @@ export default function Bulletin() {
     <div className="space-y-4">
       <PageHero
         title="Mural de Avisos"
-        subtitle="Comunicados e recados para a república."
+        subtitle="Comunicados e recados para a moradia compartilhada."
         tone="primary"
         icon={<MessageSquare className="h-4 w-4" />}
         actions={

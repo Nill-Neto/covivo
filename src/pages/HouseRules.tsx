@@ -94,7 +94,7 @@ export default function HouseRules() {
     <div className="space-y-4">
       <PageHero
         title="Regras da Casa"
-        subtitle="Combinados de convivência da república."
+        subtitle="Combinados de convivência da moradia compartilhada."
         tone="primary"
         icon={<BookOpen className="h-4 w-4" />}
         actions={isAdmin ? (
