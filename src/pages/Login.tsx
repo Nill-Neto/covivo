@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_NAME } from "@/config/brand";
 import { Home, Shield, Users, BarChart3 } from "lucide-react";
 
 export default function Login() {
@@ -28,7 +29,10 @@ export default function Login() {
         <div className="pointer-events-none absolute bottom-6 right-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
 
         <div className="relative z-10">
-          <h1 className="text-4xl font-serif text-foreground">Republi-K</h1>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+            Nova marca
+          </div>
+          <h1 className="mt-3 text-4xl font-serif text-foreground">{APP_NAME}</h1>
           <p className="mt-2 font-sans text-sm tracking-wide text-muted-foreground uppercase">
             Gestão de moradia compartilhada
           </p>
@@ -52,7 +56,7 @@ export default function Login() {
         </div>
 
         <p className="relative z-10 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Republi-K. Todos os direitos reservados.
+          © {new Date().getFullYear()} {APP_NAME}. Todos os direitos reservados.
         </p>
       </div>
 

@@ -29,6 +29,7 @@ import {
   Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config/brand";
 import { motion } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 
@@ -93,10 +94,13 @@ export function AppLayout() {
 
   const Logo = () => (
     <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 font-serif text-xl font-bold tracking-tight">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        R
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm">
+        C
       </div>
-      <span className="text-foreground">Republi-K</span>
+      <span className="text-foreground">{APP_NAME}</span>
+      <span className="hidden sm:inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+        Beta
+      </span>
     </Link>
   );
 

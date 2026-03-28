@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { TextEffect } from '@/components/ui/text-effect'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/config/brand'
 
 const transitionVariants = {
     item: {
@@ -44,7 +45,7 @@ export function HeroSection() {
                                         to="/login"
                                         className="hover:bg-muted bg-muted/50 group mx-auto flex w-fit items-center gap-4 rounded-full border border-border p-1 pl-4 shadow-md shadow-primary/5 transition-colors duration-300"
                                     >
-                                        <span className="text-foreground text-sm">Gestão inteligente de moradias</span>
+                                        <span className="text-foreground text-sm">{APP_NAME}: gestão inteligente de moradias</span>
                                         <span className="bg-primary text-primary-foreground block rounded-full px-2 py-0.5 text-xs">
                                             Comece agora <ChevronRight className="ml-1 inline h-3 w-3" />
                                         </span>
@@ -58,7 +59,7 @@ export function HeroSection() {
                                     className="mt-8 text-balance text-4xl font-serif md:text-6xl lg:text-7xl text-foreground"
                                     delay={0.2}
                                 >
-                                    Simplifique a vida na sua república
+                                    Simplifique a vida na sua moradia compartilhada
                                 </TextEffect>
 
                                 <TextEffect
@@ -78,7 +79,7 @@ export function HeroSection() {
                                     <div key="cta-1">
                                         <Button size="lg" className="rounded-xl px-5" asChild>
                                             <Link to="/login">
-                                                <span className="text-nowrap">Entrar no Republi-K</span>
+                                                <span className="text-nowrap">Entrar no {APP_NAME}</span>
                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                             </Link>
                                         </Button>
@@ -113,7 +114,7 @@ export function HeroSection() {
                 <section id="features" className="py-16 md:py-32">
                     <div className="mx-auto max-w-5xl px-6">
                         <div className="mx-auto max-w-xl text-center">
-                            <span className="text-muted-foreground font-medium">Por que usar o Republi-K?</span>
+                            <span className="text-muted-foreground font-medium">Por que usar o {APP_NAME}?</span>
                             <p className="mt-2 text-balance text-lg font-semibold text-foreground">
                                 Tudo o que você precisa para gerenciar sua moradia
                             </p>
@@ -144,7 +145,7 @@ export function HeroSection() {
                 <footer className="border-t border-border py-8">
                     <div className="mx-auto max-w-7xl px-6 text-center">
                         <p className="text-xs text-muted-foreground">
-                            © {new Date().getFullYear()} Republi-K. Todos os direitos reservados.
+                            © {new Date().getFullYear()} {APP_NAME}. Todos os direitos reservados.
                         </p>
                     </div>
                 </footer>
@@ -185,8 +186,11 @@ const HeroHeader = () => {
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Link to="/" aria-label="Home" className="text-2xl font-serif text-foreground">
-                                Republi-K
+                                {APP_NAME}
                             </Link>
+                            <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline-flex">
+                                Beta
+                            </span>
 
                             <button
                                 onClick={() => setMenuState(!menuState)}

@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInviteFlag } from "@/hooks/useInviteFlag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { APP_NAME } from "@/config/brand";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
@@ -78,7 +79,7 @@ export default function AcceptInvite() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
-          <CardTitle className="font-serif text-2xl">Convite Republi-K</CardTitle>
+          <CardTitle className="font-serif text-2xl">Convite {APP_NAME}</CardTitle>
           <CardDescription>Você foi convidado para uma moradia</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

@@ -189,7 +189,7 @@ export default function Polls() {
     <div className="space-y-4">
       <PageHero
         title="Votações"
-        subtitle="Decisões coletivas da república."
+        subtitle="Decisões coletivas da moradia compartilhada."
         tone="primary"
         icon={<Vote className="h-4 w-4" />}
         badge={<Badge variant="secondary">Colaboração</Badge>}
