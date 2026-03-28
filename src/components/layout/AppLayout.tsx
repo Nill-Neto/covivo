@@ -33,6 +33,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
+import { BRANDING } from "@/config/branding";
 
 const DESKTOP_SIDEBAR_STORAGE_KEY = "app-layout:desktop-sidebar-open";
 
@@ -139,7 +140,7 @@ export function AppLayout() {
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
         R
       </div>
-      <span className="text-foreground">Republi-K</span>
+      <span className="text-foreground">{BRANDING.appName}</span>
     </Link>
   );
 
