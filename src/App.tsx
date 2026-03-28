@@ -1,6 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -11,6 +11,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import Login from "./pages/Login";
+import { ROUTE_ALIASES } from "@/config/branding";
+import { resolveCanonicalDomainRedirect } from "@/config/app";
 
 const Index = lazy(() => import("./pages/Index"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -41,6 +43,14 @@ const AppShell = () => {
   const { pathname } = useLocation();
   const showGlobalBackground = pathname !== "/background-paths-demo";
 
+  useEffect(() => {
+    const redirectTarget = resolveCanonicalDomainRedirect(
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
+    if (!redirectTarget) return;
+    window.location.replace(redirectTarget);
+  }, []);
+
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-white dark:bg-neutral-950">
       {showGlobalBackground && <BackgroundPathsLayer />}
@@ -60,6 +70,13 @@ const AppShell = () => {
             <Route path="/invite" element={<AcceptInvite />} />
             <Route path="/sidebar-demo" element={<SidebarDemoPage />} />
             <Route path="/background-paths-demo" element={<BackgroundPathsDemoPage />} />
+            {ROUTE_ALIASES.map((alias) => (
+              <Route
+                key={alias.from}
+                path={alias.from}
+                element={<Navigate to={alias.to} replace />}
+              />
+            ))}
 
             {/* Authenticated routes */}
             <Route

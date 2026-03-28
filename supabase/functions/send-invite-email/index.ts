@@ -1,10 +1,57 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { Resend } from "npm:resend@4.0.0";
+import { BRANDING } from "../../../src/config/branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const DEFAULT_LOCAL_PUBLIC_URL = "http://localhost:8080";
+const APP_PUBLIC_URL_ALIAS_SEPARATOR = ",";
+
+const normalizeUrl = (url: string) => url.trim().replace(/\/$/, "");
+
+const getOrigin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+};
+
+const parseAliases = (aliases: string | undefined) =>
+  aliases
+    ?.split(APP_PUBLIC_URL_ALIAS_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(normalizeUrl) ?? [];
+
+const resolveAppPublicUrl = () => {
+  const configuredUrl = Deno.env.get("APP_PUBLIC_URL")?.trim().replace(/\/$/, "");
+  if (configuredUrl) {
+    console.info(`[send-invite-email] APP_PUBLIC_URL configured: ${configuredUrl}`);
+    return configuredUrl;
+  }
+
+  const stage = Deno.env.get("ENVIRONMENT") ?? Deno.env.get("SUPABASE_ENV") ?? "unknown";
+  const isLocal = Deno.env.get("SUPABASE_URL")?.includes("127.0.0.1") || stage === "local" || stage === "development";
+
+  if (isLocal) {
+    console.warn(
+      `[send-invite-email] APP_PUBLIC_URL is not configured for ${stage}. Falling back to ${DEFAULT_LOCAL_PUBLIC_URL}.`
+    );
+    return DEFAULT_LOCAL_PUBLIC_URL;
+  }
+
+  const message =
+    `[send-invite-email] APP_PUBLIC_URL is not configured for ${stage}. Configure this variable to ensure invite links use the correct domain.`;
+  console.error(message);
+  throw new Error(message);
+};
+
+const APP_PUBLIC_URL = resolveAppPublicUrl();
+const APP_PUBLIC_URL_ALIASES = parseAliases(Deno.env.get("APP_PUBLIC_URL_ALIASES"));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -50,16 +97,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const appName = "Covivo";
-    const appPublicUrl = (Deno.env.get("APP_PUBLIC_URL") || "https://republi-k.lovable.app").replace(/\/$/, "");
-    const inviteLink = `${appPublicUrl}/invite?token=${token}`;
+    const inviteLink = `${APP_PUBLIC_URL}/invite?token=${token}`;
+    const requestOrigin = req.headers.get("origin");
+    const requestOriginIsAlias =
+      !!requestOrigin && APP_PUBLIC_URL_ALIASES.some((entry) => getOrigin(entry) === requestOrigin);
+    if (requestOriginIsAlias) {
+      console.info(`[send-invite-email] invite requested from legacy alias origin: ${requestOrigin}`);
+    }
 
     const resend = new Resend(resendApiKey);
 
     const { data, error } = await resend.emails.send({
-      from: `${appName} <onboarding@resend.dev>`,
+      from: `${BRANDING.appName} <onboarding@resend.dev>`,
       to: [email],
-      subject: `${inviterName || "Alguém"} te convidou para ${groupName || "uma moradia compartilhada"} no ${appName}`,
+      subject: `${inviterName || "Alguém"} te convidou para ${groupName || "uma república"} no ${BRANDING.appName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -69,15 +120,15 @@ Deno.serve(async (req) => {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px;">
           <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-            <h1 style="color: #18181b; font-size: 24px; margin: 0 0 16px 0;">Você foi convidado! 🏠</h1>
+            <h1 style="color: #18181b; font-size: 24px; margin: 0 0 16px 0;">${BRANDING.invite.heading}</h1>
             <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-              ${inviterName || "Um morador"} te convidou para participar ${groupName ? `da moradia <strong>${groupName}</strong>` : "de uma moradia compartilhada"} no ${appName}.
+              ${inviterName || "Um morador"} te convidou para participar ${groupName ? `da república <strong>${groupName}</strong>` : "de uma república"} no ${BRANDING.appName}.
             </p>
             <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
-              O ${appName} ajuda a organizar despesas, pagamentos e a convivência na moradia compartilhada. Clique no botão abaixo para aceitar o convite:
+              O ${BRANDING.appName} ajuda a organizar despesas, pagamentos e a convivência na república. Clique no botão abaixo para aceitar o convite:
             </p>
             <a href="${inviteLink}" style="display: inline-block; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-              Aceitar Convite
+              ${BRANDING.invite.cta}
             </a>
             <p style="color: #a1a1aa; font-size: 14px; line-height: 1.5; margin: 32px 0 0 0;">
               Se o botão não funcionar, copie e cole este link no navegador:<br>
@@ -85,7 +136,7 @@ Deno.serve(async (req) => {
             </p>
             <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 32px 0;">
             <p style="color: #a1a1aa; font-size: 12px; margin: 0;">
-              Este convite expira em 7 dias. Se você não solicitou este convite, pode ignorar este email.
+              ${BRANDING.invite.expiryNotice}
             </p>
           </div>
         </body>

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,19 +41,36 @@ import { ptBR } from "date-fns/locale";
 import { InfoCard, DetailItem } from "@/components/ui/insurance-card";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
+import type { PostgrestError } from "@supabase/supabase-js";
+import type { Tables } from "@/integrations/supabase/types";
+import type {
+  GetGroupMemberPublicProfilesRpcResponse,
+  RemoveGroupMemberRpcResponse,
+} from "@/integrations/supabase/rpc-types";
+
+type GroupMemberRow = Tables<"group_members">;
+type UserRoleRow = Tables<"user_roles">;
+
+type MemberWithProfile = GroupMemberRow & {
+  profile: (GetGroupMemberPublicProfilesRpcResponse[number] & { email: null; phone: null }) | null;
+  role: UserRoleRow["role"] | undefined;
+};
 
 export default function Members() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
 
   // State for Edit Dialog
-  const [editingMember, setEditingMember] = useState<any>(null);
+  const [editingMember, setEditingMember] = useState<MemberWithProfile | null>(null);
   const [editRole, setEditRole] = useState("morador");
   const [editPercentage, setEditPercentage] = useState("0");
+  const [editIsResident, setEditIsResident] = useState(true);
+  const [editParticipatesInSplits, setEditParticipatesInSplits] = useState(true);
+  const [editParticipatesInCollectiveDefault, setEditParticipatesInCollectiveDefault] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   // State for Details Dialog
-  const [viewingMember, setViewingMember] = useState<any>(null);
+  const [viewingMember, setViewingMember] = useState<MemberWithProfile | null>(null);
   const [cpfValue, setCpfValue] = useState<string | null>(null);
   const [loadingCpf, setLoadingCpf] = useState(false);
   const [showCpf, setShowCpf] = useState(false);
@@ -82,15 +100,15 @@ export default function Members() {
     queryFn: async () => {
       const { data: groupMembers, error: gmErr } = await supabase
         .from("group_members")
-        .select("user_id, split_percentage, joined_at, active")
+        .select("user_id, split_percentage, joined_at, active, is_resident, participates_in_splits, participates_in_collective_expenses_default")
         .eq("group_id", membership!.group_id)
         .eq("active", true);
       if (gmErr) throw gmErr;
 
       const [{ data: viewProfiles, error: viewErr }, { data: roles, error: roleErr }] = await Promise.all([
-        supabase.rpc("get_group_member_public_profiles" as any, {
+        supabase.rpc("get_group_member_public_profiles", {
           _group_id: membership!.group_id,
-        } as any),
+        }),
         supabase
           .from("user_roles")
           .select("user_id, role")
@@ -100,13 +118,9 @@ export default function Members() {
       if (viewErr) throw viewErr;
       if (roleErr) throw roleErr;
 
-      const publicProfiles = (viewProfiles ?? []) as Array<{
-        id: string;
-        full_name: string | null;
-        avatar_url: string | null;
-      }>;
+      const publicProfiles: GetGroupMemberPublicProfilesRpcResponse = viewProfiles ?? [];
 
-      return groupMembers.map((gm) => {
+      return groupMembers.map((gm): MemberWithProfile => {
         const profile = publicProfiles.find((p) => p.id === gm.user_id);
         const role = roles?.find((r) => r.user_id === gm.user_id);
         return {
@@ -193,10 +207,26 @@ export default function Members() {
       if (group?.splitting_rule === "percentage") {
         const { error: pctErr } = await supabase
           .from("group_members")
-          .update({ split_percentage: Number(editPercentage) })
+          .update({
+            split_percentage: Number(editPercentage),
+            is_resident: editIsResident,
+            participates_in_splits: editParticipatesInSplits,
+            participates_in_collective_expenses_default: editParticipatesInCollectiveDefault,
+          })
           .eq("group_id", membership!.group_id)
           .eq("user_id", editingMember.user_id);
         if (pctErr) throw pctErr;
+      } else {
+        const { error: memberErr } = await supabase
+          .from("group_members")
+          .update({
+            is_resident: editIsResident,
+            participates_in_splits: editParticipatesInSplits,
+            participates_in_collective_expenses_default: editParticipatesInCollectiveDefault,
+          })
+          .eq("group_id", membership!.group_id)
+          .eq("user_id", editingMember.user_id);
+        if (memberErr) throw memberErr;
       }
     },
     onSuccess: () => {
@@ -204,24 +234,20 @@ export default function Members() {
       setIsEditOpen(false);
       toast({ title: "Membro atualizado com sucesso!" });
     },
-    onError: (err: any) => {
+    onError: (err: PostgrestError) => {
       toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
     },
   });
 
   const removeMember = useMutation({
     mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
-      const { data, error } = await supabase.rpc("remove_group_member" as any, {
+      const { data, error } = await supabase.rpc("remove_group_member", {
         _group_id: membership!.group_id,
         _target_user_id: userId,
         _reason: reason,
-      } as any);
+      });
       if (error) throw error;
-      return data as unknown as {
-        success: boolean;
-        preserved_pending_splits?: number;
-        redistributed_pending_splits?: number;
-      };
+      return data as RemoveGroupMemberRpcResponse;
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
@@ -231,20 +257,23 @@ export default function Members() {
       setRemoveReason("");
       setRemovingMemberId(null);
       toast({
-        title: "Morador removido.",
+        title: "Integrante removido.",
         description: `Pendências preservadas: ${result?.preserved_pending_splits ?? 0} | redistribuídas: ${result?.redistributed_pending_splits ?? 0}`,
       });
     },
-    onError: (err: any) => {
+    onError: (err: PostgrestError) => {
       toast({ title: "Erro ao remover", description: err.message, variant: "destructive" });
     },
   });
 
-  const openEditDialog = (member: any, e: React.MouseEvent) => {
+  const openEditDialog = (member: MemberWithProfile, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingMember(member);
     setEditRole(member.role || "morador");
     setEditPercentage(String(member.split_percentage || 0));
+    setEditIsResident(member.is_resident);
+    setEditParticipatesInSplits(member.participates_in_splits);
+    setEditParticipatesInCollectiveDefault(member.participates_in_collective_expenses_default);
     setIsEditOpen(true);
   };
 
@@ -292,8 +321,8 @@ export default function Members() {
   return (
     <div className="space-y-4">
       <PageHero
-        title="Moradores"
-        subtitle={`${members?.length ?? 0} membro(s) ativo(s)`}
+        title="Integrantes"
+        subtitle={`${members?.length ?? 0} integrante(s) ativo(s)`}
         tone="primary"
         icon={<User className="h-4 w-4" />}
         badge={<Badge variant="secondary">Grupo ativo</Badge>}
@@ -301,7 +330,7 @@ export default function Members() {
 
       <ScrollRevealGroup preset="blur-slide" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {members?.map((m) => {
-          const displayName = m.profile?.full_name?.trim() || "Morador sem nome";
+          const displayName = m.profile?.full_name?.trim() || "Integrante sem nome";
           const initials = displayName
             .split(" ")
             .map((n) => n[0])
@@ -333,12 +362,15 @@ export default function Members() {
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" /> Morador
+                          <User className="h-3 w-3" /> Integrante
                         </span>
                       )}
                       {group?.splitting_rule === "percentage" && (
                         <span>• {m.split_percentage}%</span>
                       )}
+                      {!m.is_resident && <span>• Não residente</span>}
+                      {!m.participates_in_splits && <span>• Fora do rateio</span>}
+                      {!m.participates_in_collective_expenses_default && <span>• Fora do padrão coletivo</span>}
                     </div>
                   </div>
                 </div>
@@ -368,7 +400,7 @@ export default function Members() {
                       </AlertDialogTrigger>
                       <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Remover morador?</AlertDialogTitle>
+                          <AlertDialogTitle>Remover integrante?</AlertDialogTitle>
                           <AlertDialogDescription>
                             {isMe
                               ? "Você não pode remover a si mesmo por este fluxo. Use o fluxo de saída dedicado."
@@ -389,7 +421,7 @@ export default function Members() {
                               />
                             </div>
                             <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
-                              <p>• Débitos do período utilizado permanecem com o morador.</p>
+                              <p>• Débitos do período utilizado permanecem com a pessoa removida.</p>
                               <p>• Pendências futuras poderão ser redistribuídas conforme regras do grupo.</p>
                               <p>• Pagamentos já enviados permanecem pendentes até confirmação.</p>
                             </div>
@@ -417,7 +449,7 @@ export default function Members() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Morador</DialogTitle>
+            <DialogTitle>Editar integrante</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -425,7 +457,7 @@ export default function Members() {
               <Select value={editRole} onValueChange={setEditRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="morador">Morador</SelectItem>
+                  <SelectItem value="morador">Integrante</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
@@ -436,6 +468,37 @@ export default function Members() {
                 <Input type="number" min="0" max="100" value={editPercentage} onChange={(e) => setEditPercentage(e.target.value)} />
               </div>
             )}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="member-is-resident">Residente</Label>
+                  <p className="text-xs text-muted-foreground">Define se a pessoa é residente ativa para os cálculos do grupo.</p>
+                </div>
+                <Switch id="member-is-resident" checked={editIsResident} onCheckedChange={setEditIsResident} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="member-participates-splits">Participa do rateio</Label>
+                  <p className="text-xs text-muted-foreground">Controla inclusão em rateios de despesas coletivas.</p>
+                </div>
+                <Switch
+                  id="member-participates-splits"
+                  checked={editParticipatesInSplits}
+                  onCheckedChange={setEditParticipatesInSplits}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="member-participates-collective-default">Participa por padrão (coletivas)</Label>
+                  <p className="text-xs text-muted-foreground">Usado para inclusão padrão em novas despesas coletivas.</p>
+                </div>
+                <Switch
+                  id="member-participates-collective-default"
+                  checked={editParticipatesInCollectiveDefault}
+                  onCheckedChange={setEditParticipatesInCollectiveDefault}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
@@ -452,12 +515,12 @@ export default function Members() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none">
           {viewingMember && (
             <InfoCard 
-              title={viewingMember.profile?.full_name?.trim() || "Morador"}
+              title={viewingMember.profile?.full_name?.trim() || "Integrante"}
               subtitle={membership?.group_name}
               avatarSrc={viewingMember.profile?.avatar_url}
               badge={
                 <Badge variant={viewingMember.role === "admin" ? "default" : "secondary"} className="w-fit">
-                  {viewingMember.role === "admin" ? "Administrador" : "Morador"}
+                  {viewingMember.role === "admin" ? "Administrador" : "Integrante"}
                 </Badge>
               }
               details={memberDetails}
