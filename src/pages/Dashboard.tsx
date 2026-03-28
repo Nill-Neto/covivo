@@ -381,8 +381,8 @@ export default function Dashboard() {
       });
 
       toast({ title: "Pagamento enviado!" });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
-      queryClient.invalidateQueries({ queryKey: ["my-submitted-payments-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-bulk-payments-dashboard"] });
       setPayRateioOpen(false);
       setReceiptFile(null);
     } catch (err: any) {
@@ -411,8 +411,8 @@ export default function Dashboard() {
       });
 
       toast({ title: "Pagamento individual enviado!" });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
-      queryClient.invalidateQueries({ queryKey: ["my-submitted-payments-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-bulk-payments-dashboard"] });
       setPayIndividualOpen(false);
       setSelectedIndividualSplit(null);
       setReceiptFile(null);
