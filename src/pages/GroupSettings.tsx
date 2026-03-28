@@ -353,6 +353,9 @@ function GroupTab() {
   const [closingDay, setClosingDay] = useState<string>("1");
   const [dueDay, setDueDay] = useState<string>("10");
   const [participatesInSplits, setParticipatesInSplits] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Address fields
   const [street, setStreet] = useState("");
@@ -378,6 +381,12 @@ function GroupTab() {
       setCity(group.city ?? "");
       setState(group.state ?? "");
       setZipCode(group.zip_code ?? "");
+      
+      // Handle the case where the typescript thinks avatar_url exists due to our update,
+      // but it might not be fetched or exist in the real database yet.
+      if ('avatar_url' in group) {
+        setAvatarUrl((group as any).avatar_url ?? null);
+      }
     }
   }, [group]);
 
@@ -409,25 +418,52 @@ function GroupTab() {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploadingAvatar(true);
+      const file = event.target.files?.[0];
+      if (!file) return;
+      
+      const fileExt = file.name.split('.').pop();
+      const filePath = `avatars/${membership!.group_id}_${Date.now()}.${fileExt}`;
+      
+      // Using receipts bucket as it is known to exist and be public
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, file);
+      if (uploadError) throw uploadError;
+      
+      const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
+      setAvatarUrl(data.publicUrl);
+      toast({ title: "Foto atualizada", description: "Lembre-se de salvar as alterações da página." });
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar foto", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const updateGroup = useMutation({
     mutationFn: async () => {
+      const updateData: any = {
+        name: name.trim(),
+        description: description.trim() || null,
+        splitting_rule: splittingRule as any,
+        closing_day: parseInt(closingDay),
+        due_day: parseInt(dueDay),
+        street: street.trim() || null,
+        street_number: streetNumber.trim() || null,
+        complement: complement.trim() || null,
+        neighborhood: neighborhood.trim() || null,
+        city: city.trim() || null,
+        state: state.trim() || null,
+        zip_code: zipCode.replace(/\D/g, "") || null,
+        avatar_url: avatarUrl,
+      };
+
       const { error } = await supabase
         .from("groups")
-        .update({
-          name: name.trim(),
-          description: description.trim() || null,
-          splitting_rule: splittingRule as any,
-          closing_day: parseInt(closingDay),
-          due_day: parseInt(dueDay),
-          street: street.trim() || null,
-          street_number: streetNumber.trim() || null,
-          complement: complement.trim() || null,
-          neighborhood: neighborhood.trim() || null,
-          city: city.trim() || null,
-          state: state.trim() || null,
-          zip_code: zipCode.replace(/\D/g, "") || null,
-        })
+        .update(updateData)
         .eq("id", membership!.group_id);
+      
       if (error) throw error;
 
       if (myMembership) {
@@ -464,6 +500,23 @@ function GroupTab() {
           <CardTitle className="text-lg">Dados da moradia</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-4 mb-6">
+            <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+            <Avatar 
+              className="h-24 w-24 border cursor-pointer hover:opacity-80 transition-opacity shadow-sm" 
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              <AvatarImage src={avatarUrl || undefined} className="object-cover" />
+              <AvatarFallback className="text-3xl bg-muted text-muted-foreground">
+                {name ? name.substring(0, 2).toUpperCase() : "GR"}
+              </AvatarFallback>
+            </Avatar>
+            <Button variant="outline" size="sm" disabled={uploadingAvatar} onClick={() => avatarInputRef.current?.click()}>
+              {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+              Alterar foto
+            </Button>
+          </div>
+
           <div className="space-y-2">
             <Label>Nome</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
