@@ -449,26 +449,28 @@ export default function Expenses() {
 
     let uploadedReceiptUrl = receiptUrl;
 
-    // If card already closed but group competence is still open, launch in next competence
+    // If card already closed before group competence closes, launch in next competence
     let finalPurchaseDate = dateValue;
     if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && finalCreditCardId) {
       const card = cards.find((c: any) => c.id === finalCreditCardId);
       if (card && card.closing_day < groupClosingDay) {
         const purchaseDate = new Date(`${dateValue}T12:00:00`);
         const purchaseDay = purchaseDate.getDate();
-        const daysInPurchaseMonth = new Date(
-          purchaseDate.getFullYear(),
-          purchaseDate.getMonth() + 1,
-          0,
-        ).getDate();
-        const effectiveGroupClosingDay = Math.min(groupClosingDay, daysInPurchaseMonth);
-        if (purchaseDay > card.closing_day && purchaseDay < effectiveGroupClosingDay) {
-          const groupClosingDate = new Date(
+        if (purchaseDay > card.closing_day) {
+          const daysInPurchaseMonth = new Date(
+            purchaseDate.getFullYear(),
+            purchaseDate.getMonth() + 1,
+            0,
+          ).getDate();
+          const nextGroupClosingDate = new Date(
             purchaseDate.getFullYear(),
             purchaseDate.getMonth(),
-            effectiveGroupClosingDay,
+            Math.min(groupClosingDay, daysInPurchaseMonth),
           );
-          finalPurchaseDate = format(groupClosingDate, "yyyy-MM-dd");
+          if (nextGroupClosingDate <= purchaseDate) {
+            nextGroupClosingDate.setMonth(nextGroupClosingDate.getMonth() + 1);
+          }
+          finalPurchaseDate = format(nextGroupClosingDate, "yyyy-MM-dd");
         }
       }
     }
