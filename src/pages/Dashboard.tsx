@@ -267,28 +267,13 @@ export default function Dashboard() {
     return `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
   };
 
-  const paidSplitIds = useMemo(() => {
-    return new Set(
-      mySubmittedPayments
-        .map((payment: any) => payment.expense_split_id)
-        .filter(Boolean)
-    );
-  }, [mySubmittedPayments]);
-
-  const totalRateioPaymentsPrevious = useMemo(() => {
-    return mySubmittedPayments
-      .filter((payment: any) => !payment.expense_split_id && payment.notes?.includes("competências anteriores"))
-      .reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
-  }, [mySubmittedPayments]);
-
-  const totalRateioPaymentsCurrent = useMemo(() => {
-    return mySubmittedPayments
-      .filter((payment: any) => !payment.expense_split_id && payment.notes?.includes("competência atual"))
-      .reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
-  }, [mySubmittedPayments]);
-
   const collectivePending = pendingSplits
-    .filter((s: any) => s.expenses?.expense_type === "collective" && !paidSplitIds.has(s.id))
+    .filter((s: any) => {
+      if (s.expenses?.expense_type !== "collective") return false;
+      // Exclude splits that have any pending or confirmed payment linked
+      const hasPayment = (s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
+      return !hasPayment;
+    })
     .map((split: any) => ({
       ...split,
       competenceKey: getCompetenceKeyFromPurchaseDate(split.expenses?.purchase_date),
