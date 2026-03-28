@@ -584,7 +584,7 @@ export default function Expenses() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       } else {
-        const { data: newExpenseId, error } = await supabase.rpc("create_expense_with_splits", {
+        const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
           _title: title.trim(),
           _description: description.trim() || null,
@@ -595,13 +595,37 @@ export default function Expenses() {
           _receipt_url: null,
           _recurring_expense_id: null,
           _target_user_id: expenseType === "individual" ? user?.id : null,
-          _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
           _payment_method: paymentMethod,
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: finalPurchaseDate,
-        });
-        if (error) throw error;
+        };
+
+        const { data: newExpenseIdWithParticipants, error: createWithParticipantsError } = await supabase.rpc(
+          "create_expense_with_splits",
+          {
+            ...baseCreateExpenseArgs,
+            _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
+          },
+        );
+
+        let newExpenseId = newExpenseIdWithParticipants;
+        if (createWithParticipantsError) {
+          const missingParticipantArgInRpc =
+            createWithParticipantsError.code === "PGRST202" &&
+            createWithParticipantsError.message?.includes("create_expense_with_splits");
+
+          if (missingParticipantArgInRpc) {
+            const { data: legacyNewExpenseId, error: legacyCreateError } = await supabase.rpc(
+              "create_expense_with_splits",
+              baseCreateExpenseArgs,
+            );
+            if (legacyCreateError) throw legacyCreateError;
+            newExpenseId = legacyNewExpenseId;
+          } else {
+            throw createWithParticipantsError;
+          }
+        }
 
         if (newExpenseId && editingType === "expense") {
           const { error: updateMetaError } = await supabase
