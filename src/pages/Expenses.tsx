@@ -147,8 +147,6 @@ export default function Expenses() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  // Cycle alert for credit card closing mismatch
-  const [cycleAlertOpen, setCycleAlertOpen] = useState(false);
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
   const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
   const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -416,7 +414,7 @@ export default function Expenses() {
     }
   };
 
-  const handleSave = async (forcedCycleChoice?: 'current' | 'next') => {
+  const handleSave = async () => {
     const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
     const individualParticipantIds = user?.id ? [user.id] : [];
 
@@ -445,31 +443,36 @@ export default function Expenses() {
       }
     }
 
-    // Check credit card closing vs group closing (only on creation)
-    if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && creditCardId !== "none" && !forcedCycleChoice) {
-      const card = cards.find((c: any) => c.id === creditCardId);
-      if (card && card.closing_day < groupClosingDay) {
-        const today = new Date().getDate();
-        if (today >= card.closing_day && today < groupClosingDay) {
-          setCycleAlertOpen(true);
-          return;
-        }
-      }
-    }
-
     const categoryToSend = category === "other" ? customCategory.trim() : category;
     const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
-    const providerPaid = statusWithProvider === "paid" || isPaid;
+    const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid" || isPaid;
 
     let uploadedReceiptUrl = receiptUrl;
 
-    // Adjust purchase_date if user chose next cycle
+    // If card already closed before group competence closes, launch in next competence
     let finalPurchaseDate = dateValue;
-    if (forcedCycleChoice === 'next') {
-      const now = new Date();
-      const closingDate = new Date(now.getFullYear(), now.getMonth(), groupClosingDay);
-      if (closingDate <= now) closingDate.setMonth(closingDate.getMonth() + 1);
-      finalPurchaseDate = format(closingDate, "yyyy-MM-dd");
+    if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && finalCreditCardId) {
+      const card = cards.find((c: any) => c.id === finalCreditCardId);
+      if (card && card.closing_day < groupClosingDay) {
+        const purchaseDate = new Date(`${dateValue}T12:00:00`);
+        const purchaseDay = purchaseDate.getDate();
+        if (purchaseDay > card.closing_day) {
+          const daysInPurchaseMonth = new Date(
+            purchaseDate.getFullYear(),
+            purchaseDate.getMonth() + 1,
+            0,
+          ).getDate();
+          const nextGroupClosingDate = new Date(
+            purchaseDate.getFullYear(),
+            purchaseDate.getMonth(),
+            Math.min(groupClosingDay, daysInPurchaseMonth),
+          );
+          if (nextGroupClosingDate <= purchaseDate) {
+            nextGroupClosingDate.setMonth(nextGroupClosingDate.getMonth() + 1);
+          }
+          finalPurchaseDate = format(nextGroupClosingDate, "yyyy-MM-dd");
+        }
+      }
     }
 
     setSaving(true);
@@ -1215,7 +1218,7 @@ export default function Expenses() {
                 </div>
               )}
 
-              <Button onClick={() => handleSave()} disabled={saving} className="w-full">
+              <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
@@ -1284,29 +1287,6 @@ export default function Expenses() {
             </div>
           </DialogContent>
         </Dialog>
-
-        {/* Cycle Alert Dialog for credit card closing mismatch */}
-        <AlertDialog open={cycleAlertOpen} onOpenChange={setCycleAlertOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Cartão já fechou nesta competência</AlertDialogTitle>
-              <AlertDialogDescription>
-                O cartão selecionado já fechou (dia {cards.find((c: any) => c.id === creditCardId)?.closing_day}), 
-                mas a competência atual do grupo ainda está aberta (fecha dia {groupClosingDay}). 
-                Esta despesa cairá na próxima fatura do cartão. Em qual competência do grupo deseja lançá-la?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <Button variant="outline" onClick={() => { setCycleAlertOpen(false); handleSave('next'); }}>
-                Próxima competência
-              </Button>
-              <Button onClick={() => { setCycleAlertOpen(false); handleSave('current'); }}>
-                Competência atual
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Edit confirmation for installment expenses */}
         <AlertDialog open={!!editConfirmExpense} onOpenChange={(v) => { if (!v) setEditConfirmExpense(null); }}>
