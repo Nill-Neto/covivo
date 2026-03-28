@@ -35,6 +35,9 @@ interface PersonalTabProps {
   myCollectiveShare: number;
   personalChartData: any[];
   myPersonalExpenses: any[];
+  collectiveExpenses: any[];
+  totalMonthExpenses: number;
+  republicChartData: any[];
   onPayRateio: (scope: "previous" | "current") => void;
 }
 
@@ -51,6 +54,9 @@ export function PersonalTab({
   myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
+  collectiveExpenses,
+  totalMonthExpenses,
+  republicChartData,
   onPayRateio,
 }: PersonalTabProps) {
   const totalSpentCompetence = totalUserExpenses + totalPersonalCash;
@@ -404,11 +410,12 @@ export function PersonalTab({
         </Card>
       </div>
 
+      {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
-        {/* Chart */}
+        {/* Chart Individual */}
         <Card className="md:col-span-4 lg:col-span-4">
           <CardHeader>
-            <CardTitle className="text-base">Distribuição por Categoria</CardTitle>
+            <CardTitle className="text-base">Distribuição Individual</CardTitle>
           </CardHeader>
           <CardContent className="h-[250px] relative">
             {personalChartData.length > 0 ? (
@@ -466,7 +473,7 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* List */}
+        {/* List Individual */}
         <Card className="md:col-span-8 lg:col-span-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -480,7 +487,7 @@ export function PersonalTab({
             <ScrollArea className="h-[250px] pr-2 px-2">
               <div className="space-y-1">
                 {myPersonalExpenses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa registrada.</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa individual registrada.</p>
                 ) : (
                   [...myPersonalExpenses]
                     .sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime())
@@ -509,6 +516,111 @@ export function PersonalTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* --- GRÁFICOS E LISTAS COLETIVAS --- */}
+      <div className="grid gap-4 md:grid-cols-12">
+        {/* Chart Coletivo */}
+        <Card className="md:col-span-4 lg:col-span-4">
+          <CardHeader>
+            <CardTitle className="text-base">Distribuição Coletiva</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[250px] relative">
+            {republicChartData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={republicChartData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      innerRadius={60} 
+                      outerRadius={80} 
+                      paddingAngle={5}
+                      stroke="none"
+                      cornerRadius={5}
+                    >
+                      {republicChartData.map((entry, i) => (
+                        <Cell 
+                          key={i} 
+                          fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[i % CHART_COLORS.length]} 
+                        />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                      contentStyle={{ 
+                        borderRadius: "8px", 
+                        border: "none", 
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        fontSize: "12px"
+                      }}
+                      itemStyle={{ color: "#1e293b" }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle"
+                      formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center Label */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] text-center pointer-events-none">
+                  <span className="text-xs text-muted-foreground block">Total Casa</span>
+                  <span className="text-lg font-bold">R$ {totalMonthExpenses.toFixed(0)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                <span className="opacity-50">Sem dados no período</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* List Coletivo */}
+        <Card className="md:col-span-8 lg:col-span-8">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Receipt className="h-4 w-4" /> Últimas Despesas Coletivas
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+              <Link to="/expenses">Ver todas</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[250px] pr-2 px-2">
+              <div className="space-y-1">
+                {collectiveExpenses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa coletiva registrada.</p>
+                ) : (
+                  collectiveExpenses.slice(0, 10).map(expense => (
+                    <div key={expense.id} className="flex items-center justify-between py-2.5 px-3 group hover:bg-muted/50 rounded-md transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
+                          <Receipt className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM")}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
+                        R$ {Number(expense.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }

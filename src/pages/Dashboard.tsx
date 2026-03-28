@@ -475,6 +475,9 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
+            collectiveExpenses={collectiveExpenses}
+            republicChartData={republicChartData}
+            totalMonthExpenses={totalMonthExpenses}
             onPayRateio={(scope) => { setRateioScope(scope); setPayRateioOpen(true); }}
           />
         </TabsContent>
