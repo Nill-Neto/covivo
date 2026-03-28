@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel, CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 import { useMemo, useState } from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AdminTabProps {
   members: any[];
@@ -115,7 +117,7 @@ export function AdminTab({
   const recentExpenses = useMemo(() =>
     [...collectiveExpenses]
       .sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime())
-      .slice(0, 6),
+      .slice(0, 10),
     [collectiveExpenses]
   );
 
@@ -127,8 +129,7 @@ export function AdminTab({
     });
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
   return (
@@ -353,71 +354,106 @@ export function AdminTab({
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Categoria de Despesas */}
+          {/* Distribuição por Categoria */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" /> Por Categoria
+                <BarChart3 className="h-4 w-4" /> Distribuição por Categoria
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {categoryBreakdown.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sem despesas neste ciclo.</p>
+            <CardContent className="h-[250px] relative">
+              {categoryBreakdown.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={categoryBreakdown} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={50} 
+                        outerRadius={70} 
+                        paddingAngle={5}
+                        stroke="none"
+                        cornerRadius={5}
+                      >
+                        {categoryBreakdown.map((entry, i) => (
+                          <Cell 
+                            key={i} 
+                            fill={CATEGORY_COLORS[entry.name] || CHART_COLORS[i % CHART_COLORS.length]} 
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                        contentStyle={{ 
+                          borderRadius: "8px", 
+                          border: "none", 
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          fontSize: "12px"
+                        }}
+                        itemStyle={{ color: "#1e293b" }}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36} 
+                        iconType="circle"
+                        formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center Label */}
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] text-center pointer-events-none">
+                    <span className="text-[10px] text-muted-foreground block">Total</span>
+                    <span className="text-sm font-bold">R$ {totalMonthExpenses.toFixed(0)}</span>
+                  </div>
+                </>
               ) : (
-                <div className="space-y-3">
-                  {categoryBreakdown.map(cat => {
-                    const pct = totalMonthExpenses > 0
-                      ? Math.round((cat.value / totalMonthExpenses) * 100)
-                      : 0;
-                    return (
-                      <div key={cat.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="truncate">{cat.name}</span>
-                          <span className="font-medium tabular-nums ml-2">
-                            R$ {cat.value.toFixed(2)}
-                          </span>
-                        </div>
-                        <Progress value={pct} className="h-1.5" />
-                      </div>
-                    );
-                  })}
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                  <span className="opacity-50">Sem dados no período</span>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Últimas Despesas */}
+          {/* Últimas Despesas Coletivas */}
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Receipt className="h-4 w-4" /> Recentes
-                </CardTitle>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-                  <Link to="/expenses">Ver todas</Link>
-                </Button>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Receipt className="h-4 w-4" /> Últimas Despesas
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+                <Link to="/expenses">Ver todas</Link>
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {recentExpenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground px-6 pb-4">Nenhuma despesa neste ciclo.</p>
-              ) : (
-                <div className="divide-y">
-                  {recentExpenses.map(expense => (
-                    <div key={expense.id} className="flex items-center justify-between px-6 py-2.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{expense.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {getCategoryLabel(expense.category)} · {format(parseLocalDate(expense.purchase_date), "dd/MM")}
-                        </p>
+              <ScrollArea className="h-[250px] pr-2 px-2">
+                <div className="space-y-1">
+                  {recentExpenses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa registrada.</p>
+                  ) : (
+                    recentExpenses.map(expense => (
+                      <div key={expense.id} className="flex items-center justify-between py-2.5 px-3 group hover:bg-muted/50 rounded-md transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
+                            <Receipt className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-none truncate max-w-[120px]">{expense.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM")}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
+                          R$ {Number(expense.amount).toFixed(2)}
+                        </span>
                       </div>
-                      <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
-                        R$ {Number(expense.amount).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-              )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
