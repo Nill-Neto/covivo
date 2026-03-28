@@ -403,7 +403,7 @@ export default function Dashboard() {
   const compactTabsList = (
     <TabsList className={tabListClass}>
       <TabsTrigger value="republic" className={tabTriggerClass}>
-        <Users className="h-3.5 w-3.5 mr-1.5" /> República
+        <Users className="h-3.5 w-3.5 mr-1.5" /> Coletivo
       </TabsTrigger>
       <TabsTrigger value="personal" className={tabTriggerClass}>
         <User className="h-3.5 w-3.5 mr-1.5" /> Pessoal
@@ -433,7 +433,7 @@ export default function Dashboard() {
         {!heroCompact && (
           <TabsList className={tabListClass}>
             <TabsTrigger value="republic" className={tabTriggerClass}>
-              <Users className="h-3.5 w-3.5 mr-1.5" /> República
+              <Users className="h-3.5 w-3.5 mr-1.5" /> Coletivo
             </TabsTrigger>
             <TabsTrigger value="personal" className={tabTriggerClass}>
               <User className="h-3.5 w-3.5 mr-1.5" /> Pessoal
