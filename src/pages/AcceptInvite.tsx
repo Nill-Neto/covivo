@@ -8,12 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { APP_NAME } from "@/config/brand";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { BRANDING } from "@/config/branding";
 
-interface AcceptInviteResponse {
-  success: boolean;
-  error?: string;
-  group_id?: string;
-}
+import type { PostgrestError } from "@supabase/supabase-js";
+import type { AcceptInviteRpcResponse } from "@/integrations/supabase/rpc-types";
 
 export default function AcceptInvite() {
   const [params] = useSearchParams();
@@ -50,7 +48,7 @@ export default function AcceptInvite() {
       const { data, error } = await supabase.rpc("accept_invite", { _token: token! });
       if (error) throw error;
 
-      const result = data as unknown as AcceptInviteResponse;
+      const result = data as AcceptInviteRpcResponse;
       if (!result.success) {
 
         setStatus("error");
@@ -64,9 +62,10 @@ export default function AcceptInvite() {
       toast({ title: "Convite aceito!", description: "Bem-vindo ao grupo." });
 
       setTimeout(() => navigate("/onboarding", { replace: true }), 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const typedError = err as PostgrestError | Error;
       setStatus("error");
-      const message = String(err?.message || "");
+      const message = String(typedError?.message || "");
       if (message.toLowerCase().includes("débitos pendentes") || message.toLowerCase().includes("pending")) {
         setErrorMsg("Você possui débitos pendentes neste grupo. Regularize para retornar.");
       } else {
@@ -79,7 +78,7 @@ export default function AcceptInvite() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
-          <CardTitle className="font-serif text-2xl">Convite {APP_NAME}</CardTitle>
+          <CardTitle className="font-serif text-2xl">Convite {BRANDING.appName}</CardTitle>
           <CardDescription>Você foi convidado para uma moradia</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

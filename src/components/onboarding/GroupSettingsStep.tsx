@@ -9,6 +9,7 @@ import { OnboardingShell } from "./OnboardingShell";
 import { toast } from "@/hooks/use-toast";
 
 type SplittingRule = "equal" | "percentage";
+type HousingContext = "student" | "friends" | "family" | "other";
 
 export interface GroupAddress {
   street: string;
@@ -28,6 +29,7 @@ interface GroupSettingsStepProps {
   dueDay: number;
   splittingRule: SplittingRule;
   adminParticipatesInSplits: boolean;
+  housingContext: HousingContext;
   totalSteps: number;
   onGroupNameChange: (v: string) => void;
   onAddressChange: (a: GroupAddress) => void;
@@ -41,7 +43,7 @@ interface GroupSettingsStepProps {
 }
 
 export function GroupSettingsStep({
-  groupName, address, groupDescription, closingDay, dueDay, splittingRule, adminParticipatesInSplits, totalSteps,
+  groupName, address, groupDescription, closingDay, dueDay, splittingRule, adminParticipatesInSplits, housingContext, totalSteps,
   onGroupNameChange, onAddressChange, onGroupDescriptionChange,
   onClosingDayChange, onDueDayChange, onSplittingRuleChange, onAdminParticipatesInSplitsChange,
   onBack, onContinue,
@@ -88,16 +90,35 @@ export function GroupSettingsStep({
     onAddressChange({ ...address, [field]: value });
   };
 
+  const housingCopy: Record<HousingContext, { label: string; placeholder: string }> = {
+    student: {
+      label: "moradia estudantil",
+      placeholder: 'Ex: "Casa Campus Norte"',
+    },
+    friends: {
+      label: "moradia compartilhada com amigos",
+      placeholder: 'Ex: "Apê da Vila Mariana"',
+    },
+    family: {
+      label: "moradia compartilhada com familiares",
+      placeholder: 'Ex: "Casa da Família Silva"',
+    },
+    other: {
+      label: "moradia compartilhada",
+      placeholder: 'Ex: "Residência Centro"',
+    },
+  };
+
   return (
     <OnboardingShell
       step={5}
       totalSteps={totalSteps}
       title="Configurações do Grupo"
-      description="Configure os detalhes da moradia. Você será o administrador deste grupo."
+      description={`Configure os detalhes da sua ${housingCopy[housingContext].label}. Você será o administrador deste grupo.`}
     >
       <div className="space-y-2">
         <Label htmlFor="groupName">Apelido do grupo</Label>
-        <Input id="groupName" value={groupName} onChange={(e) => onGroupNameChange(e.target.value)} placeholder='Ex: "República Central"' />
+        <Input id="groupName" value={groupName} onChange={(e) => onGroupNameChange(e.target.value)} placeholder={housingCopy[housingContext].placeholder} />
       </div>
 
       {/* Address */}
@@ -163,7 +184,7 @@ export function GroupSettingsStep({
         <p className="text-xs text-muted-foreground">
           {splittingRule === "equal"
             ? "Despesas coletivas divididas igualmente entre todos."
-            : "Cada morador terá um percentual definido por você."}
+            : "Cada integrante terá um percentual definido por você."}
         </p>
       </div>
 

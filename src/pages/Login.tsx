@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { APP_NAME } from "@/config/brand";
 import { Home, Shield, Users, BarChart3 } from "lucide-react";
+import { BRANDING } from "@/config/branding";
 
 export default function Login() {
   const { user, loading, signInWithGoogle } = useAuth();
@@ -29,9 +30,9 @@ export default function Login() {
         <div className="pointer-events-none absolute bottom-6 right-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
 
         <div className="relative z-10">
-          <h1 className="text-4xl font-serif text-foreground">{APP_NAME}</h1>
+          <h1 className="text-4xl font-serif text-foreground">{BRANDING.appName}</h1>
           <p className="mt-2 font-sans text-sm tracking-wide text-muted-foreground uppercase">
-            Gestão de moradia compartilhada
+            {BRANDING.slogan}
           </p>
         </div>
 
@@ -53,7 +54,7 @@ export default function Login() {
         </div>
 
         <p className="relative z-10 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} {APP_NAME}. Todos os direitos reservados.
+          © {new Date().getFullYear()} {BRANDING.appName}. {BRANDING.institutional.legalFooter}
         </p>
       </div>
 
