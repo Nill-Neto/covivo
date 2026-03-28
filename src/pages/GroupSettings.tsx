@@ -198,7 +198,7 @@ function AccountTab() {
               <CardDescription>{profile?.email}</CardDescription>
               {membership && (
                 <Badge variant={isAdmin ? "default" : "secondary"} className="mt-1">
-                  {isAdmin ? "Administrador" : "Morador"} — {membership.group_name}
+                  {isAdmin ? "Administrador" : "Integrante"} — {membership.group_name}
                 </Badge>
               )}
             </div>
@@ -470,7 +470,7 @@ function GroupTab() {
           </div>
           <div className="space-y-2">
             <Label>Descrição</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Moradia próxima à Av. Paulista" />
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Moradia compartilhada próxima à USP" />
           </div>
           <div className="space-y-2">
             <Label>Regra de rateio</Label>

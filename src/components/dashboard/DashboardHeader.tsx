@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { AnimatedGroup } from "@/components/ui/animated-group";
 import { TextEffect } from "@/components/ui/text-effect";
+import { APP_NAME } from "@/config/brand";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -88,20 +89,30 @@ export function DashboardHeader({
           {/* Left: Title + subtitle */}
           <div className="min-w-0">
             {isCompact ? (
-              <h1 className="text-lg font-serif tracking-tight text-foreground truncate">
-                {`Olá, ${userName?.split(" ")[0] ?? ""}`}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-serif tracking-tight text-foreground truncate">
+                  {`Olá, ${userName?.split(" ")[0] ?? ""}`}
+                </h1>
+                <Badge className="h-5 rounded-full bg-primary/10 px-2 text-[10px] font-semibold uppercase tracking-wide text-primary hover:bg-primary/10">
+                  {APP_NAME}
+                </Badge>
+              </div>
             ) : (
               <>
-                <TextEffect
-                  preset="blur"
-                  per="word"
-                  as="h1"
-                  className="text-3xl font-serif text-foreground"
-                  delay={0.05}
-                >
-                  {`Olá, ${userName?.split(" ")[0] ?? ""}`}
-                </TextEffect>
+                <div className="flex flex-wrap items-center gap-2">
+                  <TextEffect
+                    preset="blur"
+                    per="word"
+                    as="h1"
+                    className="text-3xl font-serif text-foreground"
+                    delay={0.05}
+                  >
+                    {`Olá, ${userName?.split(" ")[0] ?? ""}`}
+                  </TextEffect>
+                  <Badge className="rounded-full bg-primary/10 px-2.5 text-[10px] font-semibold uppercase tracking-wide text-primary hover:bg-primary/10">
+                    {APP_NAME}
+                  </Badge>
+                </div>
                 {groupName ? (
                   <TextEffect
                     preset="fade"

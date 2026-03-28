@@ -24,11 +24,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, CreditCard, Settings, Trash2 } from "lucide-react";
-import { format, addMonths, subMonths, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
+import { useCycleDates } from "@/hooks/useCycleDates";
+import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 
 export default function Payments() {
   const { membership, isAdmin, user } = useAuth();
@@ -44,35 +46,7 @@ export default function Payments() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // --- Date Cycle Logic ---
-  const { data: groupSettings } = useQuery({
-    queryKey: ["group-settings-payments", membership?.group_id],
-    queryFn: async () => {
-      const { data } = await supabase.from("groups").select("closing_day").eq("id", membership!.group_id).single();
-      return data;
-    },
-    enabled: !!membership?.group_id
-  });
-
-  const closingDay = groupSettings?.closing_day || 1;
-
-  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
-
-  useEffect(() => {
-    if (groupSettings) {
-      const today = new Date();
-      if (today.getDate() >= closingDay) {
-        setCurrentDate(addMonths(today, 1));
-      } else {
-        setCurrentDate(today);
-      }
-    }
-  }, [groupSettings, closingDay]);
-
-  const cycleStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, closingDay);
-  const cycleEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), closingDay);
-  cycleStart.setHours(0, 0, 0, 0);
-  cycleEnd.setHours(0, 0, 0, 0);
+  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
 
   // Manage Payment State
   const [editingPayment, setEditingPayment] = useState<any>(null);
@@ -88,17 +62,8 @@ export default function Payments() {
     setEditStatus(payment.status);
 
     // Calcula a competência baseada na data de criação do pagamento e dia de fechamento
-    const d = new Date(payment.created_at);
-    let compY = d.getFullYear();
-    let compM = d.getMonth() + 1;
-    if (d.getDate() >= closingDay) {
-      compM += 1;
-      if (compM > 12) {
-        compM = 1;
-        compY += 1;
-      }
-    }
-    setEditCompetence(`${compY}-${String(compM).padStart(2, "0")}`);
+    const competence = getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
@@ -108,11 +73,7 @@ export default function Payments() {
       if (values.competence) {
         const [yStr, mStr] = values.competence.split("-");
         const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1; // 0-based month
-        
-        // Define uma data segura que caia exatamente dentro do ciclo da competência escolhida.
-        // O ciclo da competência 'm' começa no 'closingDay' do mês 'm-1'.
-        // Usamos meio-dia para evitar problemas de fuso horário.
+        const m = parseInt(mStr) - 1;
         const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
         newDate = safeDate.toISOString();
       }
@@ -127,10 +88,20 @@ export default function Payments() {
         })
         .eq("id", editingPayment.id);
       if (error) throw error;
+
+      // If confirming/rejecting, also call confirm_payment RPC to update split status
+      if ((values.status === 'confirmed' || values.status === 'rejected') && values.status !== editingPayment.status) {
+        const { error: rpcError } = await supabase.rpc("confirm_payment", {
+          _payment_id: editingPayment.id,
+          _status: values.status,
+        });
+        if (rpcError) throw rpcError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard-data"] });
       toast({ title: "Pagamento atualizado!" });
       setEditingPayment(null);
@@ -303,13 +274,13 @@ export default function Payments() {
         actions={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 bg-card border rounded-lg p-1 shadow-sm">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="px-2 text-sm font-medium min-w-[140px] text-center capitalize">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

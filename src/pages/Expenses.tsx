@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -120,6 +122,7 @@ export default function Expenses() {
   const [expenseType, setExpenseType] = useState<"collective" | "individual">(isAdmin ? "collective" : "individual");
   const [dateValue, setDateValue] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
+  const [splitBetweenAll, setSplitBetweenAll] = useState(true);
 
   // Payment Fields
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -136,9 +139,18 @@ export default function Expenses() {
 
   // Paid toggle (for cash/pix/debit on creation)
   const [isPaid, setIsPaid] = useState(false);
+  const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
+  const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [payerUserId, setPayerUserId] = useState<string>("me");
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  // Cycle alert for credit card closing mismatch
-  const [cycleAlertOpen, setCycleAlertOpen] = useState(false);
+  const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
+  const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
+  const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [quickReceiptFile, setQuickReceiptFile] = useState<File | null>(null);
 
   // Original amount for proportional split update on edit
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
@@ -256,6 +268,42 @@ export default function Expenses() {
     enabled: !!user,
   });
 
+  const { data: activeMembers = [] } = useQuery({
+    queryKey: ["expense-active-members", membership?.group_id],
+    queryFn: async () => {
+      const [{ data: members, error: membersError }, { data: profiles, error: profilesError }] = await Promise.all([
+        supabase
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", membership!.group_id)
+          .eq("active", true),
+        supabase.rpc("get_group_member_public_profiles", {
+          _group_id: membership!.group_id,
+        }),
+      ]);
+
+      if (membersError) throw membersError;
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+      return (members ?? []).map((member) => {
+        const profile = profileMap.get(member.user_id);
+        const label = profile?.full_name || profile?.email?.split("@")[0] || "Morador";
+        return {
+          user_id: member.user_id,
+          label,
+        };
+      });
+    },
+    enabled: !!membership?.group_id,
+  });
+
+  const activeMemberIds = useMemo(() => activeMembers.map((member) => member.user_id), [activeMembers]);
+
+  useEffect(() => {
+    setSelectedParticipantIds(activeMemberIds);
+  }, [activeMemberIds]);
+
   const deleteExpenseMutation = useMutation({
     mutationFn: async (id: string) => {
       // Delete installments first, then the expense (cascade should handle splits)
@@ -285,7 +333,91 @@ export default function Expenses() {
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
-  const handleSave = async (forcedCycleChoice?: 'current' | 'next') => {
+  const participantOptions = useMemo(() => {
+    return activeMembers.map((member) => ({
+      id: member.user_id,
+      name: member.label || "Morador",
+    }));
+  }, [activeMembers]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (payerUserId === "me") return;
+    const payerExists = participantOptions.some((participant) => participant.id === payerUserId);
+    if (!payerExists) {
+      setPayerUserId("me");
+    }
+  }, [user?.id, payerUserId, participantOptions]);
+
+  const effectiveParticipantIds = useMemo(() => {
+    if (editingType !== "expense") return [];
+    if (expenseType === "individual") return user?.id ? [user.id] : [];
+    if (splitMode === "all") return participantOptions.map((p) => p.id);
+    return selectedParticipantIds;
+  }, [editingType, expenseType, user?.id, splitMode, participantOptions, selectedParticipantIds]);
+
+  const perPersonQuota = useMemo(() => {
+    const total = Number(amount) || 0;
+    const count = effectiveParticipantIds.length;
+    if (!count || total <= 0) return 0;
+    return total / count;
+  }, [amount, effectiveParticipantIds.length]);
+
+  const payerLabel = useMemo(() => {
+    if (payerUserId === "me") return "Você";
+    return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
+  }, [payerUserId, participantOptions]);
+
+  const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[]) => {
+    const uniqueParticipantIds = Array.from(new Set(participantIds));
+    if (uniqueParticipantIds.length === 0) {
+      throw new Error("Selecione pelo menos 1 participante para o rateio manual.");
+    }
+
+    const { data: existingSplits, error: splitErr } = await supabase
+      .from("expense_splits")
+      .select("id, user_id")
+      .eq("expense_id", expenseId);
+    if (splitErr) throw splitErr;
+
+    const selectedSet = new Set(uniqueParticipantIds);
+    const existing = existingSplits ?? [];
+    const toDelete = existing.filter((split) => !selectedSet.has(split.user_id)).map((split) => split.id);
+
+    if (toDelete.length > 0) {
+      const { error: deleteErr } = await supabase.from("expense_splits").delete().in("id", toDelete);
+      if (deleteErr) throw deleteErr;
+    }
+
+    const cents = Math.round(totalAmount * 100);
+    const baseCents = Math.floor(cents / uniqueParticipantIds.length);
+    const remainder = cents - baseCents * uniqueParticipantIds.length;
+
+    for (const [index, userId] of uniqueParticipantIds.entries()) {
+      const splitAmount = (baseCents + (index < remainder ? 1 : 0)) / 100;
+      const existingSplit = existing.find((split) => split.user_id === userId);
+      if (existingSplit) {
+        const { error: updateErr } = await supabase
+          .from("expense_splits")
+          .update({ amount: splitAmount })
+          .eq("id", existingSplit.id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase.from("expense_splits").insert({
+          expense_id: expenseId,
+          user_id: userId,
+          amount: splitAmount,
+          status: "pending",
+        });
+        if (insertErr) throw insertErr;
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
+    const individualParticipantIds = user?.id ? [user.id] : [];
+
     if (!title.trim() || !amount || parseFloat(amount) <= 0) {
       toast({ title: "Erro", description: "Preencha título e valor.", variant: "destructive" });
       return;
@@ -295,33 +427,65 @@ export default function Expenses() {
       toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
       return;
     }
+    if (editingType === "expense" && expenseType === "collective" && splitMode === "manual" && effectiveParticipantIds.length === 0) {
+      toast({ title: "Erro", description: "Selecione ao menos 1 participante no rateio manual.", variant: "destructive" });
+      return;
+    }
 
-    // Check credit card closing vs group closing (only on creation)
-    if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && creditCardId !== "none" && !forcedCycleChoice) {
-      const card = cards.find((c: any) => c.id === creditCardId);
-      if (card && card.closing_day < groupClosingDay) {
-        const today = new Date().getDate();
-        if (today >= card.closing_day && today < groupClosingDay) {
-          setCycleAlertOpen(true);
-          return;
-        }
+    if (editingType === "expense" && !editingId) {
+      if (expenseType === "collective" && collectiveParticipantIds.length < 1) {
+        toast({ title: "Erro", description: "Despesa coletiva deve ter ao menos 1 participante.", variant: "destructive" });
+        return;
+      }
+      if (expenseType === "individual" && individualParticipantIds.length !== 1) {
+        toast({ title: "Erro", description: "Despesa individual deve ter exatamente 1 participante.", variant: "destructive" });
+        return;
       }
     }
 
     const categoryToSend = category === "other" ? customCategory.trim() : category;
     const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
+    const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid" || isPaid;
 
-    // Adjust purchase_date if user chose next cycle
+    let uploadedReceiptUrl = receiptUrl;
+
+    // If card already closed before group competence closes, launch in next competence
     let finalPurchaseDate = dateValue;
-    if (forcedCycleChoice === 'next') {
-      const now = new Date();
-      const closingDate = new Date(now.getFullYear(), now.getMonth(), groupClosingDay);
-      if (closingDate <= now) closingDate.setMonth(closingDate.getMonth() + 1);
-      finalPurchaseDate = format(closingDate, "yyyy-MM-dd");
+    if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && finalCreditCardId) {
+      const card = cards.find((c: any) => c.id === finalCreditCardId);
+      if (card && card.closing_day < groupClosingDay) {
+        const purchaseDate = new Date(`${dateValue}T12:00:00`);
+        const purchaseDay = purchaseDate.getDate();
+        if (purchaseDay > card.closing_day) {
+          const daysInPurchaseMonth = new Date(
+            purchaseDate.getFullYear(),
+            purchaseDate.getMonth() + 1,
+            0,
+          ).getDate();
+          const nextGroupClosingDate = new Date(
+            purchaseDate.getFullYear(),
+            purchaseDate.getMonth(),
+            Math.min(groupClosingDay, daysInPurchaseMonth),
+          );
+          if (nextGroupClosingDate <= purchaseDate) {
+            nextGroupClosingDate.setMonth(nextGroupClosingDate.getMonth() + 1);
+          }
+          finalPurchaseDate = format(nextGroupClosingDate, "yyyy-MM-dd");
+        }
+      }
     }
 
     setSaving(true);
     try {
+      if (receiptFile) {
+        const ext = receiptFile.name.split(".").pop() ?? "jpg";
+        const path = `${user!.id}/${Date.now()}_expense.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receiptFile);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+        uploadedReceiptUrl = publicUrlData.publicUrl;
+      }
+
       if (editingType === "recurring" && editingId) {
         const { error } = await supabase
           .from("recurring_expenses")
@@ -352,6 +516,9 @@ export default function Expenses() {
             credit_card_id: finalCreditCardId,
             installments: parsedInstallments,
             purchase_date: dateValue,
+            paid_to_provider: providerPaid,
+            due_date: paymentDate || null,
+            receipt_url: uploadedReceiptUrl,
           })
           .eq("id", editingId);
         if (error) throw error;
@@ -404,6 +571,10 @@ export default function Expenses() {
           }
         }
 
+        if (expenseType === "collective" && splitMode === "manual") {
+          await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds);
+        }
+
         toast({ title: "Despesa atualizada!" });
         queryClient.invalidateQueries({ queryKey: ["expenses"] });
         queryClient.invalidateQueries({ queryKey: ["bill-installments"] });
@@ -413,7 +584,7 @@ export default function Expenses() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       } else {
-        const { data: newExpenseId, error } = await supabase.rpc("create_expense_with_splits", {
+        const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
           _title: title.trim(),
           _description: description.trim() || null,
@@ -428,8 +599,49 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: finalPurchaseDate,
-        });
-        if (error) throw error;
+        };
+
+        const { data: newExpenseIdWithParticipants, error: createWithParticipantsError } = await supabase.rpc(
+          "create_expense_with_splits",
+          {
+            ...baseCreateExpenseArgs,
+            _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
+          },
+        );
+
+        let newExpenseId = newExpenseIdWithParticipants;
+        if (createWithParticipantsError) {
+          const missingParticipantArgInRpc =
+            createWithParticipantsError.code === "PGRST202" &&
+            createWithParticipantsError.message?.includes("create_expense_with_splits");
+
+          if (missingParticipantArgInRpc) {
+            const { data: legacyNewExpenseId, error: legacyCreateError } = await supabase.rpc(
+              "create_expense_with_splits",
+              baseCreateExpenseArgs,
+            );
+            if (legacyCreateError) throw legacyCreateError;
+            newExpenseId = legacyNewExpenseId;
+          } else {
+            throw createWithParticipantsError;
+          }
+        }
+
+        if (newExpenseId && editingType === "expense") {
+          const { error: updateMetaError } = await supabase
+            .from("expenses")
+            .update({
+              paid_to_provider: providerPaid,
+              due_date: paymentDate || null,
+              receipt_url: uploadedReceiptUrl,
+            })
+            .eq("id", newExpenseId);
+          if (updateMetaError) throw updateMetaError;
+        }
+
+        if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
+          await applyManualSplitSelection(newExpenseId, parseFloat(amount), effectiveParticipantIds);
+        }
 
         // Mark splits as paid if toggle is on (cash/pix/debit only)
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
@@ -467,6 +679,7 @@ export default function Expenses() {
         queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
         queryClient.invalidateQueries({ queryKey: ["member-balances"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       }
 
       setOpen(false);
@@ -488,12 +701,21 @@ export default function Expenses() {
     setExpenseType(isAdmin ? "collective" : "individual");
     setDateValue(format(new Date(), "yyyy-MM-dd"));
     setDescription("");
+    setSplitBetweenAll(true);
+    setSelectedParticipantIds(activeMemberIds);
     setPaymentMethod("cash");
     setCreditCardId("none");
     setInstallments("1");
     setIsRecurring(false);
     setRecurrenceDay("5");
     setIsPaid(false);
+    setStatusWithProvider("pending");
+    setSplitMode("all");
+    setSelectedParticipantIds([]);
+    setPayerUserId("me");
+    setPaymentDate(format(new Date(), "yyyy-MM-dd"));
+    setReceiptFile(null);
+    setReceiptUrl(null);
     setEditingOriginalAmount(null);
   };
 
@@ -510,6 +732,16 @@ export default function Expenses() {
     setPaymentMethod(expense.payment_method || "cash");
     setCreditCardId(expense.credit_card_id || "none");
     setInstallments(String(expense.installments || 1));
+    setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
+    setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
+    setReceiptUrl(expense.receipt_url || null);
+    setPayerUserId(expense.created_by || "me");
+
+    const currentSplitIds = (expense.expense_splits ?? []).map((split: any) => split.user_id);
+    if (expense.expense_type === "collective" && currentSplitIds.length > 0) {
+      setSplitMode("manual");
+      setSelectedParticipantIds(currentSplitIds);
+    }
 
     const isStandardCat = CATEGORIES.some((c) => c.value === expense.category);
     if (isStandardCat) {
@@ -588,6 +820,87 @@ export default function Expenses() {
     }
   };
 
+  const toggleParticipant = (participantId: string) => {
+    setSelectedParticipantIds((prev) =>
+      prev.includes(participantId) ? prev.filter((id) => id !== participantId) : [...prev, participantId],
+    );
+  };
+
+  const registerPaymentMutation = useMutation({
+    mutationFn: async ({
+      expense,
+      payerId,
+      paymentDateValue,
+      proofFile,
+    }: {
+      expense: ExpenseRow;
+      payerId: string;
+      paymentDateValue: string;
+      proofFile: File;
+    }) => {
+      const ext = proofFile.name.split(".").pop() ?? "jpg";
+      const path = `${user!.id}/${Date.now()}_expense_payment.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("receipts").upload(path, proofFile);
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const payerName = payerId === "me"
+        ? "Você"
+        : participantOptions.find((participant) => participant.id === payerId)?.name || "Morador";
+      const historyLine = `quitada por ${payerName} em ${format(parseLocalDate(paymentDateValue), "dd/MM")}`;
+      const updatedDescription = expense.description
+        ? `${expense.description}\n${historyLine}`
+        : historyLine;
+
+      const { error: updateError } = await supabase
+        .from("expenses")
+        .update({
+          paid_to_provider: true,
+          due_date: paymentDateValue,
+          receipt_url: publicUrlData.publicUrl,
+          description: updatedDescription,
+        })
+        .eq("id", expense.id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
+      queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["member-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      setQuickPayExpense(null);
+      setQuickPayerUserId("me");
+      setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+      setQuickReceiptFile(null);
+      toast({ title: "Pagamento registrado com sucesso." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleQuickRegisterPayment = () => {
+    if (!quickPayExpense) return;
+    if (!quickPaymentDate) {
+      toast({ title: "Erro", description: "Informe a data do pagamento.", variant: "destructive" });
+      return;
+    }
+    if (!quickReceiptFile) {
+      toast({ title: "Erro", description: "Anexe o comprovante.", variant: "destructive" });
+      return;
+    }
+
+    registerPaymentMutation.mutate({
+      expense: quickPayExpense,
+      payerId: quickPayerUserId,
+      paymentDateValue: quickPaymentDate,
+      proofFile: quickReceiptFile,
+    });
+  };
+
   if (loadingExpenses || loadingRecurring || loading || loadingInstallments || loadingParents) {
     return (
       <div className="flex justify-center py-12">
@@ -650,9 +963,9 @@ export default function Expenses() {
             </DialogHeader>
             <div className="space-y-4 pt-2">
               {editingType === "expense" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Tipo</Label>
+                <div className="space-y-3">
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                    <Label className="text-base font-medium">1. Tipo</Label>
                     <Select value={expenseType} onValueChange={(v) => setExpenseType(v as any)} disabled={!!editingId}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -667,10 +980,187 @@ export default function Expenses() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Data da Compra</Label>
-                    <Input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />
+
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                    <Label className="text-base font-medium">2. Status com fornecedor</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={statusWithProvider === "pending" ? "default" : "outline"}
+                        onClick={() => setStatusWithProvider("pending")}
+                      >
+                        Pendente
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={statusWithProvider === "paid" ? "default" : "outline"}
+                        onClick={() => setStatusWithProvider("paid")}
+                      >
+                        Paga
+                      </Button>
+                    </div>
+                    {paymentMethod !== "credit_card" && !editingId && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-dashed">
+                        <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
+                        <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago no lançamento</Label>
+                      </div>
+                    )}
                   </div>
+
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                    <Label className="text-base font-medium">3. Pagamento</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Forma</Label>
+                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {PAYMENT_METHODS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Quem pagou</Label>
+                        <Select value={payerUserId} onValueChange={setPayerUserId}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="me">Você</SelectItem>
+                            {participantOptions.map((participant) => (
+                              <SelectItem key={participant.id} value={participant.id}>
+                                {participant.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Data do pagamento/compra</Label>
+                        <Input
+                          type="date"
+                          value={paymentDate}
+                          onChange={(e) => {
+                            setPaymentDate(e.target.value);
+                            setDateValue(e.target.value);
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Comprovante</Label>
+                        <Input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                        />
+                        {receiptUrl && (
+                          <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                            Ver comprovante atual
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {paymentMethod === "credit_card" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Cartão</Label>
+                          <Select value={creditCardId} onValueChange={setCreditCardId}>
+                            <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                            <SelectContent>
+                              {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                              {cards.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Parcelas</Label>
+                          <div className="flex items-center gap-2">
+                            <Input type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} className="w-24" />
+                            <span className="text-sm text-muted-foreground">
+                              x de R$ {(Number(amount) / (parseInt(installments) || 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                    <Label className="text-base font-medium">4. Participantes do rateio</Label>
+                    {expenseType === "individual" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Despesa individual: somente você participa do rateio.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button type="button" variant={splitMode === "all" ? "default" : "outline"} onClick={() => setSplitMode("all")}>
+                            Todos
+                          </Button>
+                          <Button type="button" variant={splitMode === "manual" ? "default" : "outline"} onClick={() => setSplitMode("manual")}>
+                            Seleção manual
+                          </Button>
+                        </div>
+                        {splitMode === "manual" && (
+                          <div className="space-y-2 border rounded-md p-2">
+                            {participantOptions.map((participant) => (
+                              <label key={participant.id} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={selectedParticipantIds.includes(participant.id)}
+                                  onCheckedChange={() => toggleParticipant(participant.id)}
+                                />
+                                <span>{participant.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!editingId && editingType === "expense" && expenseType === "collective" && (
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                    <div>
+                      <Label htmlFor="split-all-toggle" className="text-sm font-medium cursor-pointer">Ratear entre todos</Label>
+                      <p className="text-xs text-muted-foreground">Quando desligado, selecione manualmente os participantes.</p>
+                    </div>
+                    <Switch id="split-all-toggle" checked={splitBetweenAll} onCheckedChange={setSplitBetweenAll} />
+                  </div>
+
+                  {!splitBetweenAll && (
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <Label>Participantes ativos</Label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {activeMembers.map((member) => {
+                          const checked = selectedParticipantIds.includes(member.user_id);
+                          return (
+                            <label key={member.user_id} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) => {
+                                  if (value) {
+                                    setSelectedParticipantIds((prev) => [...new Set([...prev, member.user_id])]);
+                                  } else {
+                                    setSelectedParticipantIds((prev) => prev.filter((id) => id !== member.user_id));
+                                  }
+                                }}
+                              />
+                              <span>{member.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -712,54 +1202,19 @@ export default function Expenses() {
               )}
 
               {editingType === "expense" && (
-                <div className="space-y-3 pt-2 border-t">
-                  <Label className="text-base font-medium">Pagamento</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Forma</Label>
-                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {PAYMENT_METHODS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {paymentMethod === "credit_card" && (
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Cartão</Label>
-                        <Select value={creditCardId} onValueChange={setCreditCardId}>
-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
-                            {cards.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
+                  <Label className="text-sm font-semibold">Resumo instantâneo</Label>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>
+                      <strong>Participantes:</strong> {effectiveParticipantIds.length}
+                    </p>
+                    <p>
+                      <strong>Cota por pessoa:</strong> R$ {perPersonQuota.toFixed(2)}
+                    </p>
+                    <p>
+                      <strong>Quem será reembolsado:</strong> {payerLabel}
+                    </p>
                   </div>
-
-                  {paymentMethod === "credit_card" && (
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Parcelas</Label>
-                      <div className="flex items-center gap-2">
-                        <Input type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} className="w-24" />
-                        <span className="text-sm text-muted-foreground">
-                          x de R$ {(Number(amount) / (parseInt(installments) || 1)).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod !== "credit_card" && !editingId && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-dashed">
-                      <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
-                      <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Já está paga?</Label>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -787,7 +1242,7 @@ export default function Expenses() {
                 </div>
               )}
 
-              <Button onClick={() => handleSave()} disabled={saving} className="w-full">
+              <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
@@ -795,28 +1250,67 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
 
-        {/* Cycle Alert Dialog for credit card closing mismatch */}
-        <AlertDialog open={cycleAlertOpen} onOpenChange={setCycleAlertOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Cartão já fechou nesta competência</AlertDialogTitle>
-              <AlertDialogDescription>
-                O cartão selecionado já fechou (dia {cards.find((c: any) => c.id === creditCardId)?.closing_day}), 
-                mas a competência atual do grupo ainda está aberta (fecha dia {groupClosingDay}). 
-                Esta despesa cairá na próxima fatura do cartão. Em qual competência do grupo deseja lançá-la?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <Button variant="outline" onClick={() => { setCycleAlertOpen(false); handleSave('next'); }}>
-                Próxima competência
+        <Dialog
+          open={!!quickPayExpense}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setQuickPayExpense(null);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-serif">Registrar pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Despesa</Label>
+                <p className="text-sm font-medium">{quickPayExpense?.title}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pagador</Label>
+                <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="me">Você</SelectItem>
+                    {participantOptions.map((participant) => (
+                      <SelectItem key={participant.id} value={participant.id}>
+                        {participant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Comprovante</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setQuickReceiptFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <Button
+                onClick={handleQuickRegisterPayment}
+                disabled={registerPaymentMutation.isPending}
+                className="w-full"
+              >
+                {registerPaymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Confirmar pagamento
               </Button>
-              <Button onClick={() => { setCycleAlertOpen(false); handleSave('current'); }}>
-                Competência atual
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit confirmation for installment expenses */}
         <AlertDialog open={!!editConfirmExpense} onOpenChange={(v) => { if (!v) setEditConfirmExpense(null); }}>
@@ -884,21 +1378,63 @@ export default function Expenses() {
       <TabsContent value="all" className="space-y-3 mt-4">
         {filteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
         {filteredAll.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
       <TabsContent value="mine" className="space-y-3 mt-4">
         {filteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
         {filteredMine.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
       <TabsContent value="collective" className="space-y-3 mt-4">
         {filteredCollective.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa coletiva encontrada nesta competência.</p>}
         {filteredCollective.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
@@ -914,11 +1450,16 @@ export default function Expenses() {
   );
 }
 
-function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any) {
+function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: any) {
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
   const mySplit = expense.expense_splits?.find((s: any) => s.user_id === userId);
   const cardLabel = cards.find((c: any) => c.id === expense.credit_card_id)?.label;
   const canManage = isAdmin || expense.created_by === userId;
+  const paymentHistory = (expense.description ?? "")
+    .split("\n")
+    .map((line: string) => line.trim())
+    .reverse()
+    .find((line: string) => line.toLowerCase().startsWith("quitada por "));
 
   const isInstallment = expense._is_installment && expense.installments > 1;
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
@@ -947,6 +1488,9 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date || expense.created_at), "dd/MM/yyyy")}
               </span>
+              <Badge variant={expense.paid_to_provider ? "default" : "secondary"} className="text-[10px]">
+                {expense.paid_to_provider ? "Paga ao fornecedor" : "Pendente com fornecedor"}
+              </Badge>
               {expense.payment_method === "credit_card" && (
                 <span>
                   <CreditCard className="h-3 w-3 inline mr-1" /> {cardLabel}{" "}
@@ -954,6 +1498,11 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
                 </span>
               )}
             </div>
+            {paymentHistory && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {paymentHistory}
+              </p>
+            )}
           </div>
           <div className="text-right shrink-0">
             <p className="text-lg font-bold">R$ {Number(displayAmount).toFixed(2)}</p>
@@ -964,6 +1513,16 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
               <Badge variant="secondary" className="text-[10px]">
                 Sua parte: R$ {Number(mySplit.amount).toFixed(2)}
               </Badge>
+            )}
+            {!expense.paid_to_provider && canManage && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 text-xs"
+                onClick={onRegisterPayment}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Registrar pagamento
+              </Button>
             )}
           </div>
           {canManage && (

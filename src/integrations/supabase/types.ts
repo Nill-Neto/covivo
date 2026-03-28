@@ -335,8 +335,10 @@ export type Database = {
           active: boolean
           group_id: string
           id: string
+          is_resident: boolean
           joined_at: string
           left_at: string | null
+          participates_in_collective_expenses_default: boolean
           participates_in_splits: boolean
           split_percentage: number | null
           user_id: string
@@ -345,8 +347,10 @@ export type Database = {
           active?: boolean
           group_id: string
           id?: string
+          is_resident?: boolean
           joined_at?: string
           left_at?: string | null
+          participates_in_collective_expenses_default?: boolean
           participates_in_splits?: boolean
           split_percentage?: number | null
           user_id: string
@@ -355,8 +359,10 @@ export type Database = {
           active?: boolean
           group_id?: string
           id?: string
+          is_resident?: boolean
           joined_at?: string
           left_at?: string | null
+          participates_in_collective_expenses_default?: boolean
           participates_in_splits?: boolean
           split_percentage?: number | null
           user_id?: string
@@ -523,6 +529,9 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          email_delivery_status: string
+          email_error: string | null
+          email_sent_at: string | null
           expires_at: string
           group_id: string
           id: string
@@ -533,6 +542,9 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          email_delivery_status?: string
+          email_error?: string | null
+          email_sent_at?: string | null
           expires_at?: string
           group_id: string
           id?: string
@@ -543,6 +555,9 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          email_delivery_status?: string
+          email_error?: string | null
+          email_sent_at?: string | null
           expires_at?: string
           group_id?: string
           id?: string
@@ -1141,6 +1156,28 @@ export type Database = {
         Args: { _payment_id: string; _status?: string }
         Returns: undefined
       }
+      complete_onboarding_with_group_setup: {
+        Args: {
+          _admin_participates_in_splits?: boolean
+          _city?: string
+          _closing_day?: number
+          _complement?: string
+          _description?: string
+          _due_day?: number
+          _fees?: Json
+          _house_rules?: Json
+          _name: string
+          _neighborhood?: string
+          _operation_id: string
+          _recurring_expenses?: Json
+          _splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
+          _state?: string
+          _street?: string
+          _street_number?: string
+          _zip_code?: string
+        }
+        Returns: Json
+      }
       create_audit_log: {
         Args: {
           _action: string
@@ -1163,6 +1200,7 @@ export type Database = {
           _group_id: string
           _installments?: number
           _payment_method?: string
+          _participant_user_ids?: string[]
           _purchase_date?: string
           _receipt_url?: string
           _recurring_expense_id?: string
