@@ -45,7 +45,7 @@ export function HeroSection() {
                                         to="/login"
                                         className="hover:bg-muted bg-muted/50 group mx-auto flex w-fit items-center gap-4 rounded-full border border-border p-1 pl-4 shadow-md shadow-primary/5 transition-colors duration-300"
                                     >
-                                        <span className="text-foreground text-sm">Gestão inteligente de moradias</span>
+                                        <span className="text-foreground text-sm">{APP_NAME}: gestão inteligente de moradias</span>
                                         <span className="bg-primary text-primary-foreground block rounded-full px-2 py-0.5 text-xs">
                                             Comece agora <ChevronRight className="ml-1 inline h-3 w-3" />
                                         </span>
@@ -188,6 +188,9 @@ const HeroHeader = () => {
                             <Link to="/" aria-label="Home" className="text-2xl font-serif text-foreground">
                                 Covivo
                             </Link>
+                            <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline-flex">
+                                Beta
+                            </span>
 
                             <button
                                 onClick={() => setMenuState(!menuState)}
