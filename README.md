@@ -71,3 +71,26 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Branding centralizado e rollout
+
+O branding institucional foi centralizado em `src/config/branding.ts`, incluindo:
+
+- nome da marca;
+- slogan;
+- textos institucionais;
+- textos de convite por e-mail;
+- aliases de URL para transição.
+
+### Fases de rollout planejadas
+
+1. `interface`
+2. `comunicacoes`
+3. `dominio-principal`
+
+### Compatibilidade temporária de domínio e URL
+
+- `APP_PUBLIC_URL` define o domínio canônico.
+- `APP_PUBLIC_URL_ALIASES` permite listar domínios legados separados por vírgula.
+- `ENABLE_BRAND_DOMAIN_REDIRECT=true` habilita redirecionamento para o domínio canônico no front-end.
+- Aliases de rota (`/convite`, `/entrar`, `/inicio`) redirecionam para as rotas principais via app e Vercel.
