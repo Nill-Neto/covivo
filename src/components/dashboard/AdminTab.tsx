@@ -9,7 +9,7 @@ import { parseLocalDate } from "@/lib/utils";
 import {
   Users, ArrowRight, RefreshCw, DollarSign, AlertTriangle,
   Receipt, Settings, ClipboardList, BarChart3,
-  CheckCircle2, Clock, UserPlus, Scale, UserMinus,
+  CheckCircle2, Clock, UserPlus, Scale, UserMinus, Package
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,6 +29,7 @@ interface AdminTabProps {
   exMembersDebt: number;
   departuresCount: number;
   redistributedCount: number;
+  lowStockCount: number;
   cycleSplits: any[];
   closingDay: number;
 }
@@ -44,6 +45,7 @@ export function AdminTab({
   exMembersDebt,
   departuresCount,
   redistributedCount,
+  lowStockCount,
   cycleSplits,
   closingDay,
 }: AdminTabProps) {
@@ -227,11 +229,11 @@ export function AdminTab({
       </div>
 
       {/* Movimentações de Moradores */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Ex-moradores com débito
+              Ex-moradores (débito)
             </CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -239,33 +241,53 @@ export function AdminTab({
             <div className={`text-2xl font-bold tabular-nums ${exMembersDebt > 0 ? "text-destructive" : "text-foreground"}`}>
               R$ {exMembersDebt.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Pendências abertas fora dos ativos</p>
+            <p className="text-xs text-muted-foreground mt-1">Pendências abertas</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Redistribuições no ciclo
+              Redistribuições
             </CardTitle>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{redistributedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Splits redistribuídos por saídas</p>
+            <p className="text-xs text-muted-foreground mt-1">Splits após saídas</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Saídas no período
+              Saídas
             </CardTitle>
             <UserMinus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{departuresCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Eventos auditados de remoção</p>
+            <p className="text-xs text-muted-foreground mt-1">Neste período</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Estoque Crítico
+            </CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold tabular-nums ${lowStockCount > 0 ? "text-warning" : "text-foreground"}`}>
+              {lowStockCount}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Abaixo do mínimo</p>
+            {lowStockCount > 0 && (
+              <Button variant="link" className="p-0 h-auto text-xs mt-1 text-warning" asChild>
+                <Link to="/inventory">Repor estoque <ArrowRight className="h-3 w-3 ml-1" /></Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

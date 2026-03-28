@@ -55,7 +55,7 @@ export default function Admin() {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes] = await Promise.all([
+      const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -75,7 +75,11 @@ export default function Admin() {
           .eq("group_id", membership.group_id)
           .eq("action", "remove_member")
           .gte("created_at", cycleStart.toISOString())
-          .lt("created_at", cycleEnd.toISOString())
+          .lt("created_at", cycleEnd.toISOString()),
+        supabase
+          .from("inventory_items")
+          .select("quantity, min_quantity")
+          .eq("group_id", membership.group_id)
       ]);
 
       const cycleSplits = cycleSplitsRes.data || [];
@@ -136,6 +140,8 @@ export default function Admin() {
         return sum + (Number.isFinite(value) ? value : 0);
       }, 0);
 
+      const lowStockCount = (inventoryRes.data || []).filter((i: any) => Number(i.quantity) <= Number(i.min_quantity)).length;
+
       let exMembersDebt = 0;
       if (collectiveExpenses.length > 0) {
         const { data: exMembersSplits } = await supabase
@@ -156,6 +162,7 @@ export default function Admin() {
         exMembersDebt,
         departuresCount,
         redistributedCount,
+        lowStockCount,
         cycleSplits,
       };
     },
@@ -202,6 +209,7 @@ export default function Admin() {
           exMembersDebt={adminData.exMembersDebt}
           departuresCount={adminData.departuresCount}
           redistributedCount={adminData.redistributedCount}
+          lowStockCount={adminData.lowStockCount}
           cycleSplits={adminData.cycleSplits}
           closingDay={closingDay}
         />
