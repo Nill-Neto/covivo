@@ -108,7 +108,6 @@ type UpdatedGroupsTable = Omit<Database["public"]["Tables"]["groups"], "Row" | "
     city: string | null;
     state: string | null;
     zip_code: string | null;
-    avatar_url: string | null;
   };
   Insert: Database["public"]["Tables"]["groups"]["Insert"] & {
     closing_day?: number;
@@ -120,7 +119,6 @@ type UpdatedGroupsTable = Omit<Database["public"]["Tables"]["groups"], "Row" | "
     city?: string | null;
     state?: string | null;
     zip_code?: string | null;
-    avatar_url?: string | null;
   };
   Update: Database["public"]["Tables"]["groups"]["Update"] & {
     closing_day?: number;
@@ -132,7 +130,6 @@ type UpdatedGroupsTable = Omit<Database["public"]["Tables"]["groups"], "Row" | "
     city?: string | null;
     state?: string | null;
     zip_code?: string | null;
-    avatar_url?: string | null;
   };
 };
 
