@@ -34,7 +34,7 @@ export function GroupStep({
     >
       <div className="space-y-2">
         <Label htmlFor="groupName">Nome da moradia</Label>
-        <Input id="groupName" value={groupName} onChange={(e) => onGroupNameChange(e.target.value)} placeholder='Ex: "República Central"' />
+        <Input id="groupName" value={groupName} onChange={(e) => onGroupNameChange(e.target.value)} placeholder='Ex: "Casa Aurora"' />
       </div>
 
       <div className="space-y-2">

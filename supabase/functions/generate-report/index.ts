@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     if (expensesRes.error) console.error("[generate-report] Expenses fetch error:", expensesRes.error);
     if (balancesRes.error) console.error("[generate-report] Balances RPC error:", balancesRes.error);
 
-    const groupName = groupRes.data?.name ?? "República";
+    const groupName = groupRes.data?.name ?? "Moradia";
     const expenses = expensesRes.data ?? [];
     const balances = balancesRes.data ?? [];
     const payments = paymentsRes.data ?? [];
