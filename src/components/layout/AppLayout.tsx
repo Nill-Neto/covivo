@@ -137,11 +137,9 @@ export function AppLayout() {
   };
 
   const Logo = () => (
-    <Link to="/dashboard" onClick={handleNavItemClick} className="flex items-center gap-2 font-serif text-xl font-bold tracking-tight">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        R
-      </div>
-      <span className="text-foreground">{BRANDING.appName}</span>
+    <Link to="/dashboard" onClick={handleNavItemClick} className="flex items-center gap-1 font-serif text-2xl tracking-tight">
+      <span className="text-foreground font-medium">Co</span>
+      <span className="text-primary font-bold">vivo</span>
     </Link>
   );
 

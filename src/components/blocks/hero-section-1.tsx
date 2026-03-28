@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { TextEffect } from '@/components/ui/text-effect'
 import { cn } from '@/lib/utils'
-import { APP_NAME } from '@/config/brand'
+import { APP_NAME, APP_TAGLINE } from '@/config/brand'
 
 const transitionVariants = {
     item: {
@@ -45,7 +45,7 @@ export function HeroSection() {
                                         to="/login"
                                         className="hover:bg-muted bg-muted/50 group mx-auto flex w-fit items-center gap-4 rounded-full border border-border p-1 pl-4 shadow-md shadow-primary/5 transition-colors duration-300"
                                     >
-                                        <span className="text-foreground text-sm">{APP_NAME}: gestão inteligente de moradias</span>
+                                        <span className="text-foreground text-sm">{APP_NAME}: {APP_TAGLINE}</span>
                                         <span className="bg-primary text-primary-foreground block rounded-full px-2 py-0.5 text-xs">
                                             Comece agora <ChevronRight className="ml-1 inline h-3 w-3" />
                                         </span>
@@ -59,7 +59,7 @@ export function HeroSection() {
                                     className="mt-8 text-balance text-4xl font-serif md:text-6xl lg:text-7xl text-foreground"
                                     delay={0.2}
                                 >
-                                    Simplifique a vida na sua moradia compartilhada
+                                    Menos burocracia, mais convivência
                                 </TextEffect>
 
                                 <TextEffect
@@ -69,7 +69,7 @@ export function HeroSection() {
                                     delay={0.5}
                                     className="mx-auto mt-8 max-w-2xl text-balance text-lg text-muted-foreground"
                                 >
-                                    Controle despesas, rateios, pagamentos e convivência em um só lugar. Transparência total para todos os moradores.
+                                    Controle despesas, rateios e pagamentos de forma transparente. Organize as finanças da sua casa e tenha mais tempo livre para viver os bons momentos.
                                 </TextEffect>
 
                                 <AnimatedGroup

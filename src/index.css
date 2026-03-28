@@ -25,9 +25,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: Strong, Trustworthy Royal Blue (Vibrant) */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary: Tranquil and vibrant Teal/Green to represent life and freedom */
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary: Subtle cool gray for less important actions */
     --secondary: 210 40% 96.1%;
@@ -37,9 +37,9 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215 20% 42%;
 
-    /* Accent: Standard Hover State (Changed from Teal to Subtle Slate) */
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
+    /* Accent: Standard Hover State */
+    --accent: 160 20% 96%;
+    --accent-foreground: 160 84% 20%;
 
     /* Destructive: Clear Red */
     --destructive: 0 84.2% 60.2%;
@@ -54,19 +54,19 @@
     /* Borders: Subtle to keep it clean */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --ring: 160 84% 39%;
 
     --radius: 0.75rem; /* Slightly rounder for modern feel */
 
-    /* Sidebar: Black background in Light Mode */
-    --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221 83% 53%;
+    /* Sidebar: Clean light background in Light Mode */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 15%; /* Dark gray for hover */
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 160 20% 96%;
+    --sidebar-accent-foreground: 160 84% 20%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 160 84% 39%;
   }
 
   .dark {
@@ -83,8 +83,8 @@
     --popover: 222 47% 14%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Slightly lighter Royal Blue for visibility on dark */
-    --primary: 217 91% 60%;
+    /* Primary: Bright vivid Teal/Green for dark mode contrast */
+    --primary: 160 84% 50%;
     --primary-foreground: 222 47% 11%;
 
     /* Secondary */
@@ -95,8 +95,8 @@
     --muted-foreground: 215 20.2% 65.1%;
 
     /* Accent */
-    --accent: 222 47% 14%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 160 20% 14%;
+    --accent-foreground: 160 84% 80%;
 
     --destructive: 0 84.2% 65%;
     --destructive-foreground: 210 40% 98%;
@@ -109,15 +109,15 @@
 
     --border: 222 47% 14%;
     --input: 222 47% 14%;
-    --ring: 217 91% 60%;
+    --ring: 160 84% 50%;
 
-    /* Sidebar in Dark Mode: Was main background navy */
+    /* Sidebar in Dark Mode */
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-primary: 160 84% 50%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 160 20% 14%;
+    --sidebar-accent-foreground: 160 84% 80%;
     --sidebar-border: 217 33% 17%;
     --sidebar-ring: 217 91% 60%;
   }

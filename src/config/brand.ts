@@ -1,3 +1,2 @@
 export const APP_NAME = "Covivo";
-export const APP_TAGLINE = "Gestão de Moradia Compartilhada";
-
+export const APP_TAGLINE = "Menos burocracia, mais convivência";

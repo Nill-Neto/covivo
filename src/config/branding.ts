@@ -1,10 +1,10 @@
 export const BRANDING = {
-  appName: "Republi-K",
-  slogan: "Gestão de moradia compartilhada",
+  appName: "Covivo",
+  slogan: "Menos burocracia, mais convivência",
   institutional: {
     productDescription:
-      "Sistema de gestão de despesas, estoque e pagamentos para moradias compartilhadas.",
-    valueProp: "Controle financeiro transparente para repúblicas e casas divididas.",
+      "Sistema de gestão de despesas, rateios e pagamentos para moradias compartilhadas.",
+    valueProp: "Organize as finanças e tenha mais tempo para viver o lado bom da casa.",
     legalFooter: "Todos os direitos reservados.",
   },
   invite: {
