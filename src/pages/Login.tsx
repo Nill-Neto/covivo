@@ -61,8 +61,11 @@ export default function Login() {
       {/* Right panel */}
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="w-full max-w-sm space-y-8">
+          <div className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary lg:hidden">
+            Covivo Beta
+          </div>
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-serif text-foreground">Bem-vindo</h2>
+            <h2 className="text-3xl font-serif text-foreground">Bem-vindo ao {APP_NAME}</h2>
             <p className="mt-2 text-muted-foreground">
               Entre com sua conta Google para começar.
             </p>
