@@ -11,16 +11,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate: require service role key or a shared secret
+    // Authenticate scheduler calls using a dedicated, rotatable secret
     const authHeader = req.headers.get("Authorization");
-    const expectedKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const expectedSchedulerSecret = Deno.env.get("CHECK_NOTIFICATIONS_SCHEDULER_SECRET");
     const token = authHeader?.replace("Bearer ", "");
-    if (token !== expectedKey) {
+
+    if (!expectedSchedulerSecret) {
+      console.error("[check-notifications] Missing CHECK_NOTIFICATIONS_SCHEDULER_SECRET env var");
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!token || token !== expectedSchedulerSecret) {
+      console.warn("[check-notifications] Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
