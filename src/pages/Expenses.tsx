@@ -38,6 +38,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -100,11 +101,6 @@ type InstallmentRow = {
   bill_year: number;
 };
 
-type MemberProfile = {
-  id: string;
-  full_name: string | null;
-};
-
 export default function Expenses() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
@@ -127,7 +123,6 @@ export default function Expenses() {
   const [dateValue, setDateValue] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
   const [splitBetweenAll, setSplitBetweenAll] = useState(true);
-  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
 
   // Payment Fields
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -154,6 +149,10 @@ export default function Expenses() {
 
   // Cycle alert for credit card closing mismatch
   const [cycleAlertOpen, setCycleAlertOpen] = useState(false);
+  const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
+  const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
+  const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [quickReceiptFile, setQuickReceiptFile] = useState<File | null>(null);
 
   // Original amount for proportional split update on edit
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
@@ -337,11 +336,11 @@ export default function Expenses() {
   });
 
   const participantOptions = useMemo(() => {
-    return memberProfiles.map((member) => ({
-      id: member.id,
-      name: member.full_name?.trim() || "Morador",
+    return activeMembers.map((member) => ({
+      id: member.user_id,
+      name: member.label || "Morador",
     }));
-  }, [memberProfiles]);
+  }, [activeMembers]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -800,6 +799,81 @@ export default function Expenses() {
     );
   };
 
+  const registerPaymentMutation = useMutation({
+    mutationFn: async ({
+      expense,
+      payerId,
+      paymentDateValue,
+      proofFile,
+    }: {
+      expense: ExpenseRow;
+      payerId: string;
+      paymentDateValue: string;
+      proofFile: File;
+    }) => {
+      const ext = proofFile.name.split(".").pop() ?? "jpg";
+      const path = `${user!.id}/${Date.now()}_expense_payment.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("receipts").upload(path, proofFile);
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const payerName = payerId === "me"
+        ? "Você"
+        : participantOptions.find((participant) => participant.id === payerId)?.name || "Morador";
+      const historyLine = `quitada por ${payerName} em ${format(parseLocalDate(paymentDateValue), "dd/MM")}`;
+      const updatedDescription = expense.description
+        ? `${expense.description}\n${historyLine}`
+        : historyLine;
+
+      const { error: updateError } = await supabase
+        .from("expenses")
+        .update({
+          paid_to_provider: true,
+          due_date: paymentDateValue,
+          receipt_url: publicUrlData.publicUrl,
+          description: updatedDescription,
+        })
+        .eq("id", expense.id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
+      queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["member-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      setQuickPayExpense(null);
+      setQuickPayerUserId("me");
+      setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+      setQuickReceiptFile(null);
+      toast({ title: "Pagamento registrado com sucesso." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleQuickRegisterPayment = () => {
+    if (!quickPayExpense) return;
+    if (!quickPaymentDate) {
+      toast({ title: "Erro", description: "Informe a data do pagamento.", variant: "destructive" });
+      return;
+    }
+    if (!quickReceiptFile) {
+      toast({ title: "Erro", description: "Anexe o comprovante.", variant: "destructive" });
+      return;
+    }
+
+    registerPaymentMutation.mutate({
+      expense: quickPayExpense,
+      payerId: quickPayerUserId,
+      paymentDateValue: quickPaymentDate,
+      proofFile: quickReceiptFile,
+    });
+  };
+
   if (loadingExpenses || loadingRecurring || loading || loadingInstallments || loadingParents) {
     return (
       <div className="flex justify-center py-12">
@@ -1149,6 +1223,68 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
 
+        <Dialog
+          open={!!quickPayExpense}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setQuickPayExpense(null);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-serif">Registrar pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Despesa</Label>
+                <p className="text-sm font-medium">{quickPayExpense?.title}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pagador</Label>
+                <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="me">Você</SelectItem>
+                    {participantOptions.map((participant) => (
+                      <SelectItem key={participant.id} value={participant.id}>
+                        {participant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Comprovante</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setQuickReceiptFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <Button
+                onClick={handleQuickRegisterPayment}
+                disabled={registerPaymentMutation.isPending}
+                className="w-full"
+              >
+                {registerPaymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Confirmar pagamento
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Cycle Alert Dialog for credit card closing mismatch */}
         <AlertDialog open={cycleAlertOpen} onOpenChange={setCycleAlertOpen}>
           <AlertDialogContent>
@@ -1238,21 +1374,63 @@ export default function Expenses() {
       <TabsContent value="all" className="space-y-3 mt-4">
         {filteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
         {filteredAll.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
       <TabsContent value="mine" className="space-y-3 mt-4">
         {filteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
         {filteredMine.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
       <TabsContent value="collective" className="space-y-3 mt-4">
         {filteredCollective.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa coletiva encontrada nesta competência.</p>}
         {filteredCollective.map((e: any) => (
-          <ExpenseCard key={e.id} expense={e} userId={user?.id} isAdmin={isAdmin} cards={cards} onEdit={() => handleEditClick(e)} onDelete={() => handleDeleteClick(e)} />
+          <ExpenseCard
+            key={e.id}
+            expense={e}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            cards={cards}
+            onEdit={() => handleEditClick(e)}
+            onDelete={() => handleDeleteClick(e)}
+            onRegisterPayment={() => {
+              setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFile(null);
+            }}
+          />
         ))}
       </TabsContent>
 
@@ -1268,11 +1446,16 @@ export default function Expenses() {
   );
 }
 
-function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any) {
+function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: any) {
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
   const mySplit = expense.expense_splits?.find((s: any) => s.user_id === userId);
   const cardLabel = cards.find((c: any) => c.id === expense.credit_card_id)?.label;
   const canManage = isAdmin || expense.created_by === userId;
+  const paymentHistory = (expense.description ?? "")
+    .split("\n")
+    .map((line: string) => line.trim())
+    .reverse()
+    .find((line: string) => line.toLowerCase().startsWith("quitada por "));
 
   const isInstallment = expense._is_installment && expense.installments > 1;
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
@@ -1301,6 +1484,9 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date || expense.created_at), "dd/MM/yyyy")}
               </span>
+              <Badge variant={expense.paid_to_provider ? "default" : "secondary"} className="text-[10px]">
+                {expense.paid_to_provider ? "Paga ao fornecedor" : "Pendente com fornecedor"}
+              </Badge>
               {expense.payment_method === "credit_card" && (
                 <span>
                   <CreditCard className="h-3 w-3 inline mr-1" /> {cardLabel}{" "}
@@ -1308,6 +1494,11 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
                 </span>
               )}
             </div>
+            {paymentHistory && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {paymentHistory}
+              </p>
+            )}
           </div>
           <div className="text-right shrink-0">
             <p className="text-lg font-bold">R$ {Number(displayAmount).toFixed(2)}</p>
@@ -1318,6 +1509,16 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete }: any)
               <Badge variant="secondary" className="text-[10px]">
                 Sua parte: R$ {Number(mySplit.amount).toFixed(2)}
               </Badge>
+            )}
+            {!expense.paid_to_provider && canManage && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 text-xs"
+                onClick={onRegisterPayment}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Registrar pagamento
+              </Button>
             )}
           </div>
           {canManage && (
