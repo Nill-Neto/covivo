@@ -1,4 +1,21 @@
 {
+  "redirects": [
+    {
+      "source": "/convite",
+      "destination": "/invite",
+      "permanent": false
+    },
+    {
+      "source": "/entrar",
+      "destination": "/login",
+      "permanent": false
+    },
+    {
+      "source": "/inicio",
+      "destination": "/dashboard",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

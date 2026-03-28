@@ -79,7 +79,7 @@ export function HeroSection() {
                                     <div key="cta-1">
                                         <Button size="lg" className="rounded-xl px-5" asChild>
                                             <Link to="/login">
-                                                <span className="text-nowrap">Entrar no {APP_NAME}</span>
+                                                <span className="text-nowrap">Entrar no Covivo</span>
                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                             </Link>
                                         </Button>
@@ -114,7 +114,7 @@ export function HeroSection() {
                 <section id="features" className="py-16 md:py-32">
                     <div className="mx-auto max-w-5xl px-6">
                         <div className="mx-auto max-w-xl text-center">
-                            <span className="text-muted-foreground font-medium">Por que usar o {APP_NAME}?</span>
+                            <span className="text-muted-foreground font-medium">Por que usar o Covivo?</span>
                             <p className="mt-2 text-balance text-lg font-semibold text-foreground">
                                 Tudo o que você precisa para gerenciar sua moradia
                             </p>
@@ -145,7 +145,7 @@ export function HeroSection() {
                 <footer className="border-t border-border py-8">
                     <div className="mx-auto max-w-7xl px-6 text-center">
                         <p className="text-xs text-muted-foreground">
-                            © {new Date().getFullYear()} {APP_NAME}. Todos os direitos reservados.
+                            © {new Date().getFullYear()} Covivo. Todos os direitos reservados.
                         </p>
                     </div>
                 </footer>
@@ -186,7 +186,7 @@ const HeroHeader = () => {
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Link to="/" aria-label="Home" className="text-2xl font-serif text-foreground">
-                                {APP_NAME}
+                                Covivo
                             </Link>
                             <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline-flex">
                                 Beta
