@@ -1194,6 +1194,7 @@ export type Database = {
           _group_id: string
           _installments?: number
           _payment_method?: string
+          _participant_user_ids?: string[]
           _purchase_date?: string
           _receipt_url?: string
           _recurring_expense_id?: string

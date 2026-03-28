@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,6 +121,8 @@ export default function Expenses() {
   const [expenseType, setExpenseType] = useState<"collective" | "individual">(isAdmin ? "collective" : "individual");
   const [dateValue, setDateValue] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
+  const [splitBetweenAll, setSplitBetweenAll] = useState(true);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
 
   // Payment Fields
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -256,6 +259,42 @@ export default function Expenses() {
     enabled: !!user,
   });
 
+  const { data: activeMembers = [] } = useQuery({
+    queryKey: ["expense-active-members", membership?.group_id],
+    queryFn: async () => {
+      const [{ data: members, error: membersError }, { data: profiles, error: profilesError }] = await Promise.all([
+        supabase
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", membership!.group_id)
+          .eq("active", true),
+        supabase.rpc("get_group_member_public_profiles", {
+          _group_id: membership!.group_id,
+        }),
+      ]);
+
+      if (membersError) throw membersError;
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+      return (members ?? []).map((member) => {
+        const profile = profileMap.get(member.user_id);
+        const label = profile?.full_name || profile?.email?.split("@")[0] || "Morador";
+        return {
+          user_id: member.user_id,
+          label,
+        };
+      });
+    },
+    enabled: !!membership?.group_id,
+  });
+
+  const activeMemberIds = useMemo(() => activeMembers.map((member) => member.user_id), [activeMembers]);
+
+  useEffect(() => {
+    setSelectedParticipantIds(activeMemberIds);
+  }, [activeMemberIds]);
+
   const deleteExpenseMutation = useMutation({
     mutationFn: async (id: string) => {
       // Delete installments first, then the expense (cascade should handle splits)
@@ -286,6 +325,9 @@ export default function Expenses() {
   });
 
   const handleSave = async (forcedCycleChoice?: 'current' | 'next') => {
+    const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
+    const individualParticipantIds = user?.id ? [user.id] : [];
+
     if (!title.trim() || !amount || parseFloat(amount) <= 0) {
       toast({ title: "Erro", description: "Preencha título e valor.", variant: "destructive" });
       return;
@@ -294,6 +336,17 @@ export default function Expenses() {
     if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId) && editingType === "expense") {
       toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
       return;
+    }
+
+    if (editingType === "expense" && !editingId) {
+      if (expenseType === "collective" && collectiveParticipantIds.length < 1) {
+        toast({ title: "Erro", description: "Despesa coletiva deve ter ao menos 1 participante.", variant: "destructive" });
+        return;
+      }
+      if (expenseType === "individual" && individualParticipantIds.length !== 1) {
+        toast({ title: "Erro", description: "Despesa individual deve ter exatamente 1 participante.", variant: "destructive" });
+        return;
+      }
     }
 
     // Check credit card closing vs group closing (only on creation)
@@ -424,6 +477,7 @@ export default function Expenses() {
           _receipt_url: null,
           _recurring_expense_id: null,
           _target_user_id: expenseType === "individual" ? user?.id : null,
+          _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
           _payment_method: paymentMethod,
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
@@ -488,6 +542,8 @@ export default function Expenses() {
     setExpenseType(isAdmin ? "collective" : "individual");
     setDateValue(format(new Date(), "yyyy-MM-dd"));
     setDescription("");
+    setSplitBetweenAll(true);
+    setSelectedParticipantIds(activeMemberIds);
     setPaymentMethod("cash");
     setCreditCardId("none");
     setInstallments("1");
@@ -671,6 +727,44 @@ export default function Expenses() {
                     <Label>Data da Compra</Label>
                     <Input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />
                   </div>
+                </div>
+              )}
+
+              {!editingId && editingType === "expense" && expenseType === "collective" && (
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                    <div>
+                      <Label htmlFor="split-all-toggle" className="text-sm font-medium cursor-pointer">Ratear entre todos</Label>
+                      <p className="text-xs text-muted-foreground">Quando desligado, selecione manualmente os participantes.</p>
+                    </div>
+                    <Switch id="split-all-toggle" checked={splitBetweenAll} onCheckedChange={setSplitBetweenAll} />
+                  </div>
+
+                  {!splitBetweenAll && (
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <Label>Participantes ativos</Label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {activeMembers.map((member) => {
+                          const checked = selectedParticipantIds.includes(member.user_id);
+                          return (
+                            <label key={member.user_id} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) => {
+                                  if (value) {
+                                    setSelectedParticipantIds((prev) => [...new Set([...prev, member.user_id])]);
+                                  } else {
+                                    setSelectedParticipantIds((prev) => prev.filter((id) => id !== member.user_id));
+                                  }
+                                }}
+                              />
+                              <span>{member.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
