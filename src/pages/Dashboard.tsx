@@ -283,8 +283,8 @@ export default function Dashboard() {
   const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
   const rawTotalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const rawTotalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
-  const totalCollectivePendingPrevious = Math.max(0, rawTotalCollectivePendingPrevious - totalRateioPaymentsPrevious);
-  const totalCollectivePendingCurrent = Math.max(0, rawTotalCollectivePendingCurrent - totalRateioPaymentsCurrent);
+  const totalCollectivePendingPrevious = rawTotalCollectivePendingPrevious;
+  const totalCollectivePendingCurrent = rawTotalCollectivePendingCurrent;
   const collectivePendingPreviousByCompetence = useMemo(() => {
     const grouped = collectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
       const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
@@ -317,7 +317,7 @@ export default function Dashboard() {
   const manualIndividualPending = pendingSplits.filter((s: any) => 
     s.expenses?.expense_type === "individual" && 
     s.expenses?.payment_method !== "credit_card" &&
-    !paidSplitIds.has(s.id)
+    !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed')
   );
 
   const installmentIndividualPending = billInstallments.filter((i: any) => 
