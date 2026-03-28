@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { useInviteFlag } from "@/hooks/useInviteFlag";
 
 import { TermsStep } from "@/components/onboarding/TermsStep";
-import { ProfileStep } from "@/components/onboarding/ProfileStep";
+import { ProfileStep, type HousingContext } from "@/components/onboarding/ProfileStep";
 import { DocumentsStep } from "@/components/onboarding/DocumentsStep";
 import { CardsStep } from "@/components/onboarding/CardsStep";
 import { GroupSettingsStep, type GroupAddress } from "@/components/onboarding/GroupSettingsStep";
@@ -30,6 +30,7 @@ export default function Onboarding() {
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [nickname, setNickname] = useState(profile?.nickname ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [housingContext, setHousingContext] = useState<HousingContext>("student");
 
   // Documents
   const [cpf, setCpf] = useState("");
@@ -114,7 +115,7 @@ export default function Onboarding() {
 
       if (hasInviteFlow) {
         await refreshProfile();
-        toast({ title: "Bem-vindo!", description: "Seu cadastro foi concluído." });
+        toast({ title: "Bem-vindo!", description: "Seu cadastro foi concluído com sucesso." });
         clearInvite();
         navigate("/dashboard", { replace: true });
       } else {
@@ -176,7 +177,17 @@ export default function Onboarding() {
 
       await Promise.all([refreshProfile(), refreshMembership()]);
 
-      toast({ title: "Grupo criado!", description: `"${groupName}" está pronto. Convide seus moradores.` });
+      const contextLabelMap: Record<HousingContext, string> = {
+        student: "moradia estudantil",
+        friends: "moradia compartilhada com amigos",
+        family: "moradia compartilhada com familiares",
+        other: "moradia compartilhada",
+      };
+
+      toast({
+        title: "Grupo criado!",
+        description: `"${groupName}" está pronto para sua ${contextLabelMap[housingContext]}. Convide as pessoas do grupo.`,
+      });
       clearInvite();
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
@@ -204,10 +215,12 @@ export default function Onboarding() {
           fullName={fullName}
           nickname={nickname}
           phone={phone}
+          housingContext={housingContext}
           totalSteps={totalSteps}
           onFullNameChange={setFullName}
           onNicknameChange={setNickname}
           onPhoneChange={setPhone}
+          onHousingContextChange={setHousingContext}
           onBack={() => setStep("terms")}
           onContinue={() => setStep("documents")}
         />
@@ -243,6 +256,7 @@ export default function Onboarding() {
           dueDay={dueDay}
           splittingRule={splittingRule}
           adminParticipatesInSplits={adminParticipatesInSplits}
+          housingContext={housingContext}
           totalSteps={totalSteps}
           onGroupNameChange={setGroupName}
           onAddressChange={setAddress}

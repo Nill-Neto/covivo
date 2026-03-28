@@ -302,14 +302,14 @@ export default function Invites() {
   const copyLink = (token: string, title = "Link copiado!") => {
     const link = `${APP_PUBLIC_URL}/invite?token=${token}`;
     navigator.clipboard.writeText(link);
-    toast({ title, description: "Envie para o morador." });
+    toast({ title, description: "Envie para a pessoa convidada." });
   };
 
   return (
     <div className="space-y-4 min-h-[calc(100vh-8rem)] overflow-x-hidden">
       <PageHero
         title="Convites"
-        subtitle="Convide moradores para o grupo."
+        subtitle="Convide pessoas para participar do grupo."
         tone="primary"
         icon={<UserPlus className="h-4 w-4" />}
       />

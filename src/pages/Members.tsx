@@ -257,7 +257,7 @@ export default function Members() {
       setRemoveReason("");
       setRemovingMemberId(null);
       toast({
-        title: "Morador removido.",
+        title: "Integrante removido.",
         description: `Pendências preservadas: ${result?.preserved_pending_splits ?? 0} | redistribuídas: ${result?.redistributed_pending_splits ?? 0}`,
       });
     },
@@ -321,8 +321,8 @@ export default function Members() {
   return (
     <div className="space-y-4">
       <PageHero
-        title="Moradores"
-        subtitle={`${members?.length ?? 0} membro(s) ativo(s)`}
+        title="Integrantes"
+        subtitle={`${members?.length ?? 0} integrante(s) ativo(s)`}
         tone="primary"
         icon={<User className="h-4 w-4" />}
         badge={<Badge variant="secondary">Grupo ativo</Badge>}
@@ -330,7 +330,7 @@ export default function Members() {
 
       <ScrollRevealGroup preset="blur-slide" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {members?.map((m) => {
-          const displayName = m.profile?.full_name?.trim() || "Morador sem nome";
+          const displayName = m.profile?.full_name?.trim() || "Integrante sem nome";
           const initials = displayName
             .split(" ")
             .map((n) => n[0])
@@ -362,7 +362,7 @@ export default function Members() {
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" /> Morador
+                          <User className="h-3 w-3" /> Integrante
                         </span>
                       )}
                       {group?.splitting_rule === "percentage" && (
@@ -400,7 +400,7 @@ export default function Members() {
                       </AlertDialogTrigger>
                       <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Remover morador?</AlertDialogTitle>
+                          <AlertDialogTitle>Remover integrante?</AlertDialogTitle>
                           <AlertDialogDescription>
                             {isMe
                               ? "Você não pode remover a si mesmo por este fluxo. Use o fluxo de saída dedicado."
@@ -421,7 +421,7 @@ export default function Members() {
                               />
                             </div>
                             <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
-                              <p>• Débitos do período utilizado permanecem com o morador.</p>
+                              <p>• Débitos do período utilizado permanecem com a pessoa removida.</p>
                               <p>• Pendências futuras poderão ser redistribuídas conforme regras do grupo.</p>
                               <p>• Pagamentos já enviados permanecem pendentes até confirmação.</p>
                             </div>
@@ -449,7 +449,7 @@ export default function Members() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Morador</DialogTitle>
+            <DialogTitle>Editar integrante</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -457,7 +457,7 @@ export default function Members() {
               <Select value={editRole} onValueChange={setEditRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="morador">Morador</SelectItem>
+                  <SelectItem value="morador">Integrante</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
@@ -472,7 +472,7 @@ export default function Members() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <Label htmlFor="member-is-resident">Residente</Label>
-                  <p className="text-xs text-muted-foreground">Define se a pessoa é moradora ativa para os cálculos do grupo.</p>
+                  <p className="text-xs text-muted-foreground">Define se a pessoa é residente ativa para os cálculos do grupo.</p>
                 </div>
                 <Switch id="member-is-resident" checked={editIsResident} onCheckedChange={setEditIsResident} />
               </div>
@@ -515,12 +515,12 @@ export default function Members() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none">
           {viewingMember && (
             <InfoCard 
-              title={viewingMember.profile?.full_name?.trim() || "Morador"}
+              title={viewingMember.profile?.full_name?.trim() || "Integrante"}
               subtitle={membership?.group_name}
               avatarSrc={viewingMember.profile?.avatar_url}
               badge={
                 <Badge variant={viewingMember.role === "admin" ? "default" : "secondary"} className="w-fit">
-                  {viewingMember.role === "admin" ? "Administrador" : "Morador"}
+                  {viewingMember.role === "admin" ? "Administrador" : "Integrante"}
                 </Badge>
               }
               details={memberDetails}
