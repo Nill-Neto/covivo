@@ -108,11 +108,7 @@ export default function Payments() {
       if (values.competence) {
         const [yStr, mStr] = values.competence.split("-");
         const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1; // 0-based month
-        
-        // Define uma data segura que caia exatamente dentro do ciclo da competência escolhida.
-        // O ciclo da competência 'm' começa no 'closingDay' do mês 'm-1'.
-        // Usamos meio-dia para evitar problemas de fuso horário.
+        const m = parseInt(mStr) - 1;
         const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
         newDate = safeDate.toISOString();
       }
@@ -127,10 +123,20 @@ export default function Payments() {
         })
         .eq("id", editingPayment.id);
       if (error) throw error;
+
+      // If confirming/rejecting, also call confirm_payment RPC to update split status
+      if ((values.status === 'confirmed' || values.status === 'rejected') && values.status !== editingPayment.status) {
+        const { error: rpcError } = await supabase.rpc("confirm_payment", {
+          _payment_id: editingPayment.id,
+          _status: values.status,
+        });
+        if (rpcError) throw rpcError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard-data"] });
       toast({ title: "Pagamento atualizado!" });
       setEditingPayment(null);
