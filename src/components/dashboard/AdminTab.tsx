@@ -144,9 +144,9 @@ export function AdminTab({
             <QuickActionLink to="/expenses" icon={ClipboardList} label="Gerenciar Despesas" desc="Lançar e editar despesas coletivas" />
             <QuickActionLink to="/payments?filter=pending" icon={DollarSign} label="Confirmar Pagamentos" desc="Aprovar ou recusar comprovantes" />
             <QuickActionLink to="/members" icon={Users} label="Moradores" desc="Gerenciar membros do grupo" />
-            <QuickActionLink to="/recurring-expenses" icon={RefreshCw} label="Despesas Recorrentes" desc="Contas fixas e assinaturas" />
+            <QuickActionLink to="/recurring" icon={RefreshCw} label="Despesas Recorrentes" desc="Contas fixas e assinaturas" />
             <QuickActionLink to="/invites" icon={UserPlus} label="Convites" desc="Convidar novos moradores" />
-            <QuickActionLink to="/group-settings" icon={Settings} label="Configurações" desc="Regras de rateio e ciclo" />
+            <QuickActionLink to="/settings" state={{ tab: "group" }} icon={Settings} label="Configurações" desc="Regras de rateio e ciclo" />
           </div>
         </CardContent>
       </Card>
@@ -563,9 +563,9 @@ export function AdminTab({
   );
 }
 
-function QuickActionLink({ to, icon: Icon, label, desc }: { to: string; icon: any; label: string; desc: string }) {
+function QuickActionLink({ to, state, icon: Icon, label, desc }: { to: string; state?: any; icon: any; label: string; desc: string }) {
   return (
-    <Link to={to} className="flex items-center gap-3 px-6 py-4 hover:bg-muted/50 transition-colors group">
+    <Link to={to} state={state} className="flex items-center gap-3 px-6 py-4 hover:bg-muted/50 transition-colors group">
       <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
         <Icon className="h-4 w-4 text-primary" />
       </div>
