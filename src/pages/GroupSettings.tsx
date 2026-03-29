@@ -533,18 +533,7 @@ function GroupTab() {
         .eq("id", membership!.group_id);
 
       if (error) {
-        // Se a coluna avatar_url não existir, ignoramos a atualização apenas dela
-        if (error.message?.includes("avatar_url")) {
-          delete payload.avatar_url;
-          const { error: fallbackError } = await supabase
-            .from("groups")
-            .update(payload)
-            .eq("id", membership!.group_id);
-          
-          if (fallbackError) throw fallbackError;
-        } else {
-          throw error;
-        }
+        throw error;
       }
 
       if (myMembership) {
