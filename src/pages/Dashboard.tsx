@@ -416,7 +416,7 @@ export default function Dashboard() {
         )}
 
         <TabsContent value="home" className="space-y-6">
-          <HomeTab />
+          <HomeTab closingDay={closingDay} />
         </TabsContent>
 
         <TabsContent value="personal" className="space-y-6">
