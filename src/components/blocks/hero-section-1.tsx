@@ -40,23 +40,11 @@ export function HeroSection() {
 
                         <div className="mx-auto max-w-7xl px-6">
                             <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
-                                <AnimatedGroup preset="fade">
-                                    <Link
-                                        to="/login"
-                                        className="hover:bg-muted bg-muted/50 group mx-auto flex w-fit items-center gap-4 rounded-full border border-border p-1 pl-4 shadow-md shadow-primary/5 transition-colors duration-300"
-                                    >
-                                        <span className="text-foreground text-sm">{APP_NAME}: {APP_TAGLINE}</span>
-                                        <span className="bg-primary text-primary-foreground block rounded-full px-2 py-0.5 text-xs">
-                                            Comece agora <ChevronRight className="ml-1 inline h-3 w-3" />
-                                        </span>
-                                    </Link>
-                                </AnimatedGroup>
-
                                 <TextEffect
                                     preset="fade"
                                     per="word"
                                     as="h1"
-                                    className="mt-8 text-balance text-4xl font-serif md:text-6xl lg:text-7xl text-foreground"
+                                    className="text-balance text-4xl font-serif md:text-6xl lg:text-7xl text-foreground"
                                     delay={0.2}
                                 >
                                     Menos burocracia, mais convivência

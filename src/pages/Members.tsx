@@ -64,9 +64,7 @@ export default function Members() {
   const [editingMember, setEditingMember] = useState<MemberWithProfile | null>(null);
   const [editRole, setEditRole] = useState("morador");
   const [editPercentage, setEditPercentage] = useState("0");
-  const [editIsResident, setEditIsResident] = useState(true);
   const [editParticipatesInSplits, setEditParticipatesInSplits] = useState(true);
-  const [editParticipatesInCollectiveDefault, setEditParticipatesInCollectiveDefault] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   // State for Details Dialog
@@ -204,30 +202,21 @@ export default function Members() {
 
       if (roleErr) throw roleErr;
 
+      const payload: any = {
+        participates_in_splits: editParticipatesInSplits,
+      };
+
       if (group?.splitting_rule === "percentage") {
-        const { error: pctErr } = await supabase
-          .from("group_members")
-          .update({
-            split_percentage: Number(editPercentage),
-            is_resident: editIsResident,
-            participates_in_splits: editParticipatesInSplits,
-            participates_in_collective_expenses_default: editParticipatesInCollectiveDefault,
-          })
-          .eq("group_id", membership!.group_id)
-          .eq("user_id", editingMember.user_id);
-        if (pctErr) throw pctErr;
-      } else {
-        const { error: memberErr } = await supabase
-          .from("group_members")
-          .update({
-            is_resident: editIsResident,
-            participates_in_splits: editParticipatesInSplits,
-            participates_in_collective_expenses_default: editParticipatesInCollectiveDefault,
-          })
-          .eq("group_id", membership!.group_id)
-          .eq("user_id", editingMember.user_id);
-        if (memberErr) throw memberErr;
+        payload.split_percentage = Number(editPercentage);
       }
+
+      const { error: memberErr } = await supabase
+        .from("group_members")
+        .update(payload)
+        .eq("group_id", membership!.group_id)
+        .eq("user_id", editingMember.user_id);
+        
+      if (memberErr) throw memberErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
@@ -271,9 +260,7 @@ export default function Members() {
     setEditingMember(member);
     setEditRole(member.role || "morador");
     setEditPercentage(String(member.split_percentage || 0));
-    setEditIsResident(member.is_resident);
-    setEditParticipatesInSplits(member.participates_in_splits);
-    setEditParticipatesInCollectiveDefault(member.participates_in_collective_expenses_default);
+    setEditParticipatesInSplits(member.participates_in_splits ?? true);
     setIsEditOpen(true);
   };
 
@@ -368,9 +355,7 @@ export default function Members() {
                       {group?.splitting_rule === "percentage" && (
                         <span>• {m.split_percentage}%</span>
                       )}
-                      {!m.is_resident && <span>• Não residente</span>}
                       {!m.participates_in_splits && <span>• Fora do rateio</span>}
-                      {!m.participates_in_collective_expenses_default && <span>• Fora do padrão coletivo</span>}
                     </div>
                   </div>
                 </div>
@@ -471,13 +456,6 @@ export default function Members() {
             <div className="space-y-3 rounded-md border p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <Label htmlFor="member-is-resident">Residente</Label>
-                  <p className="text-xs text-muted-foreground">Define se a pessoa é residente ativa para os cálculos do grupo.</p>
-                </div>
-                <Switch id="member-is-resident" checked={editIsResident} onCheckedChange={setEditIsResident} />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
                   <Label htmlFor="member-participates-splits">Participa do rateio</Label>
                   <p className="text-xs text-muted-foreground">Controla inclusão em rateios de despesas coletivas.</p>
                 </div>
@@ -485,17 +463,6 @@ export default function Members() {
                   id="member-participates-splits"
                   checked={editParticipatesInSplits}
                   onCheckedChange={setEditParticipatesInSplits}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <Label htmlFor="member-participates-collective-default">Participa por padrão (coletivas)</Label>
-                  <p className="text-xs text-muted-foreground">Usado para inclusão padrão em novas despesas coletivas.</p>
-                </div>
-                <Switch
-                  id="member-participates-collective-default"
-                  checked={editParticipatesInCollectiveDefault}
-                  onCheckedChange={setEditParticipatesInCollectiveDefault}
                 />
               </div>
             </div>

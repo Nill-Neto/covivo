@@ -93,9 +93,6 @@ export function DashboardHeader({
                 <h1 className="text-lg font-serif tracking-tight text-foreground truncate">
                   {`Olá, ${userName?.split(" ")[0] ?? ""}`}
                 </h1>
-                <Badge className="h-5 rounded-full bg-primary/10 px-2 text-[10px] font-semibold uppercase tracking-wide text-primary hover:bg-primary/10">
-                  {APP_NAME}
-                </Badge>
               </div>
             ) : (
               <>
@@ -109,9 +106,6 @@ export function DashboardHeader({
                   >
                     {`Olá, ${userName?.split(" ")[0] ?? ""}`}
                   </TextEffect>
-                  <Badge className="rounded-full bg-primary/10 px-2.5 text-[10px] font-semibold uppercase tracking-wide text-primary hover:bg-primary/10">
-                    {APP_NAME}
-                  </Badge>
                 </div>
                 {groupName ? (
                   <TextEffect
