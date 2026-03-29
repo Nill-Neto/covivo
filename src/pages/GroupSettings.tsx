@@ -498,13 +498,15 @@ function GroupTab() {
       // Realiza o upload da imagem se o usuário selecionou uma nova
       if (avatarFile) {
         const ext = avatarFile.name.split(".").pop() || "jpg";
-        const path = `groups/${membership!.group_id}/avatar_${Date.now()}.${ext}`;
+        // Garante que o caminho comece com user_id para respeitar o RLS
+        const path = `${user!.id}/group_${membership!.group_id}_avatar_${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from("documents").upload(path, avatarFile, { upsert: true });
         
         if (!uploadError) {
           const { data } = supabase.storage.from("documents").getPublicUrl(path);
           newAvatarUrl = data.publicUrl;
         } else {
+          console.error("Upload error:", uploadError);
           throw new Error("Falha ao enviar a imagem de perfil do grupo.");
         }
       }
