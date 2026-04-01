@@ -192,10 +192,10 @@ export function CardsTab({
     : [];
 
   const sortedSelectedCardInstallments = [...selectedCardInstallments].sort((a: any, b: any) => {
-    const registeredDateA = a.expenses?.purchase_date || a.expenses?.created_at || "";
-    const registeredDateB = b.expenses?.purchase_date || b.expenses?.created_at || "";
+    const createdAtA = a.expenses?.created_at || "";
+    const createdAtB = b.expenses?.created_at || "";
 
-    return registeredDateB.localeCompare(registeredDateA);
+    return createdAtB.localeCompare(createdAtA);
   });
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
