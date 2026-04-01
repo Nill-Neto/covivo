@@ -125,23 +125,23 @@ export default function Inventory() {
         tone="primary"
         icon={<Package className="h-4 w-4" />}
         actions={
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           {/* Month Selector */}
-          <div className="flex items-center gap-2 bg-card border rounded-lg p-1 shadow-sm">
-             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}>
+          <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                <ChevronLeft className="h-4 w-4" />
              </Button>
-             <div className="px-2 text-sm font-medium min-w-[140px] text-center capitalize">
+             <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
              </div>
-             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth}>
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
                <ChevronRight className="h-4 w-4" />
              </Button>
            </div>
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 h-10"><Plus className="mr-2 h-4 w-4" />Novo item</Button>
+              <Button className="h-10 w-full gap-2 sm:w-auto"><Plus className="mr-2 h-4 w-4" />Novo item</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle className="font-serif">Adicionar item</DialogTitle></DialogHeader>

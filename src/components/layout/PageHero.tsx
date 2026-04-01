@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { AnimatedGroup } from "@/components/ui/animated-group";
 import { TextEffect } from "@/components/ui/text-effect";
-import { motion, type Variants, useMotionValueEvent, useScroll } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 interface PageHeroProps {
   title: string;
@@ -136,11 +136,11 @@ export function PageHero({
 
           {actions ? (
             isCompact ? (
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end mt-2 lg:mt-0">
                 {actions}
               </div>
             ) : (
-              <AnimatedGroup preset="blur-slide" className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <AnimatedGroup preset="blur-slide" className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end mt-3 lg:mt-0">
                 {actions}
               </AnimatedGroup>
             )

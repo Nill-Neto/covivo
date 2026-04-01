@@ -123,20 +123,20 @@ export function DashboardHeader({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <div className="flex items-center bg-card/80 border rounded-lg p-1 shadow-sm h-10">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrevMonth}>
+          <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-3 lg:mt-0 lg:w-auto">
+            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card/80 p-1 shadow-sm sm:w-auto">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onPrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="px-3 text-sm font-medium min-w-[140px] text-center capitalize">
+              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNextMonth}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onNextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
 
-            <Button variant="outline" className="relative h-10 gap-2 overflow-hidden" asChild>
+            <Button variant="outline" className="relative h-10 w-full gap-2 overflow-hidden sm:w-auto" asChild>
               <Link to="/expenses">
                 <div
                   className={cn(
