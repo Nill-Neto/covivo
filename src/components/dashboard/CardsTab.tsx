@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
@@ -190,6 +190,13 @@ export function CardsTab({
   const selectedCardInstallments = selectedCard
     ? billInstallments.filter((i: any) => i.expenses?.credit_card_id === selectedCard.id)
     : [];
+
+  const sortedSelectedCardInstallments = [...selectedCardInstallments].sort((a: any, b: any) => {
+    const createdAtA = a.expenses?.created_at || "";
+    const createdAtB = b.expenses?.created_at || "";
+
+    return createdAtB.localeCompare(createdAtA);
+  });
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
@@ -576,19 +583,22 @@ export function CardsTab({
             </div>
 
             <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
-              {selectedCardInstallments.map((item: any, index: number) => (
+              {sortedSelectedCardInstallments.map((item: any, index: number) => (
                 <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
                   <div className="min-w-0 pr-3">
                     <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {item.expenses?.category} • Parcela {item.installment_number}
                     </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
+                    </p>
                   </div>
                   <p className="text-sm font-bold">R$ {Number(item.amount).toFixed(2)}</p>
                 </div>
               ))}
 
-              {selectedCardInstallments.length === 0 && (
+              {sortedSelectedCardInstallments.length === 0 && (
                 <div className="p-6 text-center text-sm text-muted-foreground">
                   Nenhum lançamento encontrado para este cartão nesta competência.
                 </div>
