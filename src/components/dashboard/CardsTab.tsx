@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
@@ -589,6 +589,9 @@ export function CardsTab({
                     <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {item.expenses?.category} • Parcela {item.installment_number}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
                     </p>
                   </div>
                   <p className="text-sm font-bold">R$ {Number(item.amount).toFixed(2)}</p>
