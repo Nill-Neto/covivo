@@ -10,22 +10,50 @@ try {
   const mediaDir = '.dyad/media';
   if (fs.existsSync(mediaDir)) {
     const files = fs.readdirSync(mediaDir).filter(f => f.endsWith('.png'));
-    let latestFile = null;
+    
+    // Ignora os arquivos de favicon para não sobrescrever a logo com eles
+    const isFavicon = (dim) => {
+      return (dim.width === 192 && dim.height === 192) ||
+             (dim.width === 512 && dim.height === 512) ||
+             (dim.width === 180 && dim.height === 180) ||
+             (dim.width === 16 && dim.height === 16) ||
+             (dim.width === 32 && dim.height === 32);
+    };
+
+    function getPngDimensions(filePath) {
+      const buffer = fs.readFileSync(filePath);
+      if (buffer.toString('ascii', 1, 4) === 'PNG') {
+        return {
+          width: buffer.readUInt32BE(16),
+          height: buffer.readUInt32BE(20)
+        };
+      }
+      return {width: 0, height: 0};
+    }
+
+    let latestLogoFile = null;
     let latestTime = 0;
+
     for (const file of files) {
-      const stat = fs.statSync(path.join(mediaDir, file));
-      if (stat.mtimeMs > latestTime) {
-        latestTime = stat.mtimeMs;
-        latestFile = file;
+      const fullPath = path.join(mediaDir, file);
+      const stat = fs.statSync(fullPath);
+      const dim = getPngDimensions(fullPath);
+
+      if (!isFavicon(dim)) {
+        if (stat.mtimeMs > latestTime) {
+          latestTime = stat.mtimeMs;
+          latestLogoFile = file;
+        }
       }
     }
-    if (latestFile) {
-      fs.copyFileSync(path.join(mediaDir, latestFile), 'public/logo.png');
-      console.log('Logo atualizada com sucesso para:', latestFile);
+    
+    if (latestLogoFile) {
+      fs.copyFileSync(path.join(mediaDir, latestLogoFile), 'public/logo.png');
+      console.log('Logo atualizada com sucesso para:', latestLogoFile);
     }
   }
 } catch (e) {
-  console.error("Falha ao copiar a logo:", e);
+  console.error("Falha ao processar imagens:", e);
 }
 
 // https://vitejs.dev/config/
