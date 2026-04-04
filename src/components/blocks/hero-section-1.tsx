@@ -139,7 +139,7 @@ export function HeroSection() {
                 <footer className="border-t border-border py-10 bg-background">
                     <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center">
-                            <img src="/logo.png" alt="CoVivo" className="h-8 w-auto object-contain" />
+                            <img src="/logo.png" alt="Covivo" className="h-10 w-auto object-contain dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]" />
                         </div>
                         <p className="text-sm text-muted-foreground text-center md:text-left">
                             © {new Date().getFullYear()} Covivo. Todos os direitos reservados.
@@ -182,7 +182,7 @@ const HeroHeader = () => {
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Link to="/" aria-label="Home" className="flex items-center">
-                                <img src="/logo.png" alt="CoVivo" className="h-8 w-auto object-contain" />
+                                <img src="/logo.png" alt="Covivo" className="h-9 md:h-10 w-auto object-contain dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]" />
                             </Link>
                             <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary sm:inline-flex">
                                 Beta

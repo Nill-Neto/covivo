@@ -31,9 +31,9 @@ export default function Login() {
 
         <div className="relative z-10">
           <div className="flex items-center">
-            <img src="/logo.png" alt="CoVivo" className="h-12 w-auto object-contain" />
+            <img src="/logo.png" alt="Covivo" className="h-14 lg:h-16 w-auto object-contain dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]" />
           </div>
-          <p className="mt-2 font-sans text-sm tracking-wide text-muted-foreground uppercase">
+          <p className="mt-4 font-sans text-sm tracking-wide text-muted-foreground uppercase">
             {BRANDING.slogan}
           </p>
         </div>
