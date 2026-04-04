@@ -195,7 +195,7 @@ export function CardsTab({
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
 
-    return dateA.localeCompare(dateB);
+    return dateB.localeCompare(dateA);
   });
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
@@ -203,7 +203,7 @@ export function CardsTab({
   const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
-    return dateA.localeCompare(dateB);
+    return dateB.localeCompare(dateA);
   });
 
   return (
