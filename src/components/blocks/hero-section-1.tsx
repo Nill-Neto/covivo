@@ -182,9 +182,8 @@ const HeroHeader = () => {
                 >
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Link to="/" aria-label="Home" className="flex items-center gap-1 font-serif text-2xl tracking-tight">
-                                <span className="text-foreground font-medium">Co</span>
-                                <span className="text-primary font-bold">vivo</span>
+                            <Link to="/" aria-label="Home" className="flex items-center gap-2 font-serif text-2xl tracking-tight">
+                                <img src="/logo.png" alt="Covivo Logo" className="h-8 w-auto object-contain" />
                             </Link>
                             <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary sm:inline-flex">
                                 Beta

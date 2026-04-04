@@ -30,10 +30,9 @@ export default function Login() {
         <div className="pointer-events-none absolute bottom-6 right-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
 
         <div className="relative z-10">
-          <h1 className="flex items-center gap-1 font-serif text-5xl tracking-tight text-foreground">
-            <span className="font-medium">Co</span>
-            <span className="font-bold text-primary">vivo</span>
-          </h1>
+          <div className="flex items-center gap-2 font-serif text-5xl tracking-tight text-foreground">
+            <img src="/logo.png" alt="Covivo Logo" className="h-16 w-auto object-contain" />
+          </div>
           <p className="mt-2 font-sans text-sm tracking-wide text-muted-foreground uppercase">
             {BRANDING.slogan}
           </p>
