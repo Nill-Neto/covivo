@@ -241,11 +241,18 @@ export default function Dashboard() {
     }, {} as Record<string, any[]>);
 
     return Object.entries(grouped)
-      .map(([competence, items]: [string, any[]]) => ({
-        competence,
-        items,
-        total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
-      }))
+      .map(([competence, items]: [string, any[]]) => {
+        const sortedItems = [...items].sort((a: any, b: any) => {
+           const dateA = a.expenses?.purchase_date || "";
+           const dateB = b.expenses?.purchase_date || "";
+           return dateB.localeCompare(dateA);
+        });
+        return {
+          competence,
+          items: sortedItems,
+          total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
+        };
+      })
       .sort((a, b) => {
         const [monthA, yearA] = a.competence.split("/").map(Number);
         const [monthB, yearB] = b.competence.split("/").map(Number);

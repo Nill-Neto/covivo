@@ -76,7 +76,14 @@ export function PaymentDialogs({
     return acc;
   }, {});
 
-  const groupedPreviousEntries = Object.entries(groupedPreviousPending).sort(([a], [b]) => {
+  const groupedPreviousEntries = Object.entries(groupedPreviousPending).map(([competence, items]) => {
+    const sortedItems = [...items].sort((a: any, b: any) => {
+      const dateA = a.expenses?.purchase_date || "";
+      const dateB = b.expenses?.purchase_date || "";
+      return dateB.localeCompare(dateA);
+    });
+    return [competence, sortedItems] as const;
+  }).sort(([a], [b]) => {
     if (a === "Sem competência") return 1;
     if (b === "Sem competência") return -1;
     const [monthA, yearA] = a.split("/").map(Number);
@@ -126,7 +133,11 @@ export function PaymentDialogs({
                           ))}
                         </div>
                       ))
-                    : selectedScopeData.items.map((s) => (
+                    : [...selectedScopeData.items].sort((a: any, b: any) => {
+                        const dateA = a.expenses?.purchase_date || "";
+                        const dateB = b.expenses?.purchase_date || "";
+                        return dateB.localeCompare(dateA);
+                      }).map((s) => (
                         <div key={s.id} className="flex justify-between text-sm px-4 py-2.5">
                           <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
                           <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
