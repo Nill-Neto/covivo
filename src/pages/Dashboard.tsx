@@ -221,7 +221,10 @@ export default function Dashboard() {
     return myBulkPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   }, [myBulkPayments]);
 
-  const collectivePendingCurrent = collectivePending.filter((s: any) => s.competenceKey === currentCompetenceKey);
+  const collectivePendingCurrent = collectivePending
+    .filter((s: any) => s.competenceKey === currentCompetenceKey)
+    .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
+    
   const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
   const rawTotalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const rawTotalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
@@ -243,7 +246,7 @@ export default function Dashboard() {
     return Object.entries(grouped)
       .map(([competence, items]: [string, any[]]) => ({
         competence,
-        items,
+        items: items.sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || "")),
         total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
       }))
       .sort((a, b) => {
@@ -274,7 +277,9 @@ export default function Dashboard() {
     expenses: i.expenses // { title, category, purchase_date }
   }));
 
-  const individualPending = [...manualIndividualPending, ...installmentIndividualPending];
+  const individualPending = [...manualIndividualPending, ...installmentIndividualPending]
+    .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
+    
   const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
 
   const totalUserExpenses = myCollectiveShare + totalIndividualPending;

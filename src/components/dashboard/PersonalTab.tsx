@@ -66,7 +66,9 @@ export function PersonalTab({
   const [isCurrentCollectiveOpen, setIsCurrentCollectiveOpen] = useState(false);
   const [isCashDetailOpen, setIsCashDetailOpen] = useState(false);
 
-  const cashExpenses = myPersonalExpenses.filter((e: any) => e.payment_method !== 'credit_card');
+  const cashExpenses = myPersonalExpenses
+    .filter((e: any) => e.payment_method !== 'credit_card')
+    .sort((a: any, b: any) => (b.purchase_date || "").localeCompare(a.purchase_date || ""));
   const totalPersonalExpensesSum = myPersonalExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
   return (
