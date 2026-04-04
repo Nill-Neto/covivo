@@ -81,20 +81,7 @@ export const Logo = () => {
       to="/"
       className="relative z-20 flex items-center space-x-1 py-1 font-serif text-xl tracking-tight text-black dark:text-white"
     >
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="whitespace-pre font-medium"
-      >
-        Co
-      </motion.span>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="whitespace-pre font-bold text-primary"
-      >
-        vivo
-      </motion.span>
+      <img src="/logo.png" alt="Covivo Logo" className="h-6 w-auto object-contain" />
     </Link>
   );
 };
