@@ -136,11 +136,11 @@ export function PageHero({
 
           {actions ? (
             isCompact ? (
-              <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end mt-2 lg:mt-0">
+              <div className="flex w-full flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 lg:w-auto lg:justify-end mt-2 lg:mt-0 [&>*]:w-full sm:[&>*]:w-auto">
                 {actions}
               </div>
             ) : (
-              <AnimatedGroup preset="blur-slide" className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end mt-3 lg:mt-0">
+              <AnimatedGroup preset="blur-slide" className="flex w-full flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 lg:w-auto lg:justify-end mt-3 lg:mt-0 [&>*]:w-full sm:[&>*]:w-auto">
                 {actions}
               </AnimatedGroup>
             )
