@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { AnimatedGroup } from "@/components/ui/animated-group";
 import { TextEffect } from "@/components/ui/text-effect";
-import { APP_NAME } from "@/config/brand";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -123,20 +122,21 @@ export function DashboardHeader({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-3 lg:mt-0 lg:w-auto">
-            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card/80 p-1 shadow-sm sm:w-auto">
+          <div className="flex w-full flex-row items-center gap-2 sm:gap-3 mt-3 lg:mt-0 lg:w-auto">
+            <div className="flex h-10 flex-1 sm:flex-none sm:w-auto items-center justify-between rounded-lg border bg-card/80 p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onPrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+              <div className="flex-1 px-1 sm:px-2 text-center text-xs sm:text-sm font-medium capitalize truncate min-w-[80px] sm:min-w-[140px]">
+                <span className="sm:hidden">{format(currentDate, "MMM yy", { locale: ptBR })}</span>
+                <span className="hidden sm:inline">{format(currentDate, "MMMM yyyy", { locale: ptBR })}</span>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onNextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
 
-            <Button variant="outline" className="relative h-10 w-full gap-2 overflow-hidden sm:w-auto" asChild>
+            <Button variant="outline" className="relative h-10 shrink-0 gap-1.5 sm:gap-2 overflow-hidden" asChild>
               <Link to="/expenses">
                 <div
                   className={cn(
@@ -151,7 +151,9 @@ export function DashboardHeader({
                     transition={{ repeat: Number.POSITIVE_INFINITY, duration: 5, ease: "linear" }}
                   />
                 </div>
-                <Plus className="h-4 w-4" /> Nova Despesa
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Despesa</span>
+                <span className="sm:hidden">Nova</span>
               </Link>
             </Button>
           </div>
