@@ -174,7 +174,29 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
+  // Gastos à vista do ciclo atual
+  const currentCycleCashIndividualExpenses = expensesInCycle.filter(
+    (e) => e.created_by === user?.id && e.expense_type === "individual" && e.payment_method !== "credit_card"
+  );
+
+  // Parcelas de despesas individuais (sejam vinculadas ao grupo ou inteiramente pessoais) deste mês
+  const currentMonthIndividualInstallments = billInstallments
+    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .map((i: any) => ({
+      id: i.id, // Usa o ID da parcela para evitar colisão no React key
+      title: i.expenses?.title,
+      category: i.expenses?.category,
+      amount: i.amount,
+      purchase_date: i.expenses?.purchase_date,
+      payment_method: "credit_card",
+      expense_type: i.expenses?.expense_type,
+      created_by: user?.id,
+    }));
+
+  const myPersonalExpenses = [
+    ...currentCycleCashIndividualExpenses,
+    ...currentMonthIndividualInstallments,
+  ];
   
   const totalPersonalCash = myPersonalExpenses
     .filter(e => e.payment_method !== "credit_card")
@@ -270,7 +292,7 @@ export default function Dashboard() {
   );
 
   const installmentIndividualPending = billInstallments.filter((i: any) => 
-    i.expenses?.expense_type === "individual"
+    i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal"
   ).map((i: any) => ({
     id: i.id, // Installment ID
     amount: i.amount,
