@@ -502,16 +502,9 @@ export function PersonalTab({
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1.5 overflow-hidden">
-                            <span className="text-xs text-muted-foreground truncate">
-                              {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
-                            </span>
-                            {expense.installments > 1 && (
-                              <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 font-medium border-primary/30 text-primary shrink-0">
-                                {expense.installment_number ? `Parc. ${expense.installment_number}/${expense.installments}` : `${expense.installments}x`}
-                              </Badge>
-                            )}
-                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
+                          </p>
                         </div>
                       </div>
                       <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
@@ -616,16 +609,9 @@ export function PersonalTab({
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1.5 overflow-hidden">
-                            <span className="text-xs text-muted-foreground truncate">
-                              {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
-                            </span>
-                            {expense.installments > 1 && (
-                              <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 font-medium border-primary/30 text-primary shrink-0">
-                                {expense.installments}x
-                              </Badge>
-                            )}
-                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
+                          </p>
                         </div>
                       </div>
                       <span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">
