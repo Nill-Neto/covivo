@@ -113,15 +113,15 @@ export function PersonalTab({
             
             <div className="mt-3 flex flex-wrap gap-2">
               {totalCollectivePendingPrevious > 0 && (
-                <Button size="sm" variant="destructive" onClick={() => onPayRateio("previous")}>
+                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => onPayRateio("previous")}>
                   Pagar competências anteriores
                 </Button>
               )}
               {collectivePendingPreviousByCompetence.length > 0 && (
                 <Dialog open={isPreviousCollectiveOpen} onOpenChange={setIsPreviousCollectiveOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <List className="h-3.5 w-3.5 mr-1.5" /> Detalhamento
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({collectivePendingPreviousByCompetence.reduce((s, g) => s + g.items.length, 0)})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -157,12 +157,24 @@ export function PersonalTab({
                                 {group.items.map((item) => (
                                   <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2.5">
                                     <div className="min-w-0 pr-4">
-                                      <p className="text-sm font-medium truncate text-foreground">
-                                        {item.expenses?.title || "Despesa sem título"}
-                                      </p>
-                                      <Badge variant="outline" className="text-xs h-5 px-2 font-normal mt-1">
-                                        {getCategoryLabel(item.expenses?.category)}
-                                      </Badge>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium truncate text-foreground">
+                                          {item.expenses?.title || "Despesa sem título"}
+                                        </p>
+                                        {item.expenses?.installments > 1 && (
+                                          <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                            Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                          {getCategoryLabel(item.expenses?.category)}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                        </span>
+                                      </div>
                                     </div>
                                     <span className="text-sm font-semibold tabular-nums whitespace-nowrap text-foreground">
                                       R$ {Number(item.amount).toFixed(2)}
@@ -200,15 +212,15 @@ export function PersonalTab({
             
             <div className="mt-3 flex flex-wrap gap-2">
               {totalCollectivePendingCurrent > 0 && (
-                <Button size="sm" variant="default" onClick={() => onPayRateio("current")}>
+                <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => onPayRateio("current")}>
                   Pagar competência atual
                 </Button>
               )}
               {collectivePendingCurrent.length > 0 && (
                 <Dialog open={isCurrentCollectiveOpen} onOpenChange={setIsCurrentCollectiveOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <List className="h-3.5 w-3.5 mr-1.5" /> Ver itens ({collectivePendingCurrent.length})
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({collectivePendingCurrent.length})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -232,12 +244,24 @@ export function PersonalTab({
                           {collectivePendingCurrent.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
                               <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">
-                                  {item.expenses?.title || "Despesa sem título"}
-                                </p>
-                                <Badge variant="outline" className="text-xs h-5 px-2 font-normal mt-1">
-                                  {getCategoryLabel(item.expenses?.category)}
-                                </Badge>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium truncate text-foreground">
+                                    {item.expenses?.title || "Despesa sem título"}
+                                  </p>
+                                  {item.expenses?.installments > 1 && (
+                                    <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                      Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                    {getCategoryLabel(item.expenses?.category)}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                  </span>
+                                </div>
                               </div>
                               <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
                                 R$ {Number(item.amount).toFixed(2)}
@@ -270,11 +294,11 @@ export function PersonalTab({
             </div>
             
             {individualPending.length > 0 ? (
-              <div className="mt-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="mt-1 h-7 text-xs gap-1.5">
-                      <List className="h-3 w-3" /> Ver lista ({individualPending.length})
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({individualPending.length})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -298,9 +322,16 @@ export function PersonalTab({
                           {individualPending.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
                               <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">{item.expenses?.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs h-5 px-2 font-normal">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium truncate text-foreground">{item.expenses?.title}</p>
+                                  {item.expenses?.installments > 1 && (
+                                    <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                      Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
                                     {getCategoryLabel(item.expenses?.category)}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
@@ -343,56 +374,60 @@ export function PersonalTab({
             <div className="text-2xl font-bold">R$ {totalPersonalCash.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Dinheiro, Pix ou Débito.</p>
             {cashExpenses.length > 0 && (
-              <Dialog open={isCashDetailOpen} onOpenChange={setIsCashDetailOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="mt-2 h-7 text-xs gap-1.5">
-                    <List className="h-3 w-3" /> Ver itens ({cashExpenses.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
-                  <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
-                    <DialogTitle className="text-lg font-semibold text-foreground">
-                      Gastos à Vista
-                    </DialogTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Dinheiro, Pix e Débito</p>
-                  </DialogHeader>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Dialog open={isCashDetailOpen} onOpenChange={setIsCashDetailOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({cashExpenses.length})
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+                    <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+                      <DialogTitle className="text-lg font-semibold text-foreground">
+                        Gastos à Vista
+                      </DialogTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Dinheiro, Pix e Débito</p>
+                    </DialogHeader>
 
-                  <div className="mx-5 mb-4 rounded-lg bg-secondary/50 border border-border px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Total</span>
-                    <span className="text-lg font-bold text-foreground tabular-nums">
-                      R$ {totalPersonalCash.toFixed(2)}
-                    </span>
-                  </div>
+                    <div className="mx-5 mb-4 rounded-lg bg-secondary/50 border border-border px-4 py-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Total</span>
+                      <span className="text-lg font-bold text-foreground tabular-nums">
+                        R$ {totalPersonalCash.toFixed(2)}
+                      </span>
+                    </div>
 
-                  <div className="border-t">
-                    <div className="overflow-y-auto max-h-[50vh]">
-                      <div className="divide-y">
-                        {cashExpenses.map((e: any) => {
-                          const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
-                          return (
-                            <div key={e.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                              <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">{e.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs h-5 px-2 font-normal">
-                                    {getCategoryLabel(e.category)}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {e.purchase_date ? format(parseLocalDate(e.purchase_date), "dd/MM/yyyy") : ""} · {methodMap[e.payment_method] || e.payment_method}
-                                  </span>
+                    <div className="border-t">
+                      <div className="overflow-y-auto max-h-[50vh]">
+                        <div className="divide-y">
+                          {cashExpenses.map((e: any) => {
+                            const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
+                            return (
+                              <div key={e.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                                <div className="min-w-0 pr-4">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-medium truncate text-foreground">{e.title}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                      {getCategoryLabel(e.category)}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {e.purchase_date ? format(parseLocalDate(e.purchase_date), "dd/MM/yyyy") : ""} · {methodMap[e.payment_method] || e.payment_method}
+                                    </span>
+                                  </div>
                                 </div>
+                                <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
+                                  R$ {Number(e.amount).toFixed(2)}
+                                </span>
                               </div>
-                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
-                                R$ {Number(e.amount).toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </CardContent>
         </Card>
