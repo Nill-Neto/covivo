@@ -934,20 +934,20 @@ export default function Expenses() {
         tone="primary"
         icon={<Receipt className="h-4 w-4" />}
         actions={
-          <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
+          <div className="flex w-full flex-row items-center gap-2 sm:gap-3">
+            <div className="flex h-10 flex-1 min-w-0 items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
+              <div className="flex-1 px-1 sm:px-2 text-center text-xs sm:text-sm font-medium capitalize truncate sm:min-w-[140px]">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button className="h-10 w-full gap-2 sm:w-auto" onClick={() => { resetForm(); setOpen(true); }}>
-              <Plus className="h-4 w-4" /> Nova Despesa
+            <Button className="h-10 shrink-0 gap-1.5 sm:gap-2 px-3 sm:px-4 whitespace-nowrap" onClick={() => { resetForm(); setOpen(true); }}>
+              <Plus className="h-4 w-4" /> <span className="text-sm">Nova Despesa</span>
             </Button>
           </div>
         }
