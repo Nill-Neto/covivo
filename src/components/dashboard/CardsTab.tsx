@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2, Settings, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
 import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
 import { motion, AnimatePresence } from "framer-motion";
@@ -209,16 +210,35 @@ export function CardsTab({
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-primary text-primary-foreground md:col-span-1 shadow-lg shadow-primary/20 border-0">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary-foreground/80">Total em Faturas</CardTitle>
-            <Wallet className="h-4 w-4 text-primary-foreground/60" />
+        {/* Total em Faturas - DESTAQUE PREMIUM */}
+        <Card className="relative overflow-hidden border-0 md:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
+          {/* Premium Background Effects */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
+          
+          {/* Watermark Icon to fill empty space */}
+          <CreditCard className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
+
+          <CardHeader className="relative z-10 pb-0 pt-6 px-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs sm:text-sm font-bold text-white/90 uppercase tracking-widest drop-shadow-sm">
+                Total em Faturas
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-inner border border-white/20">
+                <CreditCard className="h-5 w-5 text-white" />
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight">R$ {totalBill.toFixed(2)}</div>
-            <p className="text-xs text-primary-foreground/60 mt-2 font-medium bg-primary-foreground/10 inline-block px-2 py-1 rounded">
-              {format(currentDate, "MMMM/yyyy")}
-            </p>
+          <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
+            <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
+              R$ {totalBill.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 capitalize">
+                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
