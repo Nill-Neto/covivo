@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [rateioScope, setRateioScope] = useState<RateioScope>("previous");
+  const [rateioCurrentAmount, setRateioCurrentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("home");
   const [heroCompact, setHeroCompact] = useState(false);
 
@@ -312,12 +313,27 @@ export default function Dashboard() {
     if (!receiptFile) return;
     setSaving(true);
     try {
+      const parsedCurrentAmount = Number(rateioCurrentAmount.replace(",", "."));
+      const amount = scope === "previous" ? totalCollectivePendingPrevious : parsedCurrentAmount;
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+        return;
+      }
+
+      if (scope === "current" && amount > totalCollectivePendingCurrent) {
+        toast({
+          title: "Valor acima do permitido",
+          description: `O valor para competência atual não pode exceder R$ ${totalCollectivePendingCurrent.toFixed(2)}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const ext = receiptFile.name.split(".").pop();
       const path = `${user!.id}/${Date.now()}_rateio.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
-
-      const amount = scope === "previous" ? totalCollectivePendingPrevious : totalCollectivePendingCurrent;
 
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
@@ -335,6 +351,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["my-bulk-payments-dashboard"] });
       setPayRateioOpen(false);
       setReceiptFile(null);
+      setRateioCurrentAmount("");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -441,7 +458,15 @@ export default function Dashboard() {
             collectiveExpenses={collectiveExpenses}
             republicChartData={republicChartData}
             totalMonthExpenses={totalMonthExpenses}
-            onPayRateio={(scope) => { setRateioScope(scope); setPayRateioOpen(true); }}
+            onPayRateio={(scope) => {
+              setRateioScope(scope);
+              if (scope === "current") {
+                setRateioCurrentAmount(totalCollectivePendingCurrent.toFixed(2));
+              } else {
+                setRateioCurrentAmount("");
+              }
+              setPayRateioOpen(true);
+            }}
           />
         </TabsContent>
 
@@ -477,6 +502,8 @@ export default function Dashboard() {
         saving={saving}
         receiptFile={receiptFile}
         setReceiptFile={setReceiptFile}
+        rateioCurrentAmount={rateioCurrentAmount}
+        setRateioCurrentAmount={setRateioCurrentAmount}
       />
     </Tabs>
   );

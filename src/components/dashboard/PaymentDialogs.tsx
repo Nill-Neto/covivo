@@ -37,6 +37,8 @@ interface PaymentDialogsProps {
   saving: boolean;
   receiptFile: File | null;
   setReceiptFile: (file: File | null) => void;
+  rateioCurrentAmount: string;
+  setRateioCurrentAmount: (value: string) => void;
 }
 
 export function PaymentDialogs({
@@ -55,6 +57,8 @@ export function PaymentDialogs({
   saving,
   receiptFile,
   setReceiptFile,
+  rateioCurrentAmount,
+  setRateioCurrentAmount,
 }: PaymentDialogsProps) {
   const selectedScopeData = collectivePendingByScope[rateioScope];
   const selectedScopeLabel = rateioScope === "previous"
@@ -108,11 +112,11 @@ export function PaymentDialogs({
           </div>
 
           {selectedScopeData.items.length > 0 && (
-            <div className="mx-5 mb-4 border rounded-lg overflow-hidden">
+            <div className="mx-5 mb-4 border rounded-lg overflow-hidden shrink-0">
               <div className="px-4 py-2.5 bg-muted/40 border-b">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
               </div>
-              <ScrollArea className="h-[160px]">
+              <ScrollArea className={rateioScope === "current" ? "h-[140px] min-h-[140px]" : "h-[160px] min-h-[160px]"}>
                 <div className="divide-y">
                   {rateioScope === "previous"
                     ? groupedPreviousEntries.map(([competence, items]) => (
@@ -138,13 +142,35 @@ export function PaymentDialogs({
           )}
 
           <div className="px-5 pb-5 space-y-4 shrink-0">
+            {rateioScope === "current" && (
+              <div className="space-y-2">
+                <Label htmlFor="current-rateio-amount" className="text-sm font-medium">Valor pago (R$) *</Label>
+                <Input
+                  id="current-rateio-amount"
+                  type="number"
+                  min={0.01}
+                  max={selectedScopeData.total}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={rateioCurrentAmount}
+                  onChange={(e) => setRateioCurrentAmount(e.target.value)}
+                  placeholder="0,00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe um valor entre R$ 0,01 e R$ {selectedScopeData.total.toFixed(2)}.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Comprovante *</Label>
               <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} className="cursor-pointer" />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setPayRateioOpen(false)}>Cancelar</Button>
-              <Button onClick={() => onPayRateio(rateioScope)} disabled={saving || !receiptFile}>
+              <Button
+                onClick={() => onPayRateio(rateioScope)}
+                disabled={saving || !receiptFile || (rateioScope === "current" && !rateioCurrentAmount)}
+              >
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Enviar Comprovante
               </Button>
             </DialogFooter>
