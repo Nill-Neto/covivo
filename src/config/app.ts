@@ -19,7 +19,7 @@ export const resolveAppPublicUrl = (
   }
 
   const fallbackUrl = options.fallbackUrl?.trim().replace(/\/$/, "") || DEFAULT_DEV_PUBLIC_URL;
-  const message = `[app-config] APP_PUBLIC_URL is not configured for mode \"${options.mode}\".`;
+  const message = `[app-config] APP_PUBLIC_URL is not configured for mode "${options.mode}".`;
 
   if (options.isDev) {
     console.warn(`${message} Falling back to ${fallbackUrl}.`);

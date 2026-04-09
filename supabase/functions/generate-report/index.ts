@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 import { encodeBase64 } from "https://deno.land/std@0.207.0/encoding/base64.ts";
@@ -141,7 +140,7 @@ Deno.serve(async (req) => {
     balances.forEach((b: any) => userIds.add(b.user_id));
     expenses.forEach((e: any) => userIds.add(e.created_by));
 
-    let nameMap: Record<string, string> = {};
+    const nameMap: Record<string, string> = {};
     if (userIds.size > 0) {
       const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", Array.from(userIds));
       (profiles ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
@@ -182,7 +181,7 @@ Deno.serve(async (req) => {
       const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
       let page = pdfDoc.addPage();
-      let { height } = page.getSize();
+      const { height } = page.getSize();
       let y = height - 50;
       const margin = 50;
 

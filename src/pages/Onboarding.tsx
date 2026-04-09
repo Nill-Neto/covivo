@@ -199,7 +199,7 @@ export default function Onboarding() {
         // 4. Insere despesas recorrentes
         if (validRecurring.length > 0) {
           const today = new Date();
-          let nextDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
+          const nextDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
           if (nextDue <= today) nextDue.setMonth(nextDue.getMonth() + 1);
 
           const { error: recErr } = await supabase.from("recurring_expenses").insert(

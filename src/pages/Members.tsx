@@ -202,7 +202,7 @@ export default function Members() {
 
       if (roleErr) throw roleErr;
 
-      const payload: any = {
+      const payload: { participates_in_splits: boolean; split_percentage?: number } = {
         participates_in_splits: editParticipatesInSplits,
       };
 

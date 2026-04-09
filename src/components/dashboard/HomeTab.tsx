@@ -113,7 +113,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           bucket.Coletivo += Number(e.amount || 0);
           
           // Separa a fatia do usuário
-          const mySplit = e.expense_splits?.find((s: any) => s.user_id === user?.id);
+          const mySplit = e.expense_splits?.find((s: { user_id: string; amount: number | string | null }) => s.user_id === user?.id);
           if (mySplit) {
             bucket.MeuRateio += Number(mySplit.amount || 0);
           }
