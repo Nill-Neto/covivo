@@ -955,13 +955,13 @@ export default function Expenses() {
 
       {/* Edit form dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); setOpen(v); }}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-lg p-0 gap-0 flex flex-col overflow-hidden max-h-[90vh]">
+            <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
               <DialogTitle className="font-serif">
                 {editingId ? (editingType === "recurring" ? "Editar Recorrência" : "Editar Despesa") : "Nova Despesa"}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {editingType === "expense" && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
@@ -1242,6 +1242,8 @@ export default function Expenses() {
                 </div>
               )}
 
+            </div>
+            <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
@@ -1261,11 +1263,11 @@ export default function Expenses() {
             }
           }}
         >
-          <DialogContent className="max-w-md">
-            <DialogHeader>
+          <DialogContent className="max-w-md p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+            <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
               <DialogTitle className="font-serif">Registrar pagamento</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 pt-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Despesa</Label>
                 <p className="text-sm font-medium">{quickPayExpense?.title}</p>
@@ -1300,6 +1302,8 @@ export default function Expenses() {
                 />
               </div>
 
+            </div>
+            <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button
                 onClick={handleQuickRegisterPayment}
                 disabled={registerPaymentMutation.isPending}

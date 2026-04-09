@@ -331,11 +331,11 @@ export default function Payments() {
                 <DialogTrigger asChild>
                   <Button className="h-10 w-full gap-2 sm:w-auto"><Plus className="h-4 w-4" /> Enviar Pagamento</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-                  <DialogHeader>
+                <DialogContent className="max-w-md p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+                  <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
                     <DialogTitle className="font-serif">Enviar Comprovante</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 pt-2">
+                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                     <div className="space-y-2">
                       <Label>Despesas ({selectedSplitIds.length})</Label>
                       <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
@@ -348,7 +348,7 @@ export default function Payments() {
                         <PopoverContent className="w-[350px] p-0" align="start">
                           <Command>
                             <CommandInput placeholder="Buscar despesa..." />
-                            <CommandList className="max-h-[200px] overflow-y-auto">
+                            <CommandList className="max-h-[30vh] overflow-y-auto">
                               <CommandEmpty>Nenhuma despesa pendente.</CommandEmpty>
                               <CommandGroup>
                                 {pendingSplits?.map((split: any) => (
@@ -391,6 +391,8 @@ export default function Payments() {
                       <Label>Observações (opcional)</Label>
                       <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: Pix enviado às 14h" />
                     </div>
+                  </div>
+                  <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
                     <Button onClick={handleSubmitPayment} disabled={saving} className="w-full">
                       {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                       Enviar Pagamento
@@ -461,11 +463,11 @@ export default function Payments() {
 
       {/* Modal de Gerenciamento de Pagamentos (Admin) */}
       <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+          <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
             <DialogTitle>Gerenciar Pagamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor (R$)</Label>
@@ -496,35 +498,34 @@ export default function Payments() {
               <Label>Observações</Label>
               <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
             </div>
-
-            <div className="flex justify-between pt-4 border-t">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir pagamento?</AlertDialogTitle>
-                    <AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => editingPayment && deletePayment.mutate(editingPayment.id)} className="bg-destructive text-destructive-foreground">
-                      Excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
-                <Button onClick={() => updatePayment.mutate({ amount: editAmount, notes: editNotes, status: editStatus, competence: editCompetence })} disabled={updatePayment.isPending}>
-                  {updatePayment.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Salvar
+          </div>
+          <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background flex justify-between items-center">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir pagamento?</AlertDialogTitle>
+                  <AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => editingPayment && deletePayment.mutate(editingPayment.id)} className="bg-destructive text-destructive-foreground">
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
+              <Button onClick={() => updatePayment.mutate({ amount: editAmount, notes: editNotes, status: editStatus, competence: editCompetence })} disabled={updatePayment.isPending}>
+                {updatePayment.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Salvar
+              </Button>
             </div>
           </div>
         </DialogContent>
