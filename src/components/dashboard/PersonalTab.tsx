@@ -75,17 +75,36 @@ export function PersonalTab({
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Total Comprometido (Mês) */}
-        <Card className="border-l-4 border-l-primary bg-card shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Comprometido</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <Wallet className="h-4 w-4 text-primary" />
+        {/* Total Comprometido (Mês) - DESTAQUE PREMIUM */}
+        <Card className="relative overflow-hidden border-0 sm:col-span-2 lg:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
+          {/* Premium Background Effects */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
+          
+          {/* Watermark Icon to fill empty space */}
+          <Wallet className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
+          
+          <CardHeader className="relative z-10 pb-0 pt-6 px-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs sm:text-sm font-bold text-white/90 uppercase tracking-widest drop-shadow-sm">
+                Total Comprometido
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-inner border border-white/20">
+                <Wallet className="h-5 w-5 text-white" />
+              </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">R$ {totalUserExpenses.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Meu Rateio + Gastos Pessoais.</p>
+          
+          <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
+            <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
+              R$ {totalUserExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                Meu Rateio + Gastos Pessoais
+              </span>
+            </div>
           </CardContent>
         </Card>
 
@@ -101,7 +120,7 @@ export function PersonalTab({
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-foreground"}`}>
-              R$ {totalCollectivePendingPrevious.toFixed(2)}
+              R$ {totalCollectivePendingPrevious.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             {totalCollectivePendingPrevious > 0 ? (
               <p className="text-xs text-muted-foreground mt-1">Apenas competências anteriores.</p>
@@ -113,15 +132,15 @@ export function PersonalTab({
             
             <div className="mt-3 flex flex-wrap gap-2">
               {totalCollectivePendingPrevious > 0 && (
-                <Button size="sm" variant="destructive" onClick={() => onPayRateio("previous")}>
+                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => onPayRateio("previous")}>
                   Pagar competências anteriores
                 </Button>
               )}
               {collectivePendingPreviousByCompetence.length > 0 && (
                 <Dialog open={isPreviousCollectiveOpen} onOpenChange={setIsPreviousCollectiveOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <List className="h-3.5 w-3.5 mr-1.5" /> Detalhamento
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({collectivePendingPreviousByCompetence.reduce((s, g) => s + g.items.length, 0)})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -157,12 +176,24 @@ export function PersonalTab({
                                 {group.items.map((item) => (
                                   <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2.5">
                                     <div className="min-w-0 pr-4">
-                                      <p className="text-sm font-medium truncate text-foreground">
-                                        {item.expenses?.title || "Despesa sem título"}
-                                      </p>
-                                      <Badge variant="outline" className="text-xs h-5 px-2 font-normal mt-1">
-                                        {getCategoryLabel(item.expenses?.category)}
-                                      </Badge>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium truncate text-foreground">
+                                          {item.expenses?.title || "Despesa sem título"}
+                                        </p>
+                                        {item.expenses?.installments > 1 && (
+                                          <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                            Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                          {getCategoryLabel(item.expenses?.category)}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                        </span>
+                                      </div>
                                     </div>
                                     <span className="text-sm font-semibold tabular-nums whitespace-nowrap text-foreground">
                                       R$ {Number(item.amount).toFixed(2)}
@@ -194,21 +225,21 @@ export function PersonalTab({
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalCollectivePendingCurrent > 0 ? "text-warning" : "text-foreground"}`}>
-              R$ {totalCollectivePendingCurrent.toFixed(2)}
+              R$ {totalCollectivePendingCurrent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Somente itens da competência vigente.</p>
             
             <div className="mt-3 flex flex-wrap gap-2">
               {totalCollectivePendingCurrent > 0 && (
-                <Button size="sm" variant="default" onClick={() => onPayRateio("current")}>
+                <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => onPayRateio("current")}>
                   Pagar competência atual
                 </Button>
               )}
               {collectivePendingCurrent.length > 0 && (
                 <Dialog open={isCurrentCollectiveOpen} onOpenChange={setIsCurrentCollectiveOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <List className="h-3.5 w-3.5 mr-1.5" /> Ver itens ({collectivePendingCurrent.length})
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({collectivePendingCurrent.length})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -232,12 +263,24 @@ export function PersonalTab({
                           {collectivePendingCurrent.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
                               <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">
-                                  {item.expenses?.title || "Despesa sem título"}
-                                </p>
-                                <Badge variant="outline" className="text-xs h-5 px-2 font-normal mt-1">
-                                  {getCategoryLabel(item.expenses?.category)}
-                                </Badge>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium truncate text-foreground">
+                                    {item.expenses?.title || "Despesa sem título"}
+                                  </p>
+                                  {item.expenses?.installments > 1 && (
+                                    <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                      Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                    {getCategoryLabel(item.expenses?.category)}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                  </span>
+                                </div>
                               </div>
                               <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
                                 R$ {Number(item.amount).toFixed(2)}
@@ -266,15 +309,15 @@ export function PersonalTab({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              R$ {totalIndividualPending.toFixed(2)}
+              R$ {totalIndividualPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             
             {individualPending.length > 0 ? (
-              <div className="mt-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="mt-1 h-7 text-xs gap-1.5">
-                      <List className="h-3 w-3" /> Ver lista ({individualPending.length})
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({individualPending.length})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -298,9 +341,16 @@ export function PersonalTab({
                           {individualPending.map((item) => (
                             <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
                               <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">{item.expenses?.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs h-5 px-2 font-normal">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium truncate text-foreground">{item.expenses?.title}</p>
+                                  {item.expenses?.installments > 1 && (
+                                    <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                      Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
                                     {getCategoryLabel(item.expenses?.category)}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
@@ -340,59 +390,65 @@ export function PersonalTab({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalPersonalCash.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              R$ {totalPersonalCash.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Dinheiro, Pix ou Débito.</p>
             {cashExpenses.length > 0 && (
-              <Dialog open={isCashDetailOpen} onOpenChange={setIsCashDetailOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="mt-2 h-7 text-xs gap-1.5">
-                    <List className="h-3 w-3" /> Ver itens ({cashExpenses.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
-                  <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
-                    <DialogTitle className="text-lg font-semibold text-foreground">
-                      Gastos à Vista
-                    </DialogTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Dinheiro, Pix e Débito</p>
-                  </DialogHeader>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Dialog open={isCashDetailOpen} onOpenChange={setIsCashDetailOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <List className="h-3 w-3" /> Ver itens ({cashExpenses.length})
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+                    <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+                      <DialogTitle className="text-lg font-semibold text-foreground">
+                        Gastos à Vista
+                      </DialogTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Dinheiro, Pix e Débito</p>
+                    </DialogHeader>
 
-                  <div className="mx-5 mb-4 rounded-lg bg-secondary/50 border border-border px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Total</span>
-                    <span className="text-lg font-bold text-foreground tabular-nums">
-                      R$ {totalPersonalCash.toFixed(2)}
-                    </span>
-                  </div>
+                    <div className="mx-5 mb-4 rounded-lg bg-secondary/50 border border-border px-4 py-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Total</span>
+                      <span className="text-lg font-bold text-foreground tabular-nums">
+                        R$ {totalPersonalCash.toFixed(2)}
+                      </span>
+                    </div>
 
-                  <div className="border-t">
-                    <div className="overflow-y-auto max-h-[50vh]">
-                      <div className="divide-y">
-                        {cashExpenses.map((e: any) => {
-                          const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
-                          return (
-                            <div key={e.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                              <div className="min-w-0 pr-4">
-                                <p className="text-sm font-medium truncate text-foreground">{e.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs h-5 px-2 font-normal">
-                                    {getCategoryLabel(e.category)}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {e.purchase_date ? format(parseLocalDate(e.purchase_date), "dd/MM/yyyy") : ""} · {methodMap[e.payment_method] || e.payment_method}
-                                  </span>
+                    <div className="border-t">
+                      <div className="overflow-y-auto max-h-[50vh]">
+                        <div className="divide-y">
+                          {cashExpenses.map((e: any) => {
+                            const methodMap: Record<string, string> = { cash: "Dinheiro", pix: "Pix", debit: "Débito" };
+                            return (
+                              <div key={e.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                                <div className="min-w-0 pr-4">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-medium truncate text-foreground">{e.title}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                      {getCategoryLabel(e.category)}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {e.purchase_date ? format(parseLocalDate(e.purchase_date), "dd/MM/yyyy") : ""} · {methodMap[e.payment_method] || e.payment_method}
+                                    </span>
+                                  </div>
                                 </div>
+                                <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
+                                  R$ {Number(e.amount).toFixed(2)}
+                                </span>
                               </div>
-                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
-                                R$ {Number(e.amount).toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -406,7 +462,9 @@ export function PersonalTab({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">R$ {totalSpentCompetence.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-foreground">
+              R$ {totalSpentCompetence.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Comprometido + À Vista.</p>
           </CardContent>
         </Card>
@@ -501,9 +559,16 @@ export function PersonalTab({
                           <Receipt className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
-                          <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM")}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
+                            {expense.installments > 1 && (
+                              <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                Parc. {expense.installment_number || 1}/{expense.installments}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
                           </p>
                         </div>
                       </div>
@@ -598,16 +663,26 @@ export function PersonalTab({
                 {collectiveExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa coletiva registrada.</p>
                 ) : (
-                  collectiveExpenses.slice(0, 10).map(expense => (
+                  [...collectiveExpenses]
+                    .sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime())
+                    .slice(0, 10)
+                    .map(expense => (
                     <div key={expense.id} className="flex items-center justify-between py-2.5 px-3 group hover:bg-muted/50 rounded-md transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
                           <Receipt className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
-                          <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM")}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium leading-none truncate max-w-[120px] sm:max-w-[200px]">{expense.title}</p>
+                            {expense.installments > 1 && (
+                              <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                Parc. 1/{expense.installments}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
                           </p>
                         </div>
                       </div>

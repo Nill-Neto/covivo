@@ -77,7 +77,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -175,7 +175,31 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  const myPersonalExpenses = expensesInCycle.filter(e => e.created_by === user?.id && e.expense_type === "individual");
+  // Gastos à vista do ciclo atual
+  const currentCycleCashIndividualExpenses = expensesInCycle.filter(
+    (e) => e.created_by === user?.id && e.expense_type === "individual" && e.payment_method !== "credit_card"
+  );
+
+  // Parcelas de despesas individuais (sejam vinculadas ao grupo ou inteiramente pessoais) deste mês
+  const currentMonthIndividualInstallments = billInstallments
+    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .map((i: any) => ({
+      id: i.id, // Usa o ID da parcela para evitar colisão no React key
+      title: i.expenses?.title,
+      category: i.expenses?.category,
+      amount: i.amount,
+      purchase_date: i.expenses?.purchase_date,
+      payment_method: "credit_card",
+      expense_type: i.expenses?.expense_type,
+      created_by: user?.id,
+      installment_number: i.installment_number,
+      installments: i.expenses?.installments || 1,
+    }));
+
+  const myPersonalExpenses = [
+    ...currentCycleCashIndividualExpenses,
+    ...currentMonthIndividualInstallments,
+  ];
   
   const totalPersonalCash = myPersonalExpenses
     .filter(e => e.payment_method !== "credit_card")
@@ -264,18 +288,27 @@ export default function Dashboard() {
   }, [collectivePendingPrevious]);
 
   // 2. Individual Pending (Manual + Installments)
-  const manualIndividualPending = pendingSplits.filter((s: any) => 
-    s.expenses?.expense_type === "individual" && 
-    s.expenses?.payment_method !== "credit_card" &&
-    !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed')
-  );
+  const dbStart = format(cycleStart, "yyyy-MM-dd");
+  const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+
+  const manualIndividualPending = pendingSplits.filter((s: any) => {
+    const isIndividual = s.expenses?.expense_type === "individual";
+    const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
+    const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
+    
+    const pd = s.expenses?.purchase_date;
+    const isInCycle = pd ? (pd >= dbStart && pd < dbEnd) : false;
+
+    return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
+  });
 
   const installmentIndividualPending = billInstallments.filter((i: any) => 
-    i.expenses?.expense_type === "individual"
+    i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal"
   ).map((i: any) => ({
     id: i.id, // Installment ID
     amount: i.amount,
-    expenses: i.expenses // { title, category, purchase_date }
+    installment_number: i.installment_number,
+    expenses: i.expenses // { title, category, purchase_date, installments }
   }));
 
   const individualPending = [...manualIndividualPending, ...installmentIndividualPending]
@@ -318,6 +351,15 @@ export default function Dashboard() {
 
       if (!Number.isFinite(amount) || amount <= 0) {
         toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+        return;
+      }
+
+      if (scope === "current" && amount > totalCollectivePendingCurrent) {
+        toast({
+          title: "Valor acima do permitido",
+          description: `O valor para competência atual não pode exceder R$ ${totalCollectivePendingCurrent.toFixed(2)}.`,
+          variant: "destructive",
+        });
         return;
       }
 
