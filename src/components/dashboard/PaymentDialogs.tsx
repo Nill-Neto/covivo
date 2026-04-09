@@ -92,7 +92,7 @@ export function PaymentDialogs({
     <>
       {/* Rateio Payment Dialog */}
       <Dialog open={payRateioOpen} onOpenChange={setPayRateioOpen}>
-        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-y-auto max-h-[85vh]">
           <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
             <DialogTitle className="text-lg font-semibold text-foreground">
               {selectedScopeLabel}
@@ -112,11 +112,11 @@ export function PaymentDialogs({
           </div>
 
           {selectedScopeData.items.length > 0 && (
-            <div className="mx-5 mb-4 border rounded-lg overflow-hidden shrink-0">
+            <div className="mx-5 mb-4 border rounded-lg overflow-hidden">
               <div className="px-4 py-2.5 bg-muted/40 border-b">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
               </div>
-              <ScrollArea className={rateioScope === "current" ? "h-[140px] min-h-[140px]" : "h-[160px] min-h-[160px]"}>
+              <div className={rateioScope === "current" ? "max-h-[140px] overflow-y-auto" : "max-h-[160px] overflow-y-auto"}>
                 <div className="divide-y">
                   {rateioScope === "previous"
                     ? groupedPreviousEntries.map(([competence, items]) => (
@@ -137,7 +137,7 @@ export function PaymentDialogs({
                         </div>
                       ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
 
@@ -149,7 +149,6 @@ export function PaymentDialogs({
                   id="current-rateio-amount"
                   type="number"
                   min={0.01}
-                  max={selectedScopeData.total}
                   step="0.01"
                   inputMode="decimal"
                   value={rateioCurrentAmount}
@@ -157,7 +156,7 @@ export function PaymentDialogs({
                   placeholder="0,00"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Informe um valor entre R$ 0,01 e R$ {selectedScopeData.total.toFixed(2)}.
+                  Você pode informar qualquer valor acima de zero. Se pagar a mais, o excedente vira crédito.
                 </p>
               </div>
             )}

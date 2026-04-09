@@ -354,15 +354,6 @@ export default function Dashboard() {
         return;
       }
 
-      if (scope === "current" && amount > totalCollectivePendingCurrent) {
-        toast({
-          title: "Valor acima do permitido",
-          description: `O valor para competência atual não pode exceder R$ ${totalCollectivePendingCurrent.toFixed(2)}.`,
-          variant: "destructive",
-        });
-        return;
-      }
-
       const ext = receiptFile.name.split(".").pop();
       const path = `${user!.id}/${Date.now()}_rateio.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
