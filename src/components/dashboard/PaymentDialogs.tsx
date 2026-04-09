@@ -104,42 +104,44 @@ export function PaymentDialogs({
             </p>
           </DialogHeader>
 
-          <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 text-center">
-            <p className="text-sm text-muted-foreground">Valor total</p>
-            <p className="text-2xl font-bold text-primary mt-0.5 tabular-nums">
-              R$ {selectedScopeData.total.toFixed(2)}
-            </p>
-          </div>
-
-          {selectedScopeData.items.length > 0 && (
-            <div className="mx-5 mb-4 border rounded-lg overflow-hidden">
-              <div className="px-4 py-2.5 bg-muted/40 border-b">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
-              </div>
-              <div className={rateioScope === "current" ? "max-h-[140px] overflow-y-auto" : "max-h-[160px] overflow-y-auto"}>
-                <div className="divide-y">
-                  {rateioScope === "previous"
-                    ? groupedPreviousEntries.map(([competence, items]) => (
-                        <div key={competence} className="px-4 py-2.5 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground">{competence}</p>
-                          {items.map((s) => (
-                            <div key={s.id} className="flex justify-between text-sm py-0.5">
-                              <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
-                              <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ))
-                    : selectedScopeData.items.map((s) => (
-                        <div key={s.id} className="px-4 py-2.5 flex justify-between text-sm">
-                          <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
-                          <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
-                        </div>
-                      ))}
-                </div>
-              </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 text-center">
+              <p className="text-sm text-muted-foreground">Valor total</p>
+              <p className="text-2xl font-bold text-primary mt-0.5 tabular-nums">
+                R$ {selectedScopeData.total.toFixed(2)}
+              </p>
             </div>
-          )}
+
+            {selectedScopeData.items.length > 0 && (
+              <div className="mx-5 mb-4 border rounded-lg overflow-hidden shrink-0">
+                <div className="px-4 py-2.5 bg-muted/40 border-b">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
+                </div>
+                <ScrollArea className={rateioScope === "current" ? "max-h-[140px]" : "max-h-[160px]"}>
+                  <div className="divide-y">
+                    {rateioScope === "previous"
+                      ? groupedPreviousEntries.map(([competence, items]) => (
+                          <div key={competence} className="px-4 py-2.5 space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground">{competence}</p>
+                            {items.map((s) => (
+                              <div key={s.id} className="flex justify-between text-sm py-0.5">
+                                <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                                <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ))
+                      : selectedScopeData.items.map((s) => (
+                          <div key={s.id} className="px-4 py-2.5 flex justify-between text-sm">
+                            <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                            <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
+                          </div>
+                        ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
 
           <div className="px-5 pb-5 space-y-4 shrink-0">
             {rateioScope === "current" && (

@@ -331,12 +331,11 @@ export default function Payments() {
                 <DialogTrigger asChild>
                   <Button className="h-10 w-full gap-2 sm:w-auto"><Plus className="h-4 w-4" /> Enviar Pagamento</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md p-0 overflow-hidden">
-                  <div className="max-h-[85vh] overflow-y-auto p-6">
-                    <DialogHeader>
-                      <DialogTitle className="font-serif">Enviar Comprovante</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-2">
+                <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="font-serif">Enviar Comprovante</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
                     <div className="space-y-2">
                       <Label>Despesas ({selectedSplitIds.length})</Label>
                       <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
