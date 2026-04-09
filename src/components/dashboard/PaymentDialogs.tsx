@@ -112,11 +112,11 @@ export function PaymentDialogs({
           </div>
 
           {selectedScopeData.items.length > 0 && (
-            <div className="mx-5 mb-4 border rounded-lg overflow-hidden">
+            <div className="mx-5 mb-4 border rounded-lg overflow-hidden shrink-0">
               <div className="px-4 py-2.5 bg-muted/40 border-b">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
               </div>
-              <ScrollArea className="h-[160px]">
+              <ScrollArea className={rateioScope === "current" ? "h-[140px] min-h-[140px]" : "h-[160px] min-h-[160px]"}>
                 <div className="divide-y">
                   {rateioScope === "previous"
                     ? groupedPreviousEntries.map(([competence, items]) => (
