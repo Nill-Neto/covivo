@@ -120,7 +120,7 @@ export default function RecurringExpenses() {
       } else {
         // Calculate next due date only for new items
         const now = new Date();
-        let nextDue = new Date(now.getFullYear(), now.getMonth(), day);
+        const nextDue = new Date(now.getFullYear(), now.getMonth(), day);
         if (nextDue <= now) {
           nextDue.setMonth(nextDue.getMonth() + 1);
         }
