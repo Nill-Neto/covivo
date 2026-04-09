@@ -935,7 +935,7 @@ export default function Expenses() {
         icon={<Receipt className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
+            <div className="flex h-10 w-full sm:w-auto items-center justify-between rounded-lg border bg-card p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -946,7 +946,7 @@ export default function Expenses() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button className="h-10 w-full gap-2 sm:w-auto" onClick={() => { resetForm(); setOpen(true); }}>
+            <Button className="h-10 w-full sm:w-auto gap-2" onClick={() => { resetForm(); setOpen(true); }}>
               <Plus className="h-4 w-4" /> Nova Despesa
             </Button>
           </div>

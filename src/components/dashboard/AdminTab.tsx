@@ -464,7 +464,7 @@ export function AdminTab({
                           <div className="min-w-0">
                             <p className="text-sm font-medium leading-none truncate max-w-[120px]">{expense.title}</p>
                             <p className="text-xs text-muted-foreground mt-1 truncate">
-                              {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM")}
+                              {getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}
                             </p>
                           </div>
                         </div>
