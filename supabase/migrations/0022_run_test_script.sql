@@ -1,0 +1,1 @@
+-- we can't run node scripts with execute_sql tool, wait.

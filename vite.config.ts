@@ -39,6 +39,12 @@ try {
       const stat = fs.statSync(fullPath);
       const dim = getPngDimensions(fullPath);
 
+      // Specific override for the user's latest uploaded file
+      if (file === 'a5d088272e57908568998ab7e049a992.png') {
+        latestLogoFile = file;
+        break;
+      }
+
       if (!isFavicon(dim)) {
         if (stat.mtimeMs > latestTime) {
           latestTime = stat.mtimeMs;
