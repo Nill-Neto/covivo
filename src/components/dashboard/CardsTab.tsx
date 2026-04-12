@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Loader2, Settings, Trash2 } from "lucide-react";
+import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Settings, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -329,7 +330,7 @@ export function CardsTab({
         {isLoading ? (
           <Card className="border-dashed bg-muted/20">
             <CardContent className="py-10 flex flex-col items-center justify-center text-center">
-              <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mb-3" />
+              <CustomLoader className="h-6 w-6 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Carregando cartões...</p>
             </CardContent>
           </Card>
@@ -579,7 +580,7 @@ export function CardsTab({
               />
 
               <Button type="submit" className="w-full" disabled={createCard.isPending || !user}>
-                {createCard.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {createCard.isPending && <CustomLoader className="mr-2 h-4 w-4" />}
                 Salvar cartão
               </Button>
             </form>
@@ -653,7 +654,7 @@ export function CardsTab({
                 <FormField control={form.control} name="due_day" render={({ field }) => (<FormItem><FormLabel>Dia de vencimento</FormLabel><FormControl><Input type="number" min={1} max={31} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <FormField control={form.control} name="limit_amount" render={({ field }) => (<FormItem><FormLabel>Limite (opcional)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="R$" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <Button type="submit" className="w-full" disabled={updateCard.isPending}>{updateCard.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button>
+              <Button type="submit" className="w-full" disabled={updateCard.isPending}>{updateCard.isPending && <CustomLoader className="mr-2 h-4 w-4" />}Salvar alterações</Button>
             </form>
           </Form>
         </DialogContent>

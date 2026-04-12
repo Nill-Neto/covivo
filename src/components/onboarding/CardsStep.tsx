@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, CreditCard, Plus, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, CreditCard, Plus, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { OnboardingShell } from "./OnboardingShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -159,7 +160,7 @@ export function CardsStep({ totalSteps, saving, onBack, onFinish }: CardsStepPro
             <div className="flex gap-2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button type="submit" size="sm" disabled={addingCard}>
-                {addingCard && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}Salvar
+                {addingCard && <CustomLoader className="h-3.5 w-3.5 mr-1" />}Salvar
               </Button>
             </div>
           </form>
@@ -175,7 +176,7 @@ export function CardsStep({ totalSteps, saving, onBack, onFinish }: CardsStepPro
           <ChevronLeft className="h-4 w-4" /> Voltar
         </Button>
         <Button onClick={onFinish} disabled={saving} className="flex-1">
-          {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+          {saving && <CustomLoader className="h-4 w-4 mr-1" />}
           Concluir Cadastro
         </Button>
       </div>

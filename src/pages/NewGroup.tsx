@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { PageHero } from "@/components/layout/PageHero";
 import type { GroupAddress } from "@/components/onboarding/GroupSettingsStep";
 
@@ -155,7 +156,7 @@ export default function NewGroup() {
                   onChange={(e) => handleCepChange(e.target.value)}
                   maxLength={9}
                 />
-                {fetchingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                {fetchingCep && <CustomLoader className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />}
               </div>
               <Input placeholder="Rua / Logradouro" value={address.street} onChange={(e) => updateAddress("street", e.target.value)} />
               <div className="grid grid-cols-2 gap-2">
@@ -216,7 +217,7 @@ export default function NewGroup() {
               <ChevronLeft className="h-4 w-4" /> Voltar
             </Button>
             <Button onClick={handleCreate} disabled={saving} className="flex-1">
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {saving && <CustomLoader className="h-4 w-4 mr-2" />}
               Criar Grupo
             </Button>
           </div>

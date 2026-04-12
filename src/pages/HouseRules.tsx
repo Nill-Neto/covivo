@@ -19,7 +19,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, BookOpen } from "lucide-react";
+import { Plus, Trash2, BookOpen } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
@@ -87,7 +88,7 @@ export default function HouseRules() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex justify-center py-12"><CustomLoader className="h-6 w-6 text-primary" /></div>;
   }
 
   return (
@@ -108,7 +109,7 @@ export default function HouseRules() {
                 <Input placeholder="Título da regra" value={title} onChange={(e) => setTitle(e.target.value)} />
                 <Textarea placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
                 <Button onClick={() => createRule.mutate()} disabled={!title.trim() || createRule.isPending} className="w-full">
-                  {createRule.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {createRule.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                   Adicionar
                 </Button>
               </div>

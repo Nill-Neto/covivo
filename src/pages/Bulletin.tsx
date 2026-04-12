@@ -20,7 +20,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pin, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Pin, Trash2, MessageSquare } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageHero } from "@/components/layout/PageHero";
@@ -110,7 +111,7 @@ export default function Bulletin() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex justify-center py-12"><CustomLoader className="h-6 w-6 text-primary" /></div>;
   }
 
   return (
@@ -131,7 +132,7 @@ export default function Bulletin() {
               <Input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
               <Textarea placeholder="Conteúdo do aviso..." value={content} onChange={(e) => setContent(e.target.value)} rows={4} />
               <Button onClick={() => createPost.mutate()} disabled={!title.trim() || !content.trim() || createPost.isPending} className="w-full">
-                {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {createPost.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                 Publicar
               </Button>
             </div>

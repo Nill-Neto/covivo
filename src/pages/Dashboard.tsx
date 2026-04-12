@@ -259,8 +259,15 @@ export default function Dashboard() {
   const bulkRemainder = totalBulkPayments - bulkAppliedToPrevious;
   const totalCollectivePendingPrevious = Math.max(0, rawTotalCollectivePendingPrevious - bulkAppliedToPrevious);
   const totalCollectivePendingCurrent = Math.max(0, rawTotalCollectivePendingCurrent - bulkRemainder);
+  
+  // Remove os itens se o total for zero (já pago por pagamento em lote)
+  const displayCollectivePendingPrevious = totalCollectivePendingPrevious > 0.01 ? collectivePendingPrevious : [];
+  const displayCollectivePendingCurrent = totalCollectivePendingCurrent > 0.01 ? collectivePendingCurrent : [];
+
   const collectivePendingPreviousByCompetence = useMemo(() => {
-    const grouped = collectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
+    if (totalCollectivePendingPrevious <= 0.01) return [];
+
+    const grouped = displayCollectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
       const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
       const competence = purchaseDate ? format(purchaseDate, "MM/yyyy") : "Sem competência";
       if (!acc[competence]) acc[competence] = [];
@@ -285,7 +292,7 @@ export default function Dashboard() {
         const dateB = new Date(yearB, monthB - 1, 1).getTime();
         return dateB - dateA;
       });
-  }, [collectivePendingPrevious]);
+  }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
 
   // 2. Individual Pending (Manual + Installments)
   const dbStart = format(cycleStart, "yyyy-MM-dd");
@@ -471,7 +478,7 @@ export default function Dashboard() {
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
             collectivePendingPreviousByCompetence={collectivePendingPreviousByCompetence}
-            collectivePendingCurrent={collectivePendingCurrent}
+            collectivePendingCurrent={displayCollectivePendingCurrent}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
@@ -515,8 +522,8 @@ export default function Dashboard() {
         selectedIndividualSplit={selectedIndividualSplit}
         setSelectedIndividualSplit={setSelectedIndividualSplit}
         collectivePendingByScope={{
-          previous: { total: totalCollectivePendingPrevious, items: collectivePendingPrevious },
-          current: { total: totalCollectivePendingCurrent, items: collectivePendingCurrent },
+          previous: { total: totalCollectivePendingPrevious, items: displayCollectivePendingPrevious },
+          current: { total: totalCollectivePendingCurrent, items: displayCollectivePendingCurrent },
         }}
         rateioScope={rateioScope}
         individualPending={individualPending}

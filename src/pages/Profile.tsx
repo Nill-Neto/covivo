@@ -10,7 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, Shield, FileText, FileSpreadsheet, Loader2, Download } from "lucide-react";
+import { User, Mail, Phone, Shield, FileText, FileSpreadsheet, Download } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
@@ -201,23 +202,23 @@ export default function Profile() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-          <Button 
-            variant="outline" 
-            onClick={() => generateReport('pdf')} 
+          <Button
+            variant="outline"
+            onClick={() => generateReport('pdf')}
             disabled={generatingPdf || generatingCsv}
             className="flex-1"
           >
-            {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4 text-red-600" />}
+            {generatingPdf ? <CustomLoader className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4 text-red-600" />}
             {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </Button>
           
-          <Button 
-            variant="outline" 
-            onClick={() => generateReport('csv')} 
+          <Button
+            variant="outline"
+            onClick={() => generateReport('csv')}
             disabled={generatingPdf || generatingCsv}
             className="flex-1"
           >
-            {generatingCsv ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />}
+            {generatingCsv ? <CustomLoader className="mr-2 h-4 w-4" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />}
             {generatingCsv ? "Gerando CSV..." : "Baixar CSV"}
           </Button>
           </div>

@@ -14,6 +14,8 @@ import Login from "./pages/Login";
 import { ROUTE_ALIASES } from "@/config/branding";
 import { resolveCanonicalDomainRedirect } from "@/config/app";
 
+import { CustomLoader } from "@/components/ui/custom-loader";
+
 const Index = lazy(() => import("./pages/Index"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
@@ -58,7 +60,7 @@ const AppShell = () => {
         <Suspense
           fallback={
             <div className="flex min-h-screen items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <CustomLoader className="h-8 w-8 text-primary" />
             </div>
           }
         >
