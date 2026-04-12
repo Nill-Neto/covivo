@@ -394,6 +394,19 @@ export default function Payments() {
     }
   };
 
+  const handleReceiptInputChange = (file: File | null) => {
+    setReceiptFile(file);
+    setReceiptMetadata(
+      file
+        ? {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          }
+        : null
+    );
+  };
+
   const handleSubmitPayment = async () => {
     if (selectedSplitIds.length === 0 || !amount || parseFloat(amount) <= 0) {
       toast({ title: "Erro", description: "Selecione pelo menos uma despesa.", variant: "destructive" });
@@ -594,24 +607,30 @@ export default function Payments() {
                     </div>
                     <div className="space-y-2">
                       <Label>Comprovante *</Label>
-                      <Input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
-                          setReceiptFile(file);
-                          setReceiptMetadata(
-                            file
-                              ? {
-                                  name: file.name,
-                                  size: file.size,
-                                  type: file.type,
-                                }
-                              : null
-                          );
-                        }}
-                      />
+                      {isNativeRuntime ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button type="button" variant="outline" onClick={() => pickReceiptNative("camera")}>
+                            Tirar foto
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => pickReceiptNative("photos")}>
+                            Galeria/Arquivos
+                          </Button>
+                        </div>
+                      ) : (
+                        <Input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*,.pdf"
+                          capture={isMobile ? "environment" : undefined}
+                          onChange={(e) => handleReceiptInputChange(e.target.files?.[0] ?? null)}
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">Foto ou PDF do comprovante de pagamento</p>
+                      {!!receiptFile && (
+                        <p className="text-xs text-muted-foreground">
+                          Arquivo selecionado: {receiptFile.name}
+                        </p>
+                      )}
                       {!!receiptMetadata && !receiptFile && (
                         <p className="text-xs text-amber-600">
                           Rascunho recuperado ({receiptMetadata.name}). Por segurança, anexe novamente o comprovante.
