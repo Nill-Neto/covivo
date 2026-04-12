@@ -607,7 +607,17 @@ export default function Payments() {
                     </div>
                     <div className="space-y-2">
                       <Label>Comprovante *</Label>
-                      {isNativeRuntime ? (
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,.pdf"
+                        capture={isMobile ? "environment" : undefined}
+                        onChange={(e) => handleReceiptInputChange(e.target.files?.[0] ?? null)}
+                        className={isNativeRuntime ? "hidden" : undefined}
+                        tabIndex={isNativeRuntime ? -1 : undefined}
+                        aria-hidden={isNativeRuntime}
+                      />
+                      {isNativeRuntime && (
                         <div className="grid grid-cols-2 gap-2">
                           <Button type="button" variant="outline" onClick={() => pickReceiptNative("camera")}>
                             Tirar foto
@@ -616,14 +626,6 @@ export default function Payments() {
                             Galeria/Arquivos
                           </Button>
                         </div>
-                      ) : (
-                        <Input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*,.pdf"
-                          capture={isMobile ? "environment" : undefined}
-                          onChange={(e) => handleReceiptInputChange(e.target.files?.[0] ?? null)}
-                        />
                       )}
                       <p className="text-xs text-muted-foreground">Foto ou PDF do comprovante de pagamento</p>
                       {!!receiptFile && (
