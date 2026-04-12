@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/config/brand";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { BRANDING } from "@/config/branding";
 
 import type { PostgrestError } from "@supabase/supabase-js";
@@ -82,7 +83,7 @@ export default function AcceptInvite() {
           <CardDescription>Você foi convidado para uma moradia</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {status === "loading" && <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />}
+          {status === "loading" && <CustomLoader className="mx-auto h-8 w-8 text-primary" />}
 
           {status === "needs-login" && (
             <>
@@ -95,7 +96,7 @@ export default function AcceptInvite() {
 
           {status === "accepting" && (
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <CustomLoader className="h-8 w-8 text-primary" />
               <p className="text-muted-foreground">Aceitando convite...</p>
             </div>
           )}

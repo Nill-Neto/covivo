@@ -35,7 +35,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Pencil, Trash2, Shield, User, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Shield, User, Eye, EyeOff } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { InfoCard, DetailItem } from "@/components/ui/insurance-card";
@@ -273,7 +274,7 @@ export default function Members() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CustomLoader className="h-6 w-6 text-primary" />
       </div>
     );
   }
@@ -415,7 +416,7 @@ export default function Members() {
                               disabled={removeMember.isPending || removingMemberId !== m.user_id || !removeReason.trim()}
                               className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              {removeMember.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                              {removeMember.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                               Confirmar saída
                             </AlertDialogAction>
                           </div>
@@ -470,7 +471,7 @@ export default function Members() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
             <Button onClick={() => updateMember.mutate()} disabled={updateMember.isPending}>
-              {updateMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {updateMember.isPending && <CustomLoader className="h-4 w-4 mr-2" />}
               Salvar
             </Button>
           </DialogFooter>

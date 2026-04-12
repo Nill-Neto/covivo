@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { OnboardingShell } from "./OnboardingShell";
 
 type SplittingRule = "equal" | "percentage";
@@ -63,7 +64,7 @@ export function GroupStep({
           <ChevronLeft className="h-4 w-4" /> Voltar
         </Button>
         <Button onClick={onSubmit} disabled={saving || !groupName.trim()} className="flex-1">
-          {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+          {saving && <CustomLoader className="h-4 w-4 mr-1" />}
           Criar Grupo
         </Button>
       </div>

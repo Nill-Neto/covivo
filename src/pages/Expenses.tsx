@@ -25,8 +25,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import {
-  Loader2,
   Plus,
   Calendar,
   Users,
@@ -904,7 +904,7 @@ export default function Expenses() {
   if (loadingExpenses || loadingRecurring || loading || loadingInstallments || loadingParents) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CustomLoader className="h-6 w-6 text-primary" />
       </div>
     );
   }
@@ -1245,7 +1245,7 @@ export default function Expenses() {
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button onClick={handleSave} disabled={saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
             </div>
@@ -1309,7 +1309,7 @@ export default function Expenses() {
                 disabled={registerPaymentMutation.isPending}
                 className="w-full"
               >
-                {registerPaymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {registerPaymentMutation.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                 Confirmar pagamento
               </Button>
             </div>

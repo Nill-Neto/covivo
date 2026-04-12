@@ -25,7 +25,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Vote, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Vote, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -182,7 +183,7 @@ export default function Polls() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex justify-center py-12"><CustomLoader className="h-6 w-6 text-primary" /></div>;
   }
 
   return (
@@ -238,7 +239,7 @@ export default function Polls() {
                 disabled={!question.trim() || options.filter((o) => o.trim()).length < 2 || createPoll.isPending}
                 className="w-full"
               >
-                {createPoll.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {createPoll.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                 Criar Votação
               </Button>
             </div>

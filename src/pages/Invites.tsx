@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Send, Copy, RefreshCw, UserPlus, Trash2 } from "lucide-react";
+import { Send, Copy, RefreshCw, UserPlus, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { z } from "zod";
 import { PageHero } from "@/components/layout/PageHero";
 
@@ -334,7 +335,7 @@ export default function Invites() {
               {emailError && <p className="text-xs text-destructive">{emailError}</p>}
             </div>
             <Button onClick={handleSend} disabled={sendInvite.isPending}>
-              {sendInvite.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sendInvite.isPending ? <CustomLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               <span className="hidden sm:inline ml-2">Enviar</span>
             </Button>
           </div>
@@ -344,7 +345,7 @@ export default function Invites() {
       <div className="space-y-3 min-h-[20rem]">
         <h3 className="text-sm font-medium text-muted-foreground">Convites enviados</h3>
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <CustomLoader className="h-5 w-5 text-primary" />
         ) : !invites?.length ? (
           <p className="text-sm text-muted-foreground">Nenhum convite enviado ainda.</p>
         ) : (
@@ -380,7 +381,7 @@ export default function Invites() {
                         aria-label={`Reenviar e-mail do convite para ${inv.email}`}
                       >
                         {isResendLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <CustomLoader className="h-4 w-4" />
                         ) : (
                           <Send className="h-4 w-4" />
                         )}
@@ -407,7 +408,7 @@ export default function Invites() {
                           aria-label={`Gerar novo link de convite para ${inv.email}`}
                         >
                           {isRegenLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <CustomLoader className="h-4 w-4" />
                           ) : (
                             <RefreshCw className="h-4 w-4" />
                           )}

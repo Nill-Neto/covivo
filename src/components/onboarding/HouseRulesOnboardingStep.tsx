@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { OnboardingShell } from "./OnboardingShell";
 
 export interface HouseRuleEntry {
@@ -69,7 +70,7 @@ export function HouseRulesOnboardingStep({
           <ChevronLeft className="h-4 w-4" /> Voltar
         </Button>
         <Button onClick={onSubmit} disabled={saving} className="flex-1">
-          {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+          {saving && <CustomLoader className="h-4 w-4 mr-1" />}
           Criar Grupo
         </Button>
       </div>

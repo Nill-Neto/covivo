@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Loader2 } from "lucide-react";
+import { History } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageHero } from "@/components/layout/PageHero";
@@ -45,7 +46,7 @@ export default function AuditLog() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CustomLoader className="h-6 w-6 text-primary" />
       </div>
     );
   }

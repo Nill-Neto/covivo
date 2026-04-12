@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -172,7 +172,7 @@ export function PaymentDialogs({
                 onClick={() => onPayRateio(rateioScope)}
                 disabled={saving || !receiptFile || (rateioScope === "current" && !rateioCurrentAmount)}
               >
-                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Enviar Comprovante
+                {saving && <CustomLoader className="h-4 w-4 mr-2" />} Enviar Comprovante
               </Button>
             </div>
           </div>
@@ -228,7 +228,7 @@ export function PaymentDialogs({
               <div className="flex justify-end gap-2 w-full">
                 <Button variant="outline" onClick={() => setSelectedIndividualSplit(null)}>Voltar</Button>
                 <Button onClick={onPayIndividual} disabled={saving || !receiptFile}>
-                  {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Enviar Comprovante
+                  {saving && <CustomLoader className="h-4 w-4 mr-2" />} Enviar Comprovante
                 </Button>
               </div>
             </div>

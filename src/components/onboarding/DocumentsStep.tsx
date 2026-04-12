@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Upload, Check, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Upload, Check, FileText } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { OnboardingShell } from "./OnboardingShell";
 import { formatCPF, isValidCPF } from "@/lib/cpf";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,7 +181,7 @@ export function DocumentsStep({
           <ChevronLeft className="h-4 w-4" /> Voltar
         </Button>
         <Button onClick={handleContinue} disabled={!canContinue || uploading} className="flex-1">
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {uploading ? <CustomLoader className="h-4 w-4" /> : null}
           Próximo <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

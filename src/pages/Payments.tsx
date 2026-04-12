@@ -23,7 +23,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, CreditCard, Settings, Trash2 } from "lucide-react";
+import { Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, CreditCard, Settings, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -286,7 +287,7 @@ export default function Payments() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CustomLoader className="h-6 w-6 text-primary" />
       </div>
     );
   }
@@ -394,7 +395,7 @@ export default function Payments() {
                   </div>
                   <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
                     <Button onClick={handleSubmitPayment} disabled={saving} className="w-full">
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                      {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                       Enviar Pagamento
                     </Button>
                   </div>
@@ -523,7 +524,7 @@ export default function Payments() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
               <Button onClick={() => updatePayment.mutate({ amount: editAmount, notes: editNotes, status: editStatus, competence: editCompetence })} disabled={updatePayment.isPending}>
-                {updatePayment.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {updatePayment.isPending && <CustomLoader className="h-4 w-4 mr-2" />}
                 Salvar
               </Button>
             </div>

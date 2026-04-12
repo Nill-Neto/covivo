@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { UserPlus, Home, Plus, Shield, ArrowRight, Check, Settings, BarChart3, Loader2 } from "lucide-react";
+import { UserPlus, Home, Plus, Shield, ArrowRight, Check, Settings, BarChart3 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
@@ -263,7 +264,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
         <CardContent className="h-[340px] w-full pt-4">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <CustomLoader className="h-6 w-6 text-primary" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

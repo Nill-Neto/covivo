@@ -25,7 +25,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Save, SlidersHorizontal, User, Mail, Phone, Shield, FileText, FileSpreadsheet, Upload, Check, MapPin, AlertTriangle, Trash2 } from "lucide-react";
+import { Save, SlidersHorizontal, User, Mail, Phone, Shield, FileText, FileSpreadsheet, Upload, Check, MapPin, AlertTriangle, Trash2 } from "lucide-react";
+import { CustomLoader } from "@/components/ui/custom-loader";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { formatCPF, isValidCPF } from "@/lib/cpf";
@@ -296,7 +297,7 @@ function AccountTab() {
             </div>
 
             <Button onClick={() => updateProfile.mutate()} disabled={updateProfile.isPending} className="w-full">
-              {updateProfile.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              {updateProfile.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               {updateProfile.isPending ? "Salvando..." : "Salvar alterações"}
             </Button>
           </div>
@@ -312,11 +313,11 @@ function AccountTab() {
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-3">
           <Button variant="outline" onClick={() => generateReport('pdf')} disabled={generatingPdf || generatingCsv} className="flex-1">
-            {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4 text-destructive" />}
+            {generatingPdf ? <CustomLoader className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4 text-destructive" />}
             {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </Button>
           <Button variant="outline" onClick={() => generateReport('csv')} disabled={generatingPdf || generatingCsv} className="flex-1">
-            {generatingCsv ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" />}
+            {generatingCsv ? <CustomLoader className="mr-2 h-4 w-4" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" />}
             {generatingCsv ? "Gerando CSV..." : "Baixar CSV"}
           </Button>
         </CardContent>
@@ -583,7 +584,7 @@ function GroupTab() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CustomLoader className="h-6 w-6 text-primary" />
       </div>
     );
   }
@@ -696,7 +697,7 @@ function GroupTab() {
             <Label>CEP</Label>
             <div className="relative">
               <Input value={zipCode} onChange={(e) => handleCepChange(e.target.value)} placeholder="00000-000" maxLength={9} />
-              {fetchingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+              {fetchingCep && <CustomLoader className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -733,7 +734,7 @@ function GroupTab() {
       </Card>
 
       <Button onClick={() => updateGroup.mutate()} disabled={updateGroup.isPending} className="w-full">
-        {updateGroup.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+        {updateGroup.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
         Salvar Alterações
       </Button>
 
@@ -778,12 +779,12 @@ function GroupTab() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteGroup} 
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteGroup}
                     disabled={confirmGroupName !== name || deleteGroup.isPending}
                   >
-                    {deleteGroup.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    {deleteGroup.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                     Excluir Permanentemente
                   </Button>
                 </AlertDialogFooter>
