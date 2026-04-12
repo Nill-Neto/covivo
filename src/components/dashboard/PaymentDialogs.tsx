@@ -36,6 +36,8 @@ interface PaymentDialogsProps {
   saving: boolean;
   receiptFile: File | null;
   setReceiptFile: (file: File | null) => void;
+  receiptMetadata: { name: string; size: number; type: string } | null;
+  setReceiptMetadata: (metadata: { name: string; size: number; type: string } | null) => void;
   rateioCurrentAmount: string;
   setRateioCurrentAmount: (value: string) => void;
 }
@@ -56,9 +58,24 @@ export function PaymentDialogs({
   saving,
   receiptFile,
   setReceiptFile,
+  receiptMetadata,
+  setReceiptMetadata,
   rateioCurrentAmount,
   setRateioCurrentAmount,
 }: PaymentDialogsProps) {
+  const handleReceiptChange = (file: File | null) => {
+    setReceiptFile(file);
+    setReceiptMetadata(
+      file
+        ? {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          }
+        : null
+    );
+  };
+
   const selectedScopeData = collectivePendingByScope[rateioScope];
   const selectedScopeLabel = rateioScope === "previous"
     ? "Rateio pendente de competências anteriores"
@@ -161,7 +178,13 @@ export function PaymentDialogs({
             )}
             <div className="space-y-2 shrink-0">
               <Label className="text-sm font-medium">Comprovante *</Label>
-              <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} className="cursor-pointer" />
+              <Input type="file" accept="image/*,.pdf" onChange={(e) => handleReceiptChange(e.target.files?.[0] ?? null)} className="cursor-pointer" />
+              {!!receiptFile && <p className="text-xs text-muted-foreground">Arquivo selecionado: {receiptFile.name}</p>}
+              {!!receiptMetadata && !receiptFile && (
+                <p className="text-xs text-amber-600">
+                  Rascunho recuperado ({receiptMetadata.name}). Por segurança, anexe novamente o comprovante.
+                </p>
+              )}
             </div>
           </div>
 
@@ -218,7 +241,13 @@ export function PaymentDialogs({
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Comprovante *</Label>
-                <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} className="cursor-pointer" />
+                <Input type="file" accept="image/*,.pdf" onChange={(e) => handleReceiptChange(e.target.files?.[0] ?? null)} className="cursor-pointer" />
+                {!!receiptFile && <p className="text-xs text-muted-foreground">Arquivo selecionado: {receiptFile.name}</p>}
+                {!!receiptMetadata && !receiptFile && (
+                  <p className="text-xs text-amber-600">
+                    Rascunho recuperado ({receiptMetadata.name}). Por segurança, anexe novamente o comprovante.
+                  </p>
+                )}
               </div>
             </div>
           )}
