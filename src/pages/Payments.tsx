@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,24 @@ import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Capacitor } from "@capacitor/core";
+
+const PAYMENT_DRAFT_STORAGE_KEY = "payments:send-payment-draft";
+
+type ReceiptDraftMetadata = {
+  name: string;
+  size: number;
+  type: string;
+};
+
+type PaymentDraft = {
+  selectedSplitIds: string[];
+  amount: string;
+  notes: string;
+  amountTouched: boolean;
+  receiptMetadata: ReceiptDraftMetadata | null;
+};
 
 export default function Payments() {
   const { membership, isAdmin, user } = useAuth();
@@ -46,9 +64,23 @@ export default function Payments() {
   const [amountTouched, setAmountTouched] = useState(false);
   const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptMetadata, setReceiptMetadata] = useState<ReceiptDraftMetadata | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasRestoredDraftRef = useRef(false);
+  const isMobile = useIsMobile();
+  const isNativeRuntime = Capacitor.isNativePlatform();
 
   const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
+  const platformLabel = useMemo(() => {
+    if (isNativeRuntime) return `capacitor-${Capacitor.getPlatform()}`;
+    if (isMobile) return "mobile-web";
+    return "desktop-web";
+  }, [isMobile, isNativeRuntime]);
+  const paymentDraftKey = useMemo(
+    () => (user?.id && membership?.group_id ? `payment-draft:${membership.group_id}:${user.id}` : null),
+    [membership?.group_id, user?.id]
+  );
 
   // Manage Payment State
   const [editingPayment, setEditingPayment] = useState<any>(null);
@@ -168,6 +200,65 @@ export default function Payments() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
+  const clearPaymentDraft = () => {
+    sessionStorage.removeItem(PAYMENT_DRAFT_STORAGE_KEY);
+    setSelectedSplitIds([]);
+    setAmount("");
+    setAmountTouched(false);
+    setNotes("");
+    setReceiptFile(null);
+    setReceiptMetadata(null);
+  };
+
+  useEffect(() => {
+    const rawDraft = sessionStorage.getItem(PAYMENT_DRAFT_STORAGE_KEY);
+    if (!rawDraft) return;
+
+    try {
+      const draft = JSON.parse(rawDraft) as PaymentDraft;
+      setSelectedSplitIds(Array.isArray(draft.selectedSplitIds) ? draft.selectedSplitIds : []);
+      setAmount(typeof draft.amount === "string" ? draft.amount : "");
+      setNotes(typeof draft.notes === "string" ? draft.notes : "");
+      setAmountTouched(Boolean(draft.amountTouched));
+      setReceiptMetadata(
+        draft.receiptMetadata &&
+          typeof draft.receiptMetadata.name === "string" &&
+          typeof draft.receiptMetadata.size === "number" &&
+          typeof draft.receiptMetadata.type === "string"
+          ? draft.receiptMetadata
+          : null
+      );
+
+      toast({
+        title: "Rascunho restaurado",
+        description: "Recuperamos os dados do envio de pagamento.",
+      });
+    } catch {
+      sessionStorage.removeItem(PAYMENT_DRAFT_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const draftToPersist: PaymentDraft = {
+      selectedSplitIds,
+      amount,
+      notes,
+      amountTouched,
+      receiptMetadata,
+    };
+    sessionStorage.setItem(PAYMENT_DRAFT_STORAGE_KEY, JSON.stringify(draftToPersist));
+  }, [selectedSplitIds, amount, notes, amountTouched, receiptMetadata]);
+
+  useEffect(() => {
+    if (!pendingSplits?.length || selectedSplitIds.length === 0) return;
+
+    const validSplitIds = new Set(pendingSplits.map((split) => split.id));
+    const filteredSelected = selectedSplitIds.filter((id) => validSplitIds.has(id));
+    if (filteredSelected.length !== selectedSplitIds.length) {
+      setSelectedSplitIds(filteredSelected);
+    }
+  }, [pendingSplits, selectedSplitIds]);
+
   // Effect: Prefill amount with selected total until user manually edits it
   useEffect(() => {
     if (!pendingSplits) return;
@@ -189,6 +280,120 @@ export default function Payments() {
     );
   };
 
+  const trackUploadMetric = async (
+    action: "payment_upload_attempt" | "payment_upload_success" | "payment_upload_failed",
+    details?: Record<string, unknown>
+  ) => {
+    if (!membership?.group_id || !user?.id) return;
+    try {
+      await supabase.rpc("create_audit_log", {
+        _group_id: membership.group_id,
+        _user_id: user.id,
+        _action: action,
+        _entity_type: "payment_upload",
+        _entity_id: null,
+        _details: {
+          platform: platformLabel,
+          native_runtime: isNativeRuntime,
+          ...details,
+        },
+      });
+    } catch {
+      // Não bloqueia o fluxo principal em caso de falha na telemetria.
+    }
+  };
+
+  const restoreDraft = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw) as {
+        selectedSplitIds?: string[];
+        amount?: string;
+        notes?: string;
+        amountTouched?: boolean;
+        wasOpen?: boolean;
+      };
+      setSelectedSplitIds(parsed.selectedSplitIds ?? []);
+      setAmount(parsed.amount ?? "");
+      setAmountTouched(!!parsed.amountTouched);
+      setNotes(parsed.notes ?? "");
+      if (parsed.wasOpen) setOpen(true);
+    } catch {
+      // Ignora dados inválidos no storage.
+    }
+  };
+
+  useEffect(() => {
+    if (!paymentDraftKey || hasRestoredDraftRef.current || !user?.id) return;
+    hasRestoredDraftRef.current = true;
+
+    const draftRaw = window.localStorage.getItem(paymentDraftKey);
+    if (!draftRaw) return;
+    restoreDraft(draftRaw);
+  }, [paymentDraftKey, user?.id]);
+
+  useEffect(() => {
+    if (!paymentDraftKey) return;
+    if (!open) {
+      window.localStorage.removeItem(paymentDraftKey);
+      return;
+    }
+
+    const payload = JSON.stringify({
+      selectedSplitIds,
+      amount,
+      notes,
+      amountTouched,
+      wasOpen: true,
+      updatedAt: Date.now(),
+    });
+    window.localStorage.setItem(paymentDraftKey, payload);
+  }, [amount, amountTouched, notes, open, paymentDraftKey, selectedSplitIds]);
+
+  const fallbackToWebFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const pickReceiptNative = async (source: "camera" | "photos") => {
+    try {
+      const cameraPlugin = (window as any)?.Capacitor?.Plugins?.Camera;
+      if (!cameraPlugin?.getPhoto) {
+        toast({ title: "Seleção nativa indisponível", description: "Usando seletor padrão do sistema." });
+        fallbackToWebFilePicker();
+        return;
+      }
+
+      const photo = await cameraPlugin.getPhoto({
+        resultType: "uri",
+        source: source === "camera" ? "CAMERA" : "PHOTOS",
+        quality: 80,
+      });
+
+      if (!photo?.webPath) {
+        fallbackToWebFilePicker();
+        return;
+      }
+
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      const extension = blob.type?.split("/")[1] || "jpg";
+      const file = new File([blob], `comprovante-${Date.now()}.${extension}`, {
+        type: blob.type || "image/jpeg",
+      });
+      setReceiptFile(file);
+    } catch (err: any) {
+      await trackUploadMetric("payment_upload_failed", {
+        stage: "receipt_pick",
+        error: err?.message ?? "native_picker_failed",
+      });
+      toast({
+        title: "Não foi possível abrir câmera/galeria",
+        description: "Usando seletor padrão para continuar.",
+        variant: "destructive",
+      });
+      fallbackToWebFilePicker();
+    }
+  };
+
   const handleSubmitPayment = async () => {
     if (selectedSplitIds.length === 0 || !amount || parseFloat(amount) <= 0) {
       toast({ title: "Erro", description: "Selecione pelo menos uma despesa.", variant: "destructive" });
@@ -201,6 +406,11 @@ export default function Payments() {
 
     setSaving(true);
     try {
+      await trackUploadMetric("payment_upload_attempt", {
+        selected_split_count: selectedSplitIds.length,
+        has_receipt: !!receiptFile,
+      });
+
       const paidAmount = Number(amount);
       const selectedSplits = (pendingSplits ?? []).filter((s) => selectedSplitIds.includes(s.id));
       const selectedTotal = selectedSplits.reduce((sum, s) => sum + Number(s.amount), 0);
@@ -254,14 +464,18 @@ export default function Payments() {
       });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
+      await trackUploadMetric("payment_upload_success", {
+        selected_split_count: selectedSplitIds.length,
+        credit_amount: Number(creditAmount.toFixed(2)),
+      });
       
       setOpen(false);
-      setSelectedSplitIds([]);
-      setAmount("");
-      setAmountTouched(false);
-      setNotes("");
-      setReceiptFile(null);
+      clearPaymentDraft();
     } catch (err: any) {
+      await trackUploadMetric("payment_upload_failed", {
+        stage: "submit",
+        error: err?.message ?? "unknown_error",
+      });
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
@@ -320,11 +534,6 @@ export default function Payments() {
                 onOpenChange={(nextOpen) => {
                   setOpen(nextOpen);
                   if (!nextOpen) {
-                    setSelectedSplitIds([]);
-                    setAmount("");
-                    setAmountTouched(false);
-                    setNotes("");
-                    setReceiptFile(null);
                     setComboboxOpen(false);
                   }
                 }}
@@ -385,15 +594,47 @@ export default function Payments() {
                     </div>
                     <div className="space-y-2">
                       <Label>Comprovante *</Label>
-                      <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                      <Input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          setReceiptFile(file);
+                          setReceiptMetadata(
+                            file
+                              ? {
+                                  name: file.name,
+                                  size: file.size,
+                                  type: file.type,
+                                }
+                              : null
+                          );
+                        }}
+                      />
                       <p className="text-xs text-muted-foreground">Foto ou PDF do comprovante de pagamento</p>
+                      {!!receiptMetadata && !receiptFile && (
+                        <p className="text-xs text-amber-600">
+                          Rascunho recuperado ({receiptMetadata.name}). Por segurança, anexe novamente o comprovante.
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Observações (opcional)</Label>
                       <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: Pix enviado às 14h" />
                     </div>
                   </div>
-                  <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
+                  <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        clearPaymentDraft();
+                        setOpen(false);
+                        setComboboxOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      Cancelar
+                    </Button>
                     <Button onClick={handleSubmitPayment} disabled={saving} className="w-full">
                       {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                       Enviar Pagamento
