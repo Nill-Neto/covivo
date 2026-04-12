@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,11 +29,17 @@ export default function Dashboard() {
   const [payIndividualOpen, setPayIndividualOpen] = useState(false);
   const [selectedIndividualSplit, setSelectedIndividualSplit] = useState<any>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptMetadata, setReceiptMetadata] = useState<{ name: string; size: number; type: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [rateioScope, setRateioScope] = useState<RateioScope>("previous");
   const [rateioCurrentAmount, setRateioCurrentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("home");
   const [heroCompact, setHeroCompact] = useState(false);
+  const [restoredIndividualSplitId, setRestoredIndividualSplitId] = useState<string | null>(null);
+  const hasRestoredDraftRef = useRef(false);
+  const dashboardDraftKey = user?.id && membership?.group_id
+    ? `dashboard-payment-draft:${membership.group_id}:${user.id}`
+    : null;
 
   const {
     currentDate,
@@ -382,6 +388,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["my-bulk-payments-dashboard"] });
       setPayRateioOpen(false);
       setReceiptFile(null);
+      setReceiptMetadata(null);
       setRateioCurrentAmount("");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -414,6 +421,7 @@ export default function Dashboard() {
       setPayIndividualOpen(false);
       setSelectedIndividualSplit(null);
       setReceiptFile(null);
+      setReceiptMetadata(null);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -423,6 +431,72 @@ export default function Dashboard() {
 
   const tabTriggerClass = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm text-foreground/60 text-xs font-semibold px-3 py-1.5 rounded-md transition-all";
   const tabListClass = "w-full justify-start overflow-x-auto bg-muted/50 rounded-lg p-1 h-auto gap-1";
+
+  useEffect(() => {
+    if (!dashboardDraftKey || hasRestoredDraftRef.current) return;
+    hasRestoredDraftRef.current = true;
+
+    const raw = window.sessionStorage.getItem(dashboardDraftKey);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        payRateioOpen?: boolean;
+        payIndividualOpen?: boolean;
+        rateioScope?: RateioScope;
+        rateioCurrentAmount?: string;
+        selectedIndividualSplitId?: string | null;
+        receiptMetadata?: { name: string; size: number; type: string } | null;
+      };
+
+      if (parsed.payRateioOpen) setPayRateioOpen(true);
+      if (parsed.payIndividualOpen) setPayIndividualOpen(true);
+      if (parsed.rateioScope === "previous" || parsed.rateioScope === "current") {
+        setRateioScope(parsed.rateioScope);
+      }
+      if (typeof parsed.rateioCurrentAmount === "string") {
+        setRateioCurrentAmount(parsed.rateioCurrentAmount);
+      }
+      if (parsed.selectedIndividualSplitId) {
+        setRestoredIndividualSplitId(parsed.selectedIndividualSplitId);
+      }
+      if (parsed.receiptMetadata && typeof parsed.receiptMetadata.name === "string") {
+        setReceiptMetadata(parsed.receiptMetadata);
+      }
+    } catch {
+      window.sessionStorage.removeItem(dashboardDraftKey);
+    }
+  }, [dashboardDraftKey]);
+
+  useEffect(() => {
+    if (!restoredIndividualSplitId) return;
+    const split = individualPending.find((item: any) => item.id === restoredIndividualSplitId) ?? null;
+    setSelectedIndividualSplit(split);
+    setRestoredIndividualSplitId(null);
+  }, [individualPending, restoredIndividualSplitId]);
+
+  useEffect(() => {
+    if (!dashboardDraftKey) return;
+    window.sessionStorage.setItem(
+      dashboardDraftKey,
+      JSON.stringify({
+        payRateioOpen,
+        payIndividualOpen,
+        rateioScope,
+        rateioCurrentAmount,
+        selectedIndividualSplitId: selectedIndividualSplit?.id ?? null,
+        receiptMetadata,
+      }),
+    );
+  }, [
+    dashboardDraftKey,
+    payRateioOpen,
+    payIndividualOpen,
+    rateioScope,
+    rateioCurrentAmount,
+    selectedIndividualSplit,
+    receiptMetadata,
+  ]);
 
   const compactTabsList = (
     <TabsList className={tabListClass}>
@@ -533,6 +607,8 @@ export default function Dashboard() {
         saving={saving}
         receiptFile={receiptFile}
         setReceiptFile={setReceiptFile}
+        receiptMetadata={receiptMetadata}
+        setReceiptMetadata={setReceiptMetadata}
         rateioCurrentAmount={rateioCurrentAmount}
         setRateioCurrentAmount={setRateioCurrentAmount}
       />
