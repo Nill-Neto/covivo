@@ -40,6 +40,41 @@ const SidebarDemoPage = lazy(() => import("./pages/SidebarDemoPage"));
 const BackgroundPathsDemoPage = lazy(() => import("./pages/BackgroundPathsDemoPage"));
 
 const queryClient = new QueryClient();
+const VISIBILITY_HIDDEN_AT_KEY = "navigation_diagnostics_hidden_at";
+const LONG_PAUSE_THRESHOLD_MS = 30_000;
+
+type NavigationDiagnosticsEvent = {
+  event: "pageshow" | "visibilitychange";
+  path: string;
+  userAgent: string;
+  timestamp: number;
+  visibilityState?: DocumentVisibilityState;
+  persisted?: boolean;
+  hiddenAt?: number;
+  pauseMs?: number;
+  longPause?: boolean;
+};
+
+const emitNavigationDiagnostics = (payload: NavigationDiagnosticsEvent) => {
+  console.info("[navigation-diagnostics]", payload);
+
+  const body = JSON.stringify(payload);
+  const endpoint = "/api/diagnostics/navigation";
+
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(endpoint, body);
+    return;
+  }
+
+  void fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    // no-op: logging to console above remains as fallback
+  });
+};
 
 const AppShell = () => {
   const { pathname } = useLocation();
@@ -51,6 +86,59 @@ const AppShell = () => {
     );
     if (!redirectTarget) return;
     window.location.replace(redirectTarget);
+  }, []);
+
+  useEffect(() => {
+    const emitBaseData = () => ({
+      path: window.location.pathname,
+      userAgent: navigator.userAgent,
+      timestamp: Date.now(),
+    });
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      const hiddenAtRaw = window.sessionStorage.getItem(VISIBILITY_HIDDEN_AT_KEY);
+      const hiddenAt = hiddenAtRaw ? Number(hiddenAtRaw) : undefined;
+      const pauseMs = hiddenAt ? Date.now() - hiddenAt : undefined;
+
+      emitNavigationDiagnostics({
+        event: "pageshow",
+        persisted: event.persisted,
+        hiddenAt,
+        pauseMs,
+        longPause: typeof pauseMs === "number" ? pauseMs > LONG_PAUSE_THRESHOLD_MS : undefined,
+        ...emitBaseData(),
+      });
+    };
+
+    const onVisibilityChange = () => {
+      const now = Date.now();
+
+      if (document.visibilityState === "hidden") {
+        window.sessionStorage.setItem(VISIBILITY_HIDDEN_AT_KEY, String(now));
+      }
+
+      const hiddenAtRaw = window.sessionStorage.getItem(VISIBILITY_HIDDEN_AT_KEY);
+      const hiddenAt = hiddenAtRaw ? Number(hiddenAtRaw) : undefined;
+      const pauseMs =
+        document.visibilityState === "visible" && hiddenAt ? now - hiddenAt : undefined;
+
+      emitNavigationDiagnostics({
+        event: "visibilitychange",
+        visibilityState: document.visibilityState,
+        hiddenAt,
+        pauseMs,
+        longPause: typeof pauseMs === "number" ? pauseMs > LONG_PAUSE_THRESHOLD_MS : undefined,
+        ...emitBaseData(),
+      });
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return (
