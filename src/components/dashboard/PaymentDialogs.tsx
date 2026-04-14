@@ -117,7 +117,7 @@ export function PaymentDialogs({
                 <div className="px-4 py-2.5 bg-muted/40 border-b shrink-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
                 </div>
-                <div className="max-h-[220px] overflow-y-auto overscroll-contain bg-background">
+                <div className="max-h-[220px] overflow-y-auto bg-background">
                   <div className="divide-y">
                     {rateioScope === "previous"
                       ? groupedPreviousEntries.map(([competence, items]) => (
