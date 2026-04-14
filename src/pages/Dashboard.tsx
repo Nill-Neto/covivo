@@ -416,25 +416,75 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      let paymentDate = new Date().toISOString();
+      const safeClosingDay = closingDay || 1;
+      
+      const getSafeDateForCompetence = (compKey: string) => {
+        const [yStr, mStr] = compKey.split("-");
+        const y = parseInt(yStr);
+        const m = parseInt(mStr);
+        if (safeClosingDay > 1) {
+          return new Date(y, m - 1, 1, 12, 0, 0).toISOString();
+        } else {
+          return new Date(y, m - 2, 15, 12, 0, 0).toISOString();
+        }
+      };
+
+      const paymentsToInsert = [];
+
       if (scope === "previous") {
-        // Backdate the payment so it falls into the previous competence.
-        // Using the end of the previous month ensures it always lands in the preceding competence.
-        const prevMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0, 23, 59, 59);
-        paymentDate = prevMonthDate.toISOString();
+        // Distribui o valor entre as competências anteriores (do mais antigo pro mais novo)
+        const sortedItems = [...collectivePendingPrevious].sort((a, b) => {
+          const dateA = a.expenses?.purchase_date || "9999-12-31";
+          const dateB = b.expenses?.purchase_date || "9999-12-31";
+          return dateA.localeCompare(dateB);
+        });
+
+        let remainingAmountCents = Math.round(amount * 100);
+        const competencePayments: Record<string, number> = {};
+
+        for (const item of sortedItems) {
+          if (remainingAmountCents <= 0) break;
+          const itemAmountCents = Math.round(Number(item.amount) * 100);
+          const payAmountCents = Math.min(remainingAmountCents, itemAmountCents);
+          
+          const compKey = item.competenceKey || currentCompetenceKey;
+          competencePayments[compKey] = (competencePayments[compKey] || 0) + payAmountCents;
+          
+          remainingAmountCents -= payAmountCents;
+        }
+
+        // Se sobrou algum valor (o que não deveria acontecer por causa da validação, mas por segurança)
+        if (remainingAmountCents > 0) {
+           const newestItem = sortedItems[sortedItems.length - 1];
+           const compKey = newestItem?.competenceKey || currentCompetenceKey;
+           competencePayments[compKey] = (competencePayments[compKey] || 0) + remainingAmountCents;
+        }
+
+        for (const [compKey, amountCents] of Object.entries(competencePayments)) {
+          paymentsToInsert.push({
+            group_id: membership!.group_id,
+            expense_split_id: null,
+            paid_by: user!.id,
+            amount: amountCents / 100,
+            receipt_url: urlData.publicUrl,
+            created_at: getSafeDateForCompetence(compKey),
+            notes: `Rateio - ${compKey.split("-").reverse().join("/")} (Anteriores)`
+          });
+        }
+      } else {
+        // scope === "current"
+        paymentsToInsert.push({
+          group_id: membership!.group_id,
+          expense_split_id: null,
+          paid_by: user!.id,
+          amount,
+          receipt_url: urlData.publicUrl,
+          created_at: getSafeDateForCompetence(currentCompetenceKey),
+          notes: `Rateio - ${currentCompetenceKey.split("-").reverse().join("/")} (Atual)`
+        });
       }
 
-      await supabase.from("payments").insert({
-        group_id: membership!.group_id,
-        expense_split_id: null,
-        paid_by: user!.id,
-        amount,
-        receipt_url: urlData.publicUrl,
-        created_at: paymentDate,
-        notes: scope === "previous"
-          ? `Pagamento de Rateio - competências anteriores (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
-          : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
-      });
+      await supabase.from("payments").insert(paymentsToInsert);
 
       toast({ title: "Pagamento enviado!" });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
