@@ -260,9 +260,54 @@ export default function Dashboard() {
   const totalCollectivePendingPrevious = Math.max(0, rawTotalCollectivePendingPrevious - bulkAppliedToPrevious);
   const totalCollectivePendingCurrent = Math.max(0, rawTotalCollectivePendingCurrent - bulkRemainder);
   
-  // Remove os itens se o total for zero (já pago por pagamento em lote)
-  const displayCollectivePendingPrevious = totalCollectivePendingPrevious > 0.01 ? collectivePendingPrevious : [];
-  const displayCollectivePendingCurrent = totalCollectivePendingCurrent > 0.01 ? collectivePendingCurrent : [];
+  // Função para abater os pagamentos em lote (bulk) dos itens mais antigos para os mais recentes
+  const applyBulkToItems = (items: any[], amountToApply: number) => {
+    if (amountToApply <= 0.01) return items;
+    
+    // Sort from oldest to newest to pay off oldest first
+    const sortedItems = [...items].sort((a, b) => {
+      const dateA = a.expenses?.purchase_date || "9999-12-31";
+      const dateB = b.expenses?.purchase_date || "9999-12-31";
+      return dateA.localeCompare(dateB);
+    });
+
+    let remainingBulkCents = Math.round(amountToApply * 100);
+    const result = [];
+
+    for (const item of sortedItems) {
+      const itemAmountCents = Math.round(Number(item.amount) * 100);
+      if (remainingBulkCents >= itemAmountCents) {
+        // Fully paid
+        remainingBulkCents -= itemAmountCents;
+      } else if (remainingBulkCents > 0) {
+        // Partially paid
+        result.push({
+          ...item,
+          amount: (itemAmountCents - remainingBulkCents) / 100,
+          originalAmount: itemAmountCents / 100
+        });
+        remainingBulkCents = 0;
+      } else {
+        // Not paid
+        result.push(item);
+      }
+    }
+
+    // Return to original sort (usually newest first in UI)
+    return result.sort((a, b) => {
+      const dateA = a.expenses?.purchase_date || "";
+      const dateB = b.expenses?.purchase_date || "";
+      return dateB.localeCompare(dateA);
+    });
+  };
+
+  const displayCollectivePendingPrevious = totalCollectivePendingPrevious > 0.01
+    ? applyBulkToItems(collectivePendingPrevious, bulkAppliedToPrevious)
+    : [];
+    
+  const displayCollectivePendingCurrent = totalCollectivePendingCurrent > 0.01
+    ? applyBulkToItems(collectivePendingCurrent, bulkRemainder)
+    : [];
 
   const collectivePendingPreviousByCompetence = useMemo(() => {
     if (totalCollectivePendingPrevious <= 0.01) return [];

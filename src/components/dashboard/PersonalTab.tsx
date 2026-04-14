@@ -179,6 +179,11 @@ export function PersonalTab({
                                       <div className="flex items-center gap-2 mb-1">
                                         <p className="text-sm font-medium truncate text-foreground">
                                           {item.expenses?.title || "Despesa sem título"}
+                                          {item.originalAmount && item.originalAmount > item.amount && (
+                                            <span className="ml-2 font-normal text-[10px] text-muted-foreground">
+                                              (Parcial - Orig: R$ {Number(item.originalAmount).toFixed(2)})
+                                            </span>
+                                          )}
                                         </p>
                                         {item.expenses?.installments > 1 && (
                                           <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
@@ -266,6 +271,11 @@ export function PersonalTab({
                                 <div className="flex items-center gap-2 mb-1">
                                   <p className="text-sm font-medium truncate text-foreground">
                                     {item.expenses?.title || "Despesa sem título"}
+                                    {item.originalAmount && item.originalAmount > item.amount && (
+                                      <span className="ml-2 font-normal text-[10px] text-muted-foreground">
+                                        (Parcial - Orig: R$ {Number(item.originalAmount).toFixed(2)})
+                                      </span>
+                                    )}
                                   </p>
                                   {item.expenses?.installments > 1 && (
                                     <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">

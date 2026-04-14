@@ -11,6 +11,7 @@ export type RateioScope = "previous" | "current";
 type PendingSplit = {
   id: string;
   amount: number;
+  originalAmount?: number;
   competenceKey?: string | null;
   expenses?: {
     title?: string | null;
@@ -123,16 +124,26 @@ export function PaymentDialogs({
                           <div key={competence} className="px-4 py-2.5 space-y-1.5">
                             <p className="text-xs font-semibold text-muted-foreground">{competence}</p>
                             {items.map((s) => (
-                              <div key={s.id} className="flex justify-between text-sm py-0.5">
-                                <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                              <div key={s.id} className="flex justify-between text-sm py-0.5 items-center">
+                                <div className="truncate pr-3 flex-1 flex flex-col">
+                                  <span className="truncate text-foreground">{s.expenses?.title}</span>
+                                  {s.originalAmount && s.originalAmount > s.amount && (
+                                    <span className="text-[10px] text-muted-foreground">Original: R$ {Number(s.originalAmount).toFixed(2)}</span>
+                                  )}
+                                </div>
                                 <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
                         ))
                       : selectedScopeData.items.map((s) => (
-                          <div key={s.id} className="px-4 py-2.5 flex justify-between text-sm">
-                            <span className="truncate pr-3 flex-1 text-foreground">{s.expenses?.title}</span>
+                          <div key={s.id} className="px-4 py-2.5 flex justify-between text-sm items-center">
+                            <div className="truncate pr-3 flex-1 flex flex-col">
+                              <span className="truncate text-foreground">{s.expenses?.title}</span>
+                              {s.originalAmount && s.originalAmount > s.amount && (
+                                <span className="text-[10px] text-muted-foreground">Original: R$ {Number(s.originalAmount).toFixed(2)}</span>
+                              )}
+                            </div>
                             <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
                           </div>
                         ))}
