@@ -422,21 +422,11 @@ export default function Dashboard() {
         const [yStr, mStr] = compKey.split("-");
         const y = parseInt(yStr);
         const m = parseInt(mStr);
-        // Retorna uma data garantidamente dentro do ciclo que gera esta competência
-        // Uma data segura é o dia do closingDay no mês M - 1.
-        // Pois: o ciclo da competência M vai do closingDay de M-1 até o closingDay de M.
-        // Ex: Competência 4 (Abril), closingDay = 10. O ciclo vai de 10 de Março a 9 de Abril.
-        // Retornaremos dia 15 de Março.
-        // Se closingDay for 30: Competência 4 (Abril). Ciclo 30/03 a 29/04.
-        // Retornaremos 5 de Abril.
-        // Uma fórmula garantida é (closingDay + 2 dias) dentro do mês de início.
-        
-        let safeMonth = m - 2; // mês base 0 de M-1
-        let safeDay = safeClosingDay + 2;
-        
-        // Trata a virada do mês, caso closingDay seja muito no fim (ex: 30) e fevererio, etc.
-        // O construtor do Date trata over-flow automaticamente (ex: Feb 32 vira Março).
-        return new Date(y, safeMonth, safeDay, 12, 0, 0).toISOString();
+        if (safeClosingDay > 1) {
+          return new Date(y, m - 1, 1, 12, 0, 0).toISOString();
+        } else {
+          return new Date(y, m - 2, 15, 12, 0, 0).toISOString();
+        }
       };
 
       const paymentsToInsert = [];
