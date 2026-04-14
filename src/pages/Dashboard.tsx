@@ -499,9 +499,6 @@ export default function Dashboard() {
       toast({ title: "Pagamento enviado!" });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["my-bulk-payments-dashboard"] });
-      // Invalidate admin queries so that the admin dashboard reflects the new pending payments
-      queryClient.invalidateQueries({ queryKey: ["admin-dashboard-data"] });
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
       setPayRateioOpen(false);
       setReceiptFile(null);
       setRateioCurrentAmount("");
