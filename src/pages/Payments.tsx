@@ -169,8 +169,7 @@ export default function Payments() {
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .gte("created_at", dbStart)
-        .lt("created_at", dbEnd)
+        .or(`status.eq.pending,and(created_at.gte.${dbStart},created_at.lt.${dbEnd})`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 

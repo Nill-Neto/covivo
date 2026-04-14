@@ -416,7 +416,12 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      let paymentDate = new Date().toISOString();
+      let paymentDate = new Date();
+      if (scope === "previous") {
+        // Backdate the payment so it falls into the previous competence
+        // Using cycleStart minus 12 hours ensures it falls in the preceding cycle
+        paymentDate = new Date(cycleStart.getTime() - 12 * 60 * 60 * 1000);
+      }
 
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
@@ -424,10 +429,10 @@ export default function Dashboard() {
         paid_by: user!.id,
         amount,
         receipt_url: urlData.publicUrl,
-        created_at: paymentDate,
+        created_at: paymentDate.toISOString(),
         notes: scope === "previous"
-          ? `Pagamento de Rateio - competências anteriores (${format(new Date(), "MMMM/yyyy", { locale: ptBR })})`
-          : `Pagamento de Rateio - competência atual (${format(new Date(), "MMMM/yyyy", { locale: ptBR })})`
+          ? `Pagamento de Rateio - competências anteriores`
+          : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
       });
 
       toast({ title: "Pagamento enviado!" });
