@@ -92,22 +92,49 @@ export default function Admin() {
       const cycleLabel = format(currentDate, "MMMM/yyyy", { locale: ptBR });
 
       const cycleBalances = (membersRes.data || []).map(m => {
-        // Calculate Global Balance
-        const userAllSplits = allSplits.filter(s => s.user_id === m.user_id);
-        const globalOwed = userAllSplits.reduce((acc, s) => acc + Number(s.amount), 0);
+        // Calculate strictly for the CURRENT cycle
+        const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
+        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount), 0);
         
-        const globalPaid = allPayments
-          .filter(p => p.paid_by === m.user_id)
-          .reduce((acc, p) => acc + Number(p.amount), 0);
+        // Linked payments to current cycle splits
+        const linkedPayments = allPayments.filter(p =>
+          p.paid_by === m.user_id &&
+          p.expense_split_id &&
+          userCycleSplits.some(s => s.id === p.expense_split_id)
+        );
+        
+        // Bulk payments meant for the current cycle
+        const bulkPayments = allPayments.filter(p => {
+          if (p.paid_by !== m.user_id || p.expense_split_id) return false;
           
-        const paidSplitsTotalGlobal = userAllSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount) : 0), 0);
-        const finalGlobalPaid = Math.max(globalPaid, paidSplitsTotalGlobal);
+          // CRITICAL: Exclude payments explicitly marked as previous competencies
+          // This prevents old debt payments from inflating the current cycle's total_paid
+          if (p.notes && p.notes.includes("competências anteriores")) return false;
+          
+          // Include if it specifically mentions this cycle's label
+          if (p.notes && p.notes.includes(cycleLabel)) return true;
+          
+          // Include if it specifically mentions "competência atual"
+          if (p.notes && p.notes.includes("competência atual")) return true;
+          
+          // If no notes, include if created in the general cycle window (plus grace period)
+          if (!p.notes) {
+             const pTime = new Date(p.created_at).getTime();
+             return pTime >= cycleStartMs && pTime <= cycleEndMs + (10 * 86400000);
+          }
+          
+          return false;
+        });
+        
+        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount) : 0), 0);
+        const finalCyclePaid = Math.max(totalCyclePaid, paidSplitsTotalCycle);
 
         return {
            ...m,
-           total_owed: globalOwed,
-           total_paid: finalGlobalPaid,
-           balance: finalGlobalPaid - globalOwed
+           total_owed: cycleOwed,
+           total_paid: finalCyclePaid,
+           balance: finalCyclePaid - cycleOwed
         };
       });
 
