@@ -418,10 +418,10 @@ export default function Dashboard() {
 
       let paymentDate = new Date().toISOString();
       if (scope === "previous") {
-        // Backdate the payment so it falls into the previous competence
-        // Using cycleStart minus 1 hour ensures it falls in the preceding cycle
-        const previousCycleDate = new Date(cycleStart.getTime() - 60 * 60 * 1000);
-        paymentDate = previousCycleDate.toISOString();
+        // Backdate the payment so it falls into the previous competence.
+        // Using the end of the previous month ensures it always lands in the preceding competence.
+        const prevMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0, 23, 59, 59);
+        paymentDate = prevMonthDate.toISOString();
       }
 
       await supabase.from("payments").insert({
