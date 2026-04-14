@@ -130,7 +130,7 @@ export default function Admin() {
 
       const pendingPaymentsCount = allPayments.filter(p => {
          if (p.status !== 'pending') return false;
-         if (!p.expense_split_id) return true;
+         if (!p.expense_split_id) return true; // Bulk payments are considered collective/rateio
          return p.expense_splits?.expenses?.expense_type === 'collective';
       }).length;
 
