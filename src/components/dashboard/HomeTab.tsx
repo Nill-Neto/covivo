@@ -268,7 +268,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="label" 
@@ -278,6 +278,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
                   dy={10} 
                 />
                 <YAxis 
+                  width={75}
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
