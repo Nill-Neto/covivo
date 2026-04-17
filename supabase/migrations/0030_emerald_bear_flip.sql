@@ -1,0 +1,1 @@
+SELECT id, name, closing_day FROM groups LIMIT 5;

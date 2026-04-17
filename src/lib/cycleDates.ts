@@ -1,4 +1,4 @@
-import { addMonths, endOfDay, isAfter, startOfDay, subDays } from "date-fns";
+import { addMonths, endOfDay, isAfter, startOfDay, subDays, format } from "date-fns";
 
 type CycleConfig = {
   referenceDate: Date;
@@ -50,6 +50,10 @@ export function getCompetenceKeyFromDate(date: Date, closingDay: number) {
   }
 
   return `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
+}
+
+export function formatCompetenceKey(date: Date) {
+  return format(date, "yyyy-MM");
 }
 
 export function getCycleDates({ referenceDate, closingDay, dueDay = 10, now = new Date() }: CycleConfig) {

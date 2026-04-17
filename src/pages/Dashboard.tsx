@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,13 +18,12 @@ import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Payment State
   const [payRateioOpen, setPayRateioOpen] = useState(false);
   const [payIndividualOpen, setPayIndividualOpen] = useState(false);
   const [selectedIndividualSplit, setSelectedIndividualSplit] = useState<any>(null);
@@ -45,14 +44,11 @@ export default function Dashboard() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  // --- Queries ---
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-
       const { data, error } = await supabase
         .from("expenses")
         .select(`
@@ -63,8 +59,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd);
+        .eq("competence_key", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -77,7 +72,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, competence_key, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -86,7 +81,6 @@ export default function Dashboard() {
     enabled: !!membership?.group_id && !!user?.id,
   });
 
-  // Bulk payments query - only needed for rateio bulk payment deduction
   const { data: myBulkPayments = [] } = useQuery({
     queryKey: ["my-bulk-payments-dashboard", membership?.group_id, user?.id],
     queryFn: async () => {
@@ -113,16 +107,17 @@ export default function Dashboard() {
   });
 
   const { data: billInstallments = [], isLoading: isLoadingBillInstallments } = useQuery({
-    queryKey: ["bill-installments-dashboard", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
+    queryKey: ["bill-installments-dashboard", user?.id, membership?.group_id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
-      const targetMonth = currentDate.getMonth() + 1; 
+      const targetMonth = currentDate.getMonth() + 1;
       const targetYear = currentDate.getFullYear();
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
           .from("expense_installments" as any)
-          .select("id, amount, installment_number, expenses(title, category, credit_card_id, expense_type, purchase_date, installments)")
+          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id)")
           .eq("user_id", user!.id)
+          .eq("expenses.group_id", membership!.group_id)
           .eq("bill_month", targetMonth)
           .eq("bill_year", targetYear)
           .limit(1000),
@@ -134,6 +129,9 @@ export default function Dashboard() {
           .eq("bill_year", targetYear)
           .limit(1000),
       ]);
+
+      if (groupRes.error) console.error("[Dashboard] group installments error:", groupRes.error);
+      if (personalRes.error) console.error("[Dashboard] personal installments error:", personalRes.error);
 
       const groupItems = (groupRes.data as any[] ?? []);
       const personalItems = (personalRes.data as any[] ?? []).map((p: any) => ({
@@ -150,14 +148,13 @@ export default function Dashboard() {
 
       return [...groupItems, ...personalItems];
     },
-    enabled: !!user,
+    enabled: !!user && !!membership?.group_id,
   });
 
-  // --- Data Processing ---
-
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
+
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  
+
   const myCollectiveShare = collectiveExpenses.reduce((sum, e) => {
     const splits = (e.expense_splits as unknown as { user_id: string; amount: number }[]) || [];
     const mySplit = splits.find((s) => s.user_id === user?.id);
@@ -175,16 +172,14 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  // Gastos à vista do ciclo atual
   const currentCycleCashIndividualExpenses = expensesInCycle.filter(
     (e) => e.created_by === user?.id && e.expense_type === "individual" && e.payment_method !== "credit_card"
   );
 
-  // Parcelas de despesas individuais (sejam vinculadas ao grupo ou inteiramente pessoais) deste mês
   const currentMonthIndividualInstallments = billInstallments
     .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
     .map((i: any) => ({
-      id: i.id, // Usa o ID da parcela para evitar colisão no React key
+      id: i.id,
       title: i.expenses?.title,
       category: i.expenses?.category,
       amount: i.amount,
@@ -218,30 +213,23 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [myPersonalExpenses]);
 
-  // Filtering Logic for Pending Splits (Debts)
-  
-  // 1. Collective Debt (Rateio Pendente)
-  const currentCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
-
-  const getCompetenceKeyFromPurchaseDate = (purchaseDate?: string | null) => {
-    if (!purchaseDate) return null;
-    return getCompetenceKeyFromDate(new Date(`${purchaseDate}T12:00:00`), closingDay);
-  };
-
   const collectivePending = pendingSplits
     .filter((s: any) => {
       if (s.expenses?.expense_type !== "collective") return false;
-      // Exclude splits that have any pending or confirmed payment linked
       const hasPayment = (s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
       return !hasPayment;
     })
-    .map((split: any) => ({
-      ...split,
-      competenceKey: getCompetenceKeyFromPurchaseDate(split.expenses?.purchase_date),
-    }));
+    .map((split: any) => {
+      let compKey = split.expenses?.competence_key;
+      if (!compKey && split.expenses?.purchase_date) {
+        compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
+      }
+      return {
+        ...split,
+        competenceKey: compKey,
+      };
+    });
 
-  // Deduct bulk payments (rateio payments without expense_split_id)
-  // These are lump-sum payments that don't link to specific splits
   const totalBulkPayments = useMemo(() => {
     return myBulkPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   }, [myBulkPayments]);
@@ -254,17 +242,14 @@ export default function Dashboard() {
   const rawTotalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   const rawTotalCollectivePendingCurrent = collectivePendingCurrent.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
   
-  // Apply bulk payments: first against previous, remainder against current
   const bulkAppliedToPrevious = Math.min(totalBulkPayments, rawTotalCollectivePendingPrevious);
   const bulkRemainder = totalBulkPayments - bulkAppliedToPrevious;
   const totalCollectivePendingPrevious = Math.max(0, rawTotalCollectivePendingPrevious - bulkAppliedToPrevious);
   const totalCollectivePendingCurrent = Math.max(0, rawTotalCollectivePendingCurrent - bulkRemainder);
   
-  // Função para abater os pagamentos em lote (bulk) dos itens mais antigos para os mais recentes
   const applyBulkToItems = (items: any[], amountToApply: number) => {
     if (amountToApply <= 0.01) return items;
     
-    // Sort from oldest to newest to pay off oldest first
     const sortedItems = [...items].sort((a, b) => {
       const dateA = a.expenses?.purchase_date || "9999-12-31";
       const dateB = b.expenses?.purchase_date || "9999-12-31";
@@ -277,10 +262,8 @@ export default function Dashboard() {
     for (const item of sortedItems) {
       const itemAmountCents = Math.round(Number(item.amount) * 100);
       if (remainingBulkCents >= itemAmountCents) {
-        // Fully paid
         remainingBulkCents -= itemAmountCents;
       } else if (remainingBulkCents > 0) {
-        // Partially paid
         result.push({
           ...item,
           amount: (itemAmountCents - remainingBulkCents) / 100,
@@ -288,12 +271,10 @@ export default function Dashboard() {
         });
         remainingBulkCents = 0;
       } else {
-        // Not paid
         result.push(item);
       }
     }
 
-    // Return to original sort (usually newest first in UI)
     return result.sort((a, b) => {
       const dateA = a.expenses?.purchase_date || "";
       const dateB = b.expenses?.purchase_date || "";
@@ -329,27 +310,22 @@ export default function Dashboard() {
       .sort((a, b) => {
         const [monthA, yearA] = a.competence.split("/").map(Number);
         const [monthB, yearB] = b.competence.split("/").map(Number);
-
         if (!monthA || !yearA) return 1;
         if (!monthB || !yearB) return -1;
-
-        const dateA = new Date(yearA, monthA - 1, 1).getTime();
-        const dateB = new Date(yearB, monthB - 1, 1).getTime();
-        return dateB - dateA;
+        return new Date(yearB, monthB - 1, 1).getTime() - new Date(yearA, monthA - 1, 1).getTime();
       });
   }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
-
-  // 2. Individual Pending (Manual + Installments)
-  const dbStart = format(cycleStart, "yyyy-MM-dd");
-  const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
     
-    const pd = s.expenses?.purchase_date;
-    const isInCycle = pd ? (pd >= dbStart && pd < dbEnd) : false;
+    let compKey = s.expenses?.competence_key;
+    if (!compKey && s.expenses?.purchase_date) {
+      compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
+    }
+    const isInCycle = compKey === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
   });
@@ -357,17 +333,16 @@ export default function Dashboard() {
   const installmentIndividualPending = billInstallments.filter((i: any) => 
     i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal"
   ).map((i: any) => ({
-    id: i.id, // Installment ID
+    id: i.id,
     amount: i.amount,
     installment_number: i.installment_number,
-    expenses: i.expenses // { title, category, purchase_date, installments }
+    expenses: i.expenses
   }));
 
   const individualPending = [...manualIndividualPending, ...installmentIndividualPending]
     .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
     
   const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
-
   const totalUserExpenses = myCollectiveShare + totalIndividualPending;
 
   const cardsBreakdown = useMemo(() => {
@@ -399,10 +374,15 @@ export default function Dashboard() {
     setSaving(true);
     try {
       const parsedCurrentAmount = Number(rateioCurrentAmount.replace(",", "."));
-      const amount = scope === "previous" ? totalCollectivePendingPrevious : parsedCurrentAmount;
+      const amount = parsedCurrentAmount;
 
       if (!Number.isFinite(amount) || amount <= 0) {
         toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+        return;
+      }
+      
+      if (scope === "previous" && amount > totalCollectivePendingPrevious + 0.01) {
+        toast({ title: "Valor inválido", description: `O valor não pode ser maior que o total pendente (R$ ${totalCollectivePendingPrevious.toFixed(2)}).`, variant: "destructive" });
         return;
       }
 
@@ -411,14 +391,26 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      await supabase.from("payments").insert({
+      let paymentDate = new Date();
+      if (scope === "previous") {
+        paymentDate = new Date(cycleStart.getTime() - 12 * 60 * 60 * 1000);
+      }
+
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+      const [y, m] = compKey.split("-").map(Number);
+
+      await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: null,
         paid_by: user!.id,
+        competence_key: currentCompetenceKey,
         amount,
         receipt_url: urlData.publicUrl,
+        created_at: paymentDate.toISOString(),
+        competence_year: y,
+        competence_month: m,
         notes: scope === "previous"
-          ? `Pagamento de Rateio - competências anteriores (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
+          ? `Pagamento de Rateio - competências anteriores`
           : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
       });
 
@@ -444,12 +436,20 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      await supabase.from("payments").insert({
+      const paymentDate = new Date();
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+      const [y, m] = compKey.split("-").map(Number);
+
+      await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
         paid_by: user!.id,
+        competence_key: currentCompetenceKey,
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
+        created_at: paymentDate.toISOString(),
+        competence_year: y,
+        competence_month: m,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
       });
 
@@ -514,7 +514,7 @@ export default function Dashboard() {
         )}
 
         <TabsContent value="home" className="space-y-6">
-          <HomeTab closingDay={closingDay} />
+          <HomeTab closingDay={closingDay} currentDate={currentDate} />
         </TabsContent>
 
         <TabsContent value="personal" className="space-y-6">
@@ -539,7 +539,7 @@ export default function Dashboard() {
               if (scope === "current") {
                 setRateioCurrentAmount(totalCollectivePendingCurrent.toFixed(2));
               } else {
-                setRateioCurrentAmount("");
+                setRateioCurrentAmount(totalCollectivePendingPrevious.toFixed(2));
               }
               setPayRateioOpen(true);
             }}

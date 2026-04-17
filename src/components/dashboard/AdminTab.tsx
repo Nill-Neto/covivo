@@ -69,44 +69,6 @@ export function AdminTab({
       .sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime());
   }, [selectedMemberId, cycleSplits]);
 
-  // Agrupa os splits do usuário por competência (Mês/Ano calculado)
-  const groupedSplits = useMemo(() => {
-    if (!selectedMemberSplits.length) return [];
-
-    const groups: Record<string, { date: Date; label: string; items: any[] }> = {};
-
-    selectedMemberSplits.forEach(split => {
-      const pd = split.expenses?.purchase_date;
-      if (!pd) return;
-      
-      const [year, month, day] = pd.split("-").map(Number);
-      let compM = month;
-      let compY = year;
-      
-      if (day >= closingDay) {
-        compM++;
-        if (compM > 12) { 
-          compM = 1; 
-          compY++; 
-        }
-      }
-      
-      const compDate = new Date(compY, compM - 1, 1);
-      const key = `${compY}-${compM}`;
-      
-      if (!groups[key]) {
-        groups[key] = {
-          date: compDate,
-          label: format(compDate, "MMMM 'de' yyyy", { locale: ptBR }),
-          items: []
-        };
-      }
-      groups[key].items.push(split);
-    });
-
-    return Object.values(groups).sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [selectedMemberSplits, closingDay]);
-
   const totalReceivable = sortedMembers.reduce(
     (acc, m) => acc + (m.balance < -0.01 ? Math.abs(m.balance) : 0), 0
   );
@@ -505,45 +467,33 @@ export function AdminTab({
           </div>
 
           <div className="flex-1 overflow-y-auto bg-muted/5">
-            {groupedSplits.length === 0 ? (
+            {selectedMemberSplits.length === 0 ? (
               <div className="py-10 text-center text-muted-foreground text-sm">
                 Nenhuma despesa rateada nesta competência.
               </div>
             ) : (
-              <div className="divide-y">
-                {groupedSplits.map(group => (
-                  <div key={group.label} className="pb-0">
-                    <div className="px-5 py-2 bg-muted/30 border-b sticky top-0 z-10 backdrop-blur-md flex justify-between items-center shadow-sm">
-                       <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{group.label}</span>
-                       <span className="text-xs font-bold text-destructive tabular-nums">
-                         R$ {group.items.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)}
-                       </span>
+              <div className="divide-y divide-border/50">
+                {selectedMemberSplits.map((split: any) => (
+                  <div key={split.id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
+                    <div className="flex justify-between items-start mb-1 gap-2">
+                      <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
+                          R$ {Number(split.amount).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                          de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="divide-y divide-border/50">
-                      {group.items.map((split: any) => (
-                        <div key={split.id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
-                          <div className="flex justify-between items-start mb-1 gap-2">
-                            <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
-                            <div className="flex flex-col items-end shrink-0">
-                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
-                                R$ {Number(split.amount).toFixed(2)}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
-                                de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                          {split.expenses?.description && (
-                            <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
-                              {getCategoryLabel(split.expenses?.category)}
-                            </Badge>
-                            <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
-                          </div>
-                        </div>
-                      ))}
+                    {split.expenses?.description && (
+                      <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                        {getCategoryLabel(split.expenses?.category)}
+                      </Badge>
+                      <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
                     </div>
                   </div>
                 ))}
@@ -553,7 +503,7 @@ export function AdminTab({
           
           <div className="px-5 py-4 bg-muted/20 border-t shrink-0 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
             <span className="text-sm font-medium text-muted-foreground">Saldo Pendente Atual</span>
-            <span className="text-lg font-bold text-destructive tabular-nums">
+            <span className={`text-lg font-bold ${(selectedMember?.balance || 0) < 0 ? "text-destructive" : "text-success"}`}>
               R$ {Math.abs(selectedMember?.balance || 0).toFixed(2)}
             </span>
           </div>

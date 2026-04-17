@@ -23,15 +23,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, CreditCard, Settings, Trash2 } from "lucide-react";
+import { Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, Settings, Trash2, CreditCard } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/layout/PageHero";
-import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Capacitor } from "@capacitor/core";
 
@@ -82,7 +81,6 @@ export default function Payments() {
     [membership?.group_id, user?.id]
   );
 
-  // Manage Payment State
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -95,35 +93,45 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    // Calcula a competência baseada na data de criação do pagamento e dia de fechamento
-    const competence = getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
     setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
-      let newDate = editingPayment.created_at;
+      const [y, m] = values.competence.split("-").map(Number);
+      const cleanAmount = values.amount.replace(",", ".");
+      const amountNum = Number(cleanAmount);
       
-      if (values.competence) {
-        const [yStr, mStr] = values.competence.split("-");
-        const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1;
-        const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
+      if (isNaN(amountNum)) throw new Error("Valor numérico inválido");
+
+      let newDate = editingPayment.created_at;
+      let newCompDate = editingPayment.competence_date;
+      
+      if (values.competence && values.competence !== editingPayment.competence_key) {
+        // Use the 1st of the month as a base.
+        // We'll set BOTH created_at and competence_date to be safe,
+        // but the trigger Priority 1 will handle it via competence_key.
+        const safeDate = new Date(y, m - 1, 1, 12, 0, 0);
         newDate = safeDate.toISOString();
+        newCompDate = format(safeDate, "yyyy-MM-dd");
       }
 
       const { error } = await supabase
         .from("payments")
         .update({
-          amount: Number(values.amount),
+          amount: amountNum,
           notes: values.notes || null,
           status: values.status,
           created_at: newDate,
-        })
+          competence_date: newCompDate,
+          competence_key: values.competence || editingPayment.competence_key,
+          competence_year: y,
+          competence_month: m,
+        } as any)
         .eq("id", editingPayment.id);
       if (error) throw error;
 
-      // If confirming/rejecting, also call confirm_payment RPC to update split status
       if ((values.status === 'confirmed' || values.status === 'rejected') && values.status !== editingPayment.status) {
         const { error: rpcError } = await supabase.rpc("confirm_payment", {
           _payment_id: editingPayment.id,
@@ -134,9 +142,6 @@ export default function Payments() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-dashboard-data"] });
       toast({ title: "Pagamento atualizado!" });
       setEditingPayment(null);
     },
@@ -150,31 +155,25 @@ export default function Payments() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-dashboard-data"] });
       toast({ title: "Pagamento excluído." });
       setEditingPayment(null);
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
-  // Fetch payments FILTERED by cycle
-  const { data: payments, isLoading } = useQuery({
-    queryKey: ["payments", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
-    queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
+  const { data: payments, isLoading } = useQuery({
+    queryKey: ["payments", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .gte("created_at", dbStart)
-        .lt("created_at", dbEnd)
+        .or(`status.eq.pending,competence_key.eq.${currentCompetenceKey}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Get profile names for paid_by
       const userIds = [...new Set(data.map((p) => p.paid_by))];
       const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name").eq("group_id", membership!.group_id).in("id", userIds);
       return data.map((p) => ({
@@ -185,7 +184,6 @@ export default function Payments() {
     enabled: !!membership?.group_id,
   });
 
-  // Fetch pending splits for current user
   const { data: pendingSplits } = useQuery({
     queryKey: ["my-pending-splits", membership?.group_id, user?.id],
     queryFn: async () => {
@@ -228,11 +226,6 @@ export default function Payments() {
           ? draft.receiptMetadata
           : null
       );
-
-      toast({
-        title: "Rascunho restaurado",
-        description: "Recuperamos os dados do envio de pagamento.",
-      });
     } catch {
       sessionStorage.removeItem(PAYMENT_DRAFT_STORAGE_KEY);
     }
@@ -251,7 +244,6 @@ export default function Payments() {
 
   useEffect(() => {
     if (!pendingSplits?.length || selectedSplitIds.length === 0) return;
-
     const validSplitIds = new Set(pendingSplits.map((split) => split.id));
     const filteredSelected = selectedSplitIds.filter((id) => validSplitIds.has(id));
     if (filteredSelected.length !== selectedSplitIds.length) {
@@ -259,7 +251,6 @@ export default function Payments() {
     }
   }, [pendingSplits, selectedSplitIds]);
 
-  // Effect: Prefill amount with selected total until user manually edits it
   useEffect(() => {
     if (!pendingSplits) return;
     const total = pendingSplits
@@ -297,101 +288,8 @@ export default function Payments() {
           native_runtime: isNativeRuntime,
           ...details,
         },
-      });
-    } catch {
-      // Não bloqueia o fluxo principal em caso de falha na telemetria.
-    }
-  };
-
-  const restoreDraft = (raw: string) => {
-    try {
-      const parsed = JSON.parse(raw) as {
-        selectedSplitIds?: string[];
-        amount?: string;
-        notes?: string;
-        amountTouched?: boolean;
-        wasOpen?: boolean;
-      };
-      setSelectedSplitIds(parsed.selectedSplitIds ?? []);
-      setAmount(parsed.amount ?? "");
-      setAmountTouched(!!parsed.amountTouched);
-      setNotes(parsed.notes ?? "");
-      if (parsed.wasOpen) setOpen(true);
-    } catch {
-      // Ignora dados inválidos no storage.
-    }
-  };
-
-  useEffect(() => {
-    if (!paymentDraftKey || hasRestoredDraftRef.current || !user?.id) return;
-    hasRestoredDraftRef.current = true;
-
-    const draftRaw = window.localStorage.getItem(paymentDraftKey);
-    if (!draftRaw) return;
-    restoreDraft(draftRaw);
-  }, [paymentDraftKey, user?.id]);
-
-  useEffect(() => {
-    if (!paymentDraftKey) return;
-    if (!open) {
-      window.localStorage.removeItem(paymentDraftKey);
-      return;
-    }
-
-    const payload = JSON.stringify({
-      selectedSplitIds,
-      amount,
-      notes,
-      amountTouched,
-      wasOpen: true,
-      updatedAt: Date.now(),
-    });
-    window.localStorage.setItem(paymentDraftKey, payload);
-  }, [amount, amountTouched, notes, open, paymentDraftKey, selectedSplitIds]);
-
-  const fallbackToWebFilePicker = () => {
-    fileInputRef.current?.click();
-  };
-
-  const pickReceiptNative = async (source: "camera" | "photos") => {
-    try {
-      const cameraPlugin = (window as any)?.Capacitor?.Plugins?.Camera;
-      if (!cameraPlugin?.getPhoto) {
-        toast({ title: "Seleção nativa indisponível", description: "Usando seletor padrão do sistema." });
-        fallbackToWebFilePicker();
-        return;
-      }
-
-      const photo = await cameraPlugin.getPhoto({
-        resultType: "uri",
-        source: source === "camera" ? "CAMERA" : "PHOTOS",
-        quality: 80,
-      });
-
-      if (!photo?.webPath) {
-        fallbackToWebFilePicker();
-        return;
-      }
-
-      const response = await fetch(photo.webPath);
-      const blob = await response.blob();
-      const extension = blob.type?.split("/")[1] || "jpg";
-      const file = new File([blob], `comprovante-${Date.now()}.${extension}`, {
-        type: blob.type || "image/jpeg",
-      });
-      setReceiptFile(file);
-    } catch (err: any) {
-      await trackUploadMetric("payment_upload_failed", {
-        stage: "receipt_pick",
-        error: err?.message ?? "native_picker_failed",
-      });
-      toast({
-        title: "Não foi possível abrir câmera/galeria",
-        description: "Usando seletor padrão para continuar.",
-        variant: "destructive",
-      });
-      fallbackToWebFilePicker();
-    }
+      } as any);
+    } catch { /* ignore */ }
   };
 
   const handleSubmitPayment = async () => {
@@ -424,22 +322,25 @@ export default function Payments() {
         return;
       }
 
-      // 1. Upload receipt once
       const ext = receiptFile.name.split(".").pop();
       const path = `${user!.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("receipts").upload(path, receiptFile);
-      if (upErr) throw upErr;
+      await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
-      // 2. Insert payment records (one per split)
+      const compKey = getCompetenceKeyFromDate(new Date(), closingDay);
+      const [y, m] = compKey.split("-").map(Number);
+
       const paymentsToInsert = selectedSplits.map((split) => ({
-          group_id: membership!.group_id,
-          expense_split_id: split.id,
-          paid_by: user!.id,
-          amount: Number(split.amount),
-          receipt_url: urlData.publicUrl,
-          notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
-        }));
+        group_id: membership!.group_id,
+        expense_split_id: split.id,
+        paid_by: user!.id,
+        competence_key: compKey,
+        competence_year: y,
+        competence_month: m,
+        amount: Number(split.amount),
+        receipt_url: urlData.publicUrl,
+        notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
+      }));
 
       const creditAmount = paidAmount - selectedTotal;
       if (creditAmount > 0) {
@@ -447,21 +348,19 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: null,
           paid_by: user!.id,
+          competence_key: compKey,
+          competence_year: y,
+          competence_month: m,
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
         });
       }
 
-      const { error } = await supabase.from("payments").insert(paymentsToInsert);
+      const { error } = await (supabase.from("payments") as any).insert(paymentsToInsert);
       if (error) throw error;
 
-      toast({
-        title: "Pagamento enviado!",
-        description: creditAmount > 0
-          ? `Aguardando confirmação. Excedente de R$ ${creditAmount.toFixed(2)} será lançado como crédito.`
-          : "Aguardando confirmação do administrador.",
-      });
+      toast({ title: "Pagamento enviado!" });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
       await trackUploadMetric("payment_upload_success", {
@@ -491,8 +390,6 @@ export default function Payments() {
       if (error) throw error;
       toast({ title: status === "confirmed" ? "Pagamento confirmado" : "Pagamento recusado" });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["balances"] });
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
@@ -588,9 +485,6 @@ export default function Payments() {
                           setAmount(e.target.value);
                         }}
                       />
-                      <p className="text-[10px] text-muted-foreground">
-                        Valor livre. Se exceder o total das despesas selecionadas, o excedente vira crédito.
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Comprovante *</Label>
@@ -611,12 +505,6 @@ export default function Payments() {
                           );
                         }}
                       />
-                      <p className="text-xs text-muted-foreground">Foto ou PDF do comprovante de pagamento</p>
-                      {!!receiptMetadata && !receiptFile && (
-                        <p className="text-xs text-amber-600">
-                          Rascunho recuperado ({receiptMetadata.name}). Por segurança, anexe novamente o comprovante.
-                        </p>
-                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Observações (opcional)</Label>
@@ -624,17 +512,7 @@ export default function Payments() {
                     </div>
                   </div>
                   <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background flex gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        clearPaymentDraft();
-                        setOpen(false);
-                        setComboboxOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      Cancelar
-                    </Button>
+                    <Button variant="ghost" onClick={() => { clearPaymentDraft(); setOpen(false); }} className="w-full">Cancelar</Button>
                     <Button onClick={handleSubmitPayment} disabled={saving} className="w-full">
                       {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                       Enviar Pagamento
@@ -652,7 +530,6 @@ export default function Payments() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card de Pendentes */}
         <Card className="border-l-4 border-l-warning bg-card shadow-sm flex flex-col">
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="p-4 border-b bg-muted/20">
@@ -663,7 +540,6 @@ export default function Payments() {
                   {payments?.filter((p) => p.status === "pending").length || 0}
                 </Badge>
               </h3>
-              <p className="text-sm text-muted-foreground">Aguardando confirmação</p>
             </div>
             <div className="p-4 space-y-3 flex-1 overflow-auto">
               {payments?.filter((p) => p.status === "pending").length === 0 ? (
@@ -677,7 +553,6 @@ export default function Payments() {
           </CardContent>
         </Card>
 
-        {/* Card de Histórico (Todos/Confirmados/Recusados) */}
         <Card className="border-l-4 border-l-success bg-card shadow-sm flex flex-col">
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="p-4 border-b bg-muted/20">
@@ -688,7 +563,6 @@ export default function Payments() {
                   {payments?.filter((p) => p.status !== "pending").length || 0}
                 </Badge>
               </h3>
-              <p className="text-sm text-muted-foreground">Confirmados e recusados</p>
             </div>
             <div className="p-4 space-y-3 flex-1 overflow-auto">
               {payments?.filter((p) => p.status !== "pending").length === 0 ? (
@@ -703,7 +577,6 @@ export default function Payments() {
         </Card>
       </div>
 
-      {/* Modal de Gerenciamento de Pagamentos (Admin) */}
       <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
         <DialogContent className="max-w-md p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
           <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
@@ -720,10 +593,6 @@ export default function Payments() {
                 <Input type="month" value={editCompetence} onChange={(e) => setEditCompetence(e.target.value)} />
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground -mt-2">
-              Selecione o mês para que o sistema direcione este pagamento para a competência correta.
-            </p>
-
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
@@ -735,7 +604,6 @@ export default function Payments() {
                 </SelectContent>
               </Select>
             </div>
-            
             <div className="space-y-2">
               <Label>Observações</Label>
               <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
@@ -744,9 +612,7 @@ export default function Payments() {
           <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background flex justify-between items-center">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -755,29 +621,24 @@ export default function Payments() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => editingPayment && deletePayment.mutate(editingPayment.id)} className="bg-destructive text-destructive-foreground">
-                    Excluir
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={() => editingPayment && deletePayment.mutate(editingPayment.id)} className="bg-destructive text-destructive-foreground">Excluir</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
               <Button onClick={() => updatePayment.mutate({ amount: editAmount, notes: editNotes, status: editStatus, competence: editCompetence })} disabled={updatePayment.isPending}>
-                {updatePayment.isPending && <CustomLoader className="h-4 w-4 mr-2" />}
-                Salvar
+                {updatePayment.isPending && <CustomLoader className="h-4 w-4 mr-2" />} Salvar
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
 
-function PaymentItem({ payment, isAdmin, onConfirm, onManage }: { payment: any; isAdmin: boolean; onConfirm: (id: string, status: "confirmed" | "rejected") => void; onManage?: (payment: any) => void }) {
+function PaymentItem({ payment, isAdmin, onConfirm, onManage }: any) {
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
     pending: { label: "Pendente", variant: "secondary" },
     confirmed: { label: "Confirmado", variant: "default" },
@@ -806,20 +667,14 @@ function PaymentItem({ payment, isAdmin, onConfirm, onManage }: { payment: any; 
           <div className="flex items-center gap-1">
             <p className="text-sm font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
             {isAdmin && onManage && (
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)}>
-                <Settings className="h-3 w-3" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)}><Settings className="h-3 w-3" /></Button>
             )}
           </div>
           <Badge variant={s.variant} className="text-[10px] px-1.5 py-0 h-4">{s.label}</Badge>
           {isAdmin && payment.status === "pending" && (
             <div className="flex gap-1 mt-1">
-              <Button size="icon" variant="default" className="h-6 w-6" onClick={() => onConfirm(payment.id, "confirmed")}>
-                <Check className="h-3 w-3" />
-              </Button>
-              <Button size="icon" variant="destructive" className="h-6 w-6" onClick={() => onConfirm(payment.id, "rejected")}>
-                <X className="h-3 w-3" />
-              </Button>
+              <Button size="icon" variant="default" className="h-6 w-6" onClick={() => onConfirm(payment.id, "confirmed")}><Check className="h-3 w-3" /></Button>
+              <Button size="icon" variant="destructive" className="h-6 w-6" onClick={() => onConfirm(payment.id, "rejected")}><X className="h-3 w-3" /></Button>
             </div>
           )}
         </div>

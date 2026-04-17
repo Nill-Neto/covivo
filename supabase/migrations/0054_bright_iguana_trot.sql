@@ -1,0 +1,1 @@
+SELECT competence_date, created_at FROM payments WHERE id = '2206dffe-0970-45e5-ae6b-918172d84c0b';

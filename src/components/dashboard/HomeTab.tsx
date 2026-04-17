@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
-import { format } from "date-fns";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,74 +16,64 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 
 interface HomeTabProps {
   closingDay: number;
+  currentDate: Date;
 }
 
-export function HomeTab({ closingDay }: HomeTabProps) {
+export function HomeTab({ closingDay, currentDate }: HomeTabProps) {
   const { memberships, activeGroupId, setActiveGroupId, user } = useAuth();
   const navigate = useNavigate();
 
-  // Gera as últimas 6 competências baseadas na data atual e no dia de fechamento
   const chartDataTemplate = useMemo(() => {
-    const currentCompKey = getCompetenceKeyFromDate(new Date(), closingDay || 1);
-    const [currYear, currMonth] = currentCompKey.split("-").map(Number);
+    // Generate 6 months ending at the CURRENTLY SELECTED month (not necessarily today)
     const comps = [];
     
     for (let i = 5; i >= 0; i--) {
-      let m = currMonth - i;
-      let y = currYear;
-      while (m < 1) {
-        m += 12;
-        y -= 1;
-      }
-      const key = `${y}-${String(m).padStart(2, "0")}`;
-      const dateObj = new Date(y, m - 1, 1);
+      const d = subMonths(currentDate, i);
+      const key = formatCompetenceKey(d);
       comps.push({
         key,
-        label: format(dateObj, "MMM/yy", { locale: ptBR }),
+        label: format(d, "MMM/yy", { locale: ptBR }),
         Coletivo: 0,
         MeuRateio: 0,
         Individual: 0,
       });
     }
     return comps;
-  }, [closingDay]);
+  }, [currentDate]);
 
-  const startDateQuery = useMemo(() => {
-    const firstComp = chartDataTemplate[0];
-    const [y, m] = firstComp.key.split("-").map(Number);
-    let startM = m - 1;
-    let startY = y;
-    if (startM < 1) {
-      startM = 12;
-      startY--;
-    }
-    return `${startY}-${String(startM).padStart(2, "0")}-01`;
-  }, [chartDataTemplate]);
-
-  // Busca despesas e parcelas com suporte correto a faturas de cartão e rateios
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ["home-expenses-evolution", activeGroupId, startDateQuery, user?.id],
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, formatCompetenceKey(currentDate)],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
+      const compKeys = chartDataTemplate.map(c => c.key);
+      const competenceWindowFilter = chartDataTemplate
+        .map(c => {
+          const [y, m] = c.key.split("-").map(Number);
+          return `and(bill_year.eq.${y},bill_month.eq.${m})`;
+        })
+        .join(",");
+
       const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
         supabase
           .from("expenses")
-          .select("id, amount, expense_type, created_by, purchase_date, payment_method, expense_splits(user_id, amount)")
+          .select("id, amount, expense_type, created_by, purchase_date, payment_method, competence_key, expense_splits(user_id, amount)")
           .eq("group_id", activeGroupId)
-          .gte("purchase_date", startDateQuery),
+          .in("competence_key", compKeys),
           
         supabase
           .from("expense_installments")
           .select("amount, bill_month, bill_year, expenses!inner(group_id, expense_type)")
           .eq("user_id", user.id)
           .eq("expenses.group_id", activeGroupId)
-          .eq("expenses.expense_type", "individual"),
+          .eq("expenses.expense_type", "individual")
+          .or(competenceWindowFilter),
           
         supabase
           .from("personal_expense_installments")
           .select("amount, bill_month, bill_year")
           .eq("user_id", user.id)
+          .or(competenceWindowFilter)
       ]);
 
       if (expensesRes.error) throw expensesRes.error;
@@ -103,31 +93,25 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     const dataCopy = chartDataTemplate.map((c) => ({ ...c, Coletivo: 0, MeuRateio: 0, Individual: 0 }));
     if (!rawData) return dataCopy;
 
-    // 1. Processa Despesas base (Coletivas totais, Meu Rateio e Individuais em Dinheiro/Pix)
     rawData.expenses.forEach((e) => {
-      if (!e.purchase_date) return;
-      const key = getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1);
+      const key = e.competence_key || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
+      if (!key) return;
       const bucket = dataCopy.find((c) => c.key === key);
       
       if (bucket) {
         if (e.expense_type === "collective") {
           bucket.Coletivo += Number(e.amount || 0);
-          
-          // Separa a fatia do usuário
           const mySplit = e.expense_splits?.find((s: { user_id: string; amount: number | string | null }) => s.user_id === user?.id);
           if (mySplit) {
             bucket.MeuRateio += Number(mySplit.amount || 0);
           }
         }
-        // Despesas individuais entram aqui apenas se NÃO forem no cartão de crédito
-        // Se forem no cartão, o valor será contabilizado pelas parcelas (installments) abaixo
         if (e.expense_type === "individual" && e.created_by === user?.id && e.payment_method !== "credit_card") {
           bucket.Individual += Number(e.amount || 0);
         }
       }
     });
 
-    // 2. Processa as Parcelas (Cartão de crédito individual do grupo)
     rawData.installments.forEach((i) => {
       const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
       const bucket = dataCopy.find((c) => c.key === key);
@@ -136,7 +120,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       }
     });
 
-    // 3. Processa as Parcelas (Cartão de crédito pessoal - fora do grupo)
     rawData.personalInstallments.forEach((i) => {
       const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
       const bucket = dataCopy.find((c) => c.key === key);
@@ -151,12 +134,11 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
     }));
-  }, [rawData, chartDataTemplate, closingDay, user?.id]);
+  }, [rawData, chartDataTemplate, user?.id, closingDay]);
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Card Grupos */}
         <Card className="flex flex-col shadow-sm bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-base">
@@ -203,8 +185,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
                     
                     <div className="flex items-center gap-2">
                       {isActive && <Check className="h-4 w-4 text-primary shrink-0" />}
-                      
-                      {/* O botão de configurações só aparece se a pessoa for admin */}
                       {m.role === 'admin' && (
                         <Button
                           variant="ghost"
@@ -229,7 +209,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           </CardContent>
         </Card>
 
-        {/* Card Convites */}
         <Card className="flex flex-col border-l-4 border-l-primary shadow-sm bg-card h-full justify-between">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -250,7 +229,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
         </Card>
       </div>
 
-      {/* Gráfico de Evolução */}
       <Card className="shadow-sm bg-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -321,7 +299,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
                   type="monotone"
                   dataKey="Individual" 
                   name="Meus Gastos (Individuais)" 
-                  stroke="#0ea5e9" /* Blue sky */
+                  stroke="#0ea5e9"
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
@@ -331,7 +309,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }
