@@ -68,12 +68,14 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           .select("amount, bill_month, bill_year, expenses!inner(group_id, expense_type)")
           .eq("user_id", user.id)
           .eq("expenses.group_id", activeGroupId)
-          .eq("expenses.expense_type", "individual"),
+          .eq("expenses.expense_type", "individual")
+          .or(competenceWindowFilter),
           
         supabase
           .from("personal_expense_installments")
           .select("amount, bill_month, bill_year")
           .eq("user_id", user.id)
+          .or(competenceWindowFilter)
       ]);
 
       if (expensesRes.error) throw expensesRes.error;
@@ -141,7 +143,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
     }));
-  }, [rawData, chartDataTemplate, closingDay, user?.id]);
+  }, [rawData, chartDataTemplate, user?.id]);
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">

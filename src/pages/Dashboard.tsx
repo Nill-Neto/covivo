@@ -9,7 +9,6 @@ import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { parseLocalDate } from "@/lib/utils";
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HomeTab } from "@/components/dashboard/HomeTab";
@@ -18,7 +17,6 @@ import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -311,8 +309,7 @@ export default function Dashboard() {
     if (totalCollectivePendingPrevious <= 0.01) return [];
 
     const grouped = displayCollectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
-      const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
-      const competence = purchaseDate ? format(purchaseDate, "MM/yyyy") : "Sem competência";
+      const competence = item.expenses?.competence_key ?? "Sem competência";
       if (!acc[competence]) acc[competence] = [];
       acc[competence].push(item);
       return acc;
@@ -325,8 +322,8 @@ export default function Dashboard() {
         total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
       }))
       .sort((a, b) => {
-        const [monthA, yearA] = a.competence.split("/").map(Number);
-        const [monthB, yearB] = b.competence.split("/").map(Number);
+        const [yearA, monthA] = a.competence.split("-").map(Number);
+        const [yearB, monthB] = b.competence.split("-").map(Number);
 
         if (!monthA || !yearA) return 1;
         if (!monthB || !yearB) return -1;
@@ -414,6 +411,9 @@ export default function Dashboard() {
       const path = `${user!.id}/${Date.now()}_rateio.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
       let paymentDate = new Date();
       if (scope === "previous") {
@@ -428,6 +428,7 @@ export default function Dashboard() {
         group_id: membership!.group_id,
         expense_split_id: null,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount,
         receipt_url: urlData.publicUrl,
         created_at: paymentDate.toISOString(),
@@ -458,6 +459,9 @@ export default function Dashboard() {
       const path = `${user!.id}/${Date.now()}_indiv.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
       const paymentDate = new Date();
       const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
@@ -466,6 +470,7 @@ export default function Dashboard() {
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
         created_at: paymentDate.toISOString(),

@@ -31,7 +31,6 @@ import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Capacitor } from "@capacitor/core";
 
@@ -71,7 +70,7 @@ export default function Payments() {
   const isMobile = useIsMobile();
   const isNativeRuntime = Capacitor.isNativePlatform();
 
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
+  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth } = useCycleDates(membership?.group_id);
   const platformLabel = useMemo(() => {
     if (isNativeRuntime) return `capacitor-${Capacitor.getPlatform()}`;
     if (isMobile) return "mobile-web";
@@ -411,6 +410,9 @@ export default function Payments() {
       });
 
       const paidAmount = Number(amount);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
       const selectedSplits = (pendingSplits ?? []).filter((s) => selectedSplitIds.includes(s.id));
       const selectedTotal = selectedSplits.reduce((sum, s) => sum + Number(s.amount), 0);
 
@@ -437,6 +439,7 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: split.id,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(split.amount),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
@@ -449,6 +452,7 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: null,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
@@ -794,7 +798,7 @@ function PaymentItem({ payment, isAdmin, onConfirm, onManage }: { payment: any; 
         <div className="min-w-0 flex-1">
           <p className="font-medium text-sm">{payment.payer_name}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {format(new Date(payment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            Competência: {format(new Date(`${payment.competence_date}T12:00:00`), "MM/yyyy", { locale: ptBR })} · Enviado em {format(new Date(payment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
           </p>
           {payment.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{payment.notes}</p>}
           {payment.receipt_url && (

@@ -9,6 +9,8 @@ type ExpenseInstallmentsTable = {
     amount: number;
     bill_month: number;
     bill_year: number;
+    competence_month: number;
+    competence_year: number;
     created_at: string;
   };
   Insert: {
@@ -19,6 +21,8 @@ type ExpenseInstallmentsTable = {
     amount: number;
     bill_month: number;
     bill_year: number;
+    competence_month?: number;
+    competence_year?: number;
     created_at?: string;
   };
   Update: {
@@ -29,6 +33,8 @@ type ExpenseInstallmentsTable = {
     amount?: number;
     bill_month?: number;
     bill_year?: number;
+    competence_month?: number;
+    competence_year?: number;
     created_at?: string;
   };
   Relationships: [
@@ -234,6 +240,7 @@ export type ExtendedDatabase = Omit<Database, "public"> & {
       expense_installments: ExpenseInstallmentsTable;
       groups: UpdatedGroupsTable;
       group_fees: GroupFeesTable;
+      payments: UpdatedPaymentsTable;
       profiles: UpdatedProfilesTable;
       profile_sensitive: UpdatedProfileSensitiveTable;
     };

@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,7 +61,9 @@ export default function Admin() {
         supabase.from("payments")
           .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
-          .in("status", ["pending", "confirmed"]),
+          .in("status", ["pending", "confirmed"])
+          .gte("competence_date", dbStart)
+          .lt("competence_date", dbEnd),
         supabase
           .from("audit_log")
           .select("created_at, details")
