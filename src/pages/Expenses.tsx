@@ -120,6 +120,7 @@ export default function Expenses() {
   const [customCategory, setCustomCategory] = useState("");
   const [expenseType, setExpenseType] = useState<"collective" | "individual">(isAdmin ? "collective" : "individual");
   const [dateValue, setDateValue] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editCompetence, setEditCompetence] = useState(format(new Date(), "yyyy-MM"));
   const [description, setDescription] = useState("");
   const [splitBetweenAll, setSplitBetweenAll] = useState(true);
 
@@ -454,10 +455,14 @@ export default function Expenses() {
         const parsedAmount = parseFloat(amount);
         const parsedInstallments = parseInt(installments) || 1;
 
-        const compKey = getCompetenceKeyFromDate(
-          new Date(`${dateValue}T12:00:00`), 
-          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
-        );
+        const compKey = editCompetence?.trim()
+          ? editCompetence
+          : getCompetenceKeyFromDate(
+              new Date(`${dateValue}T12:00:00`),
+              finalCreditCardId && finalCreditCardId !== "none"
+                ? cards.find((c) => c.id === finalCreditCardId)?.closing_day || 1
+                : closingDay,
+            );
 
         const { error } = await supabase
           .from("expenses")
@@ -634,6 +639,7 @@ export default function Expenses() {
     setCustomCategory("");
     setExpenseType(isAdmin ? "collective" : "individual");
     setDateValue(format(new Date(), "yyyy-MM-dd"));
+    setEditCompetence(format(new Date(), "yyyy-MM"));
     setDescription("");
     setSplitBetweenAll(true);
     setSelectedParticipantIds(activeMemberIds);
@@ -661,6 +667,7 @@ export default function Expenses() {
     setEditingOriginalAmount(Number(expense.amount));
     setDescription(expense.description || "");
     setDateValue(expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
+    setEditCompetence(expense.competence_key || (expense.purchase_date ? expense.purchase_date.slice(0, 7) : format(new Date(), "yyyy-MM")));
     setExpenseType(expense.expense_type);
     setPaymentMethod(expense.payment_method || "cash");
     setCreditCardId(expense.credit_card_id || "none");
@@ -987,6 +994,16 @@ export default function Expenses() {
                         )}
                       </div>
                     </div>
+                    {editingType === "expense" && editingId && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Competência</Label>
+                        <Input
+                          type="month"
+                          value={editCompetence}
+                          onChange={(e) => setEditCompetence(e.target.value)}
+                        />
+                      </div>
+                    )}
 
                     {paymentMethod === "credit_card" && (
                       <div className="grid grid-cols-2 gap-3">
