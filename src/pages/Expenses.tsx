@@ -177,15 +177,13 @@ export default function Expenses() {
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
     queryKey: ["expenses", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const competenceYear = currentDate.getFullYear();
-      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
         .select("*, expense_splits(id, user_id, amount, status, paid_at)")
         .eq("group_id", membership!.group_id)
-        .eq("competence_year", competenceYear)
-        .eq("competence_month", competenceMonth)
+        .eq("competence_key", competenceKey)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;

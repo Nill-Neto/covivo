@@ -49,6 +49,14 @@ export function HomeTab({ closingDay }: HomeTabProps) {
   }, [closingDay]);
 
   const competenceKeys = useMemo(() => chartDataTemplate.map((c) => c.key), [chartDataTemplate]);
+  const competenceWindowFilter = useMemo(() => {
+    return competenceKeys
+      .map((key) => {
+        const [year, month] = key.split("-").map(Number);
+        return `and(competence_year.eq.${year},competence_month.eq.${month})`;
+      })
+      .join(",");
+  }, [competenceKeys]);
 
   // Busca despesas e parcelas com suporte correto a faturas de cartão e rateios
   const { data: rawData, isLoading } = useQuery({
@@ -68,12 +76,14 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           .select("amount, bill_month, bill_year, expenses!inner(group_id, expense_type)")
           .eq("user_id", user.id)
           .eq("expenses.group_id", activeGroupId)
-          .eq("expenses.expense_type", "individual"),
+          .eq("expenses.expense_type", "individual")
+          .or(competenceWindowFilter),
           
         supabase
           .from("personal_expense_installments")
           .select("amount, bill_month, bill_year")
           .eq("user_id", user.id)
+          .or(competenceWindowFilter)
       ]);
 
       if (expensesRes.error) throw expensesRes.error;

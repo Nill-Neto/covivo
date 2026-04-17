@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,8 +23,7 @@ export default function Admin() {
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const competenceYear = currentDate.getFullYear();
-      const competenceMonth = currentDate.getMonth() + 1;
+      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
@@ -34,8 +32,7 @@ export default function Admin() {
           expense_splits ( user_id, amount )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence_year", competenceYear)
-        .eq("competence_month", competenceMonth);
+        .eq("competence_key", selectedCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -51,10 +48,7 @@ export default function Admin() {
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
 
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-      const selectedCompetenceYear = currentDate.getFullYear();
-      const selectedCompetenceMonth = currentDate.getMonth() + 1;
+      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
