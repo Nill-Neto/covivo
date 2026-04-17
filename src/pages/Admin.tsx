@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,6 +53,8 @@ export default function Admin() {
 
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const selectedCompetenceYear = currentDate.getFullYear();
+      const selectedCompetenceMonth = currentDate.getMonth() + 1;
 
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
@@ -66,7 +67,7 @@ export default function Admin() {
           .gte("expenses.purchase_date", dbStart)
           .lt("expenses.purchase_date", dbEnd),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_year, competence_month, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"]),
         supabase
@@ -84,9 +85,6 @@ export default function Admin() {
 
       const cycleSplits = cycleSplitsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
-      const cycleLabel = format(currentDate, "MMMM/yyyy", { locale: ptBR });
-      const cycleStartMs = cycleStart.getTime();
-      const cycleEndMs = cycleEnd.getTime();
 
       const cycleBalances = (membersRes.data || []).map(m => {
         const userSplits = cycleSplits.filter(s => s.user_id === m.user_id);
@@ -101,10 +99,8 @@ export default function Admin() {
         const bulkPayments = allPayments.filter(p => 
           p.paid_by === m.user_id && 
           !p.expense_split_id &&
-          (
-            (p.notes && p.notes.includes(cycleLabel)) || 
-            (!p.notes && new Date(p.created_at).getTime() >= cycleStartMs && new Date(p.created_at).getTime() <= cycleEndMs + (10 * 86400000))
-          )
+          p.competence_year === selectedCompetenceYear &&
+          p.competence_month === selectedCompetenceMonth
         );
         
         const totalPaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);

@@ -95,21 +95,27 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    // Calcula a competência baseada na data de criação do pagamento e dia de fechamento
-    const competence = getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence =
+      payment.competence_key ||
+      (payment.competence_year && payment.competence_month
+        ? `${payment.competence_year}-${String(payment.competence_month).padStart(2, "0")}`
+        : getCompetenceKeyFromDate(new Date(payment.created_at), closingDay));
     setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
-      let newDate = editingPayment.created_at;
+      let competenceYear: number | null = null;
+      let competenceMonth: number | null = null;
+      let competenceKey: string | null = null;
       
       if (values.competence) {
         const [yStr, mStr] = values.competence.split("-");
-        const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1;
-        const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
-        newDate = safeDate.toISOString();
+        competenceYear = parseInt(yStr, 10);
+        competenceMonth = parseInt(mStr, 10);
+        if (Number.isFinite(competenceYear) && Number.isFinite(competenceMonth)) {
+          competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
+        }
       }
 
       const { error } = await supabase
@@ -118,7 +124,9 @@ export default function Payments() {
           amount: Number(values.amount),
           notes: values.notes || null,
           status: values.status,
-          created_at: newDate,
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
+          competence_key: competenceKey,
         })
         .eq("id", editingPayment.id);
       if (error) throw error;
@@ -412,6 +420,9 @@ export default function Payments() {
       });
 
       const paidAmount = Number(amount);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
       const selectedSplits = (pendingSplits ?? []).filter((s) => selectedSplitIds.includes(s.id));
       const selectedTotal = selectedSplits.reduce((sum, s) => sum + Number(s.amount), 0);
 
@@ -439,6 +450,9 @@ export default function Payments() {
           amount: Number(split.amount),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
+          competence_key: competenceKey,
         }));
 
       const creditAmount = paidAmount - selectedTotal;
@@ -450,6 +464,9 @@ export default function Payments() {
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
+          competence_key: competenceKey,
         });
       }
 
