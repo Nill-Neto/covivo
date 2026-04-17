@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +10,7 @@ import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 
 export default function Admin() {
-  const { user, membership, isAdmin, profile } = useAuth();
+  const { membership, isAdmin, profile } = useAuth();
   const [heroCompact, setHeroCompact] = useState(false);
   
   const {
@@ -49,6 +51,9 @@ export default function Admin() {
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
 
+      const dbStart = format(cycleStart, "yyyy-MM-dd");
+      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
@@ -81,21 +86,17 @@ export default function Admin() {
       const allPayments = allPaymentsRes.data || [];
 
       const cycleBalances = (membersRes.data || []).map(m => {
-        // Calculate strictly for the CURRENT cycle
         const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
         const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount), 0);
         
-        // Linked payments to current cycle splits
         const linkedPayments = allPayments.filter(p =>
           p.paid_by === m.user_id &&
           p.expense_split_id &&
           userCycleSplits.some(s => s.id === p.expense_split_id)
         );
         
-        // Bulk payments meant for the current cycle
         const bulkPayments = allPayments.filter(p => {
           if (p.paid_by !== m.user_id || p.expense_split_id) return false;
-          
           const pCompKey = p.competence || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
           return pCompKey === currentCompetenceKey;
         });

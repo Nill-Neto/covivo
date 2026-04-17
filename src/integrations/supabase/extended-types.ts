@@ -236,7 +236,6 @@ export type ExtendedDatabase = Omit<Database, "public"> & {
     Tables: Omit<PublicSchema["Tables"], "expenses" | "payments" | "groups" | "profiles" | "profile_sensitive"> & {
       credit_cards: CreditCardTable;
       expenses: UpdatedExpensesTable;
-      payments: UpdatedPaymentsTable;
       expense_installments: ExpenseInstallmentsTable;
       groups: UpdatedGroupsTable;
       group_fees: GroupFeesTable;

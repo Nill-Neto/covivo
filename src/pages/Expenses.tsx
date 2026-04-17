@@ -39,14 +39,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Receipt,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
-import { ScrollReveal } from "@/components/ui/scroll-reveal";
-import { Receipt } from "lucide-react";
 
 const CATEGORIES = [
   { value: "rent", label: "Aluguel" },
@@ -107,13 +106,11 @@ export default function Expenses() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
 
-  // UI State
   const [activeTab, setActiveTab] = useState("all");
   const [heroCompact, setHeroCompact] = useState(false);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingType, setEditingType] = useState<"expense" | "recurring">("expense");
 
@@ -126,20 +123,16 @@ export default function Expenses() {
   const [description, setDescription] = useState("");
   const [splitBetweenAll, setSplitBetweenAll] = useState(true);
 
-  // Payment Fields
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [creditCardId, setCreditCardId] = useState<string>("none");
   const [installments, setInstallments] = useState("1");
 
-  // Recurring specific fields (only for creation flow)
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceDay, setRecurrenceDay] = useState("5");
 
-  // Installment action dialogs
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<any>(null);
   const [editConfirmExpense, setEditConfirmExpense] = useState<any>(null);
 
-  // Paid toggle (for cash/pix/debit on creation)
   const [isPaid, setIsPaid] = useState(false);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
@@ -154,11 +147,9 @@ export default function Expenses() {
   const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [quickReceiptFile, setQuickReceiptFile] = useState<File | null>(null);
 
-  // Original amount for proportional split update on edit
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
-  // --- Date Cycle Logic ---
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading } = useCycleDates(membership?.group_id);
+  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading, closingDay } = useCycleDates(membership?.group_id);
 
   useEffect(() => {
     if (!editingId && activeTab !== "recurring") {
@@ -172,9 +163,8 @@ export default function Expenses() {
     }
   }, [category]);
 
-  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, groupClosingDay);
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
-  // Fetch expenses whose competence matches the current cycle
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
     queryKey: ["expenses", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
@@ -191,8 +181,7 @@ export default function Expenses() {
     enabled: !!membership?.group_id,
   });
 
-  // Fetch installments for the current bill month/year
-  const { data: monthInstallments = [], isLoading: loadingInstallments } = useQuery({
+  const { data: monthInstallments = [] } = useQuery({
     queryKey: ["expense-installments-by-month", membership?.group_id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
       const targetMonth = currentDate.getMonth() + 1;
@@ -210,14 +199,12 @@ export default function Expenses() {
     enabled: !!membership?.group_id,
   });
 
-  // Find expense IDs from installments that are NOT already in cycleExpenses
   const missingExpenseIds = useMemo(() => {
     const cycleIds = new Set(cycleExpenses.map((e) => e.id));
     return [...new Set(monthInstallments.map((i) => i.expense_id).filter((id) => !cycleIds.has(id)))];
   }, [cycleExpenses, monthInstallments]);
 
-  // Fetch those missing parent expenses
-  const { data: installmentParentExpenses = [], isLoading: loadingParents } = useQuery({
+  const { data: installmentParentExpenses = [] } = useQuery({
     queryKey: ["installment-parent-expenses", missingExpenseIds],
     queryFn: async () => {
       if (missingExpenseIds.length === 0) return [];
@@ -231,7 +218,6 @@ export default function Expenses() {
     enabled: missingExpenseIds.length > 0,
   });
 
-  // Merge all expenses
   const allExpenses = useMemo(() => {
     const map = new Map<string, ExpenseRow>();
     cycleExpenses.forEach((e) => map.set(e.id, e));
@@ -306,7 +292,6 @@ export default function Expenses() {
 
   const deleteExpenseMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Delete installments first, then the expense (cascade should handle splits)
       await supabase.from("expense_installments").delete().eq("expense_id", id);
       const { error } = await supabase.from("expenses").delete().eq("id", id);
       if (error) throw error;
@@ -315,7 +300,6 @@ export default function Expenses() {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
       queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["bill-installments"] });
       toast({ title: "Despesa excluída." });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
@@ -339,15 +323,6 @@ export default function Expenses() {
       name: member.label || "Morador",
     }));
   }, [activeMembers]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    if (payerUserId === "me") return;
-    const payerExists = participantOptions.some((participant) => participant.id === payerUserId);
-    if (!payerExists) {
-      setPayerUserId("me");
-    }
-  }, [user?.id, payerUserId, participantOptions]);
 
   const effectiveParticipantIds = useMemo(() => {
     if (editingType !== "expense") return [];
@@ -438,21 +413,6 @@ export default function Expenses() {
       toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
       return;
     }
-    if (editingType === "expense" && expenseType === "collective" && splitMode === "manual" && effectiveParticipantIds.length === 0) {
-      toast({ title: "Erro", description: "Selecione ao menos 1 participante no rateio manual.", variant: "destructive" });
-      return;
-    }
-
-    if (editingType === "expense" && !editingId) {
-      if (expenseType === "collective" && collectiveParticipantIds.length < 1) {
-        toast({ title: "Erro", description: "Despesa coletiva deve ter ao menos 1 participante.", variant: "destructive" });
-        return;
-      }
-      if (expenseType === "individual" && individualParticipantIds.length !== 1) {
-        toast({ title: "Erro", description: "Despesa individual deve ter exatamente 1 participante.", variant: "destructive" });
-        return;
-      }
-    }
 
     const categoryToSend = category === "other" ? customCategory.trim() : category;
     const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
@@ -492,7 +452,7 @@ export default function Expenses() {
 
         const compKey = getCompetenceKeyFromDate(
           new Date(`${dateValue}T12:00:00`), 
-          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : groupClosingDay
+          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
         );
 
         const { error } = await supabase
@@ -514,10 +474,8 @@ export default function Expenses() {
           .eq("id", editingId);
         if (error) throw error;
         const savedExpense = await fetchSavedExpense(editingId);
-        const persistedPurchaseDate = savedExpense.purchase_date;
-        setDateValue(persistedPurchaseDate);
+        setDateValue(savedExpense.purchase_date);
 
-        // Update split amounts proportionally if amount changed
         if (editingOriginalAmount && parsedAmount !== editingOriginalAmount) {
           const ratio = parsedAmount / editingOriginalAmount;
           const { data: splits } = await supabase
@@ -534,14 +492,13 @@ export default function Expenses() {
           }
         }
 
-        // Regenerate installments
         await supabase.from("expense_installments").delete().eq("expense_id", editingId);
 
         if (paymentMethod === "credit_card" && finalCreditCardId && parsedInstallments > 0) {
           const card = cards.find((c) => c.id === finalCreditCardId);
           if (card) {
             const closingDay = card.closing_day;
-            const purchaseDate = new Date(`${persistedPurchaseDate}T12:00:00`);
+            const purchaseDate = new Date(`${dateValue}T12:00:00`);
             const billBase = new Date(purchaseDate);
             if (purchaseDate.getDate() >= closingDay) {
               billBase.setMonth(billBase.getMonth() + 1);
@@ -571,16 +528,11 @@ export default function Expenses() {
 
         toast({ title: "Despesa atualizada!" });
         queryClient.invalidateQueries({ queryKey: ["expenses"] });
-        queryClient.invalidateQueries({ queryKey: ["bill-installments"] });
         queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
-        queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
-        queryClient.invalidateQueries({ queryKey: ["member-balances"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-        queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       } else {
         const compKey = getCompetenceKeyFromDate(
-          new Date(`${finalPurchaseDate}T12:00:00`), 
-          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : groupClosingDay
+          new Date(`${dateValue}T12:00:00`), 
+          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
         );
 
         const baseCreateExpenseArgs = {
@@ -597,11 +549,11 @@ export default function Expenses() {
           _payment_method: paymentMethod,
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
-          _purchase_date: finalPurchaseDate,
+          _purchase_date: dateValue,
           _competence: compKey,
         };
 
-        const { data: newExpenseIdWithParticipants, error: createWithParticipantsError } = await supabase.rpc(
+        const { data: newExpenseId, error: createError } = await supabase.rpc(
           "create_expense_with_splits",
           {
             ...baseCreateExpenseArgs,
@@ -609,26 +561,10 @@ export default function Expenses() {
           },
         );
 
-        let newExpenseId = newExpenseIdWithParticipants;
-        if (createWithParticipantsError) {
-          const missingParticipantArgInRpc =
-            createWithParticipantsError.code === "PGRST202" &&
-            createWithParticipantsError.message?.includes("create_expense_with_splits");
+        if (createError) throw createError;
 
-          if (missingParticipantArgInRpc) {
-            const { data: legacyNewExpenseId, error: legacyCreateError } = await supabase.rpc(
-              "create_expense_with_splits",
-              baseCreateExpenseArgs,
-            );
-            if (legacyCreateError) throw legacyCreateError;
-            newExpenseId = legacyNewExpenseId;
-          } else {
-            throw createWithParticipantsError;
-          }
-        }
-
-        if (newExpenseId && editingType === "expense") {
-          const { error: updateMetaError } = await supabase
+        if (newExpenseId) {
+          await supabase
             .from("expenses")
             .update({
               paid_to_provider: providerPaid,
@@ -636,16 +572,12 @@ export default function Expenses() {
               receipt_url: uploadedReceiptUrl,
             })
             .eq("id", newExpenseId);
-          if (updateMetaError) throw updateMetaError;
-          const savedExpense = await fetchSavedExpense(newExpenseId);
-          setDateValue(savedExpense.purchase_date);
         }
 
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
-          await applyManualSplitSelection(newExpenseId, parseFloat(amount), effectiveParticipantIds);
+          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds);
         }
 
-        // Mark splits as paid if toggle is on (cash/pix/debit only)
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
           await supabase
             .from("expense_splits")
@@ -678,10 +610,6 @@ export default function Expenses() {
         toast({ title: "Despesa criada!" });
         queryClient.invalidateQueries({ queryKey: ["expenses"] });
         queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
-        queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
-        queryClient.invalidateQueries({ queryKey: ["member-balances"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-        queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       }
 
       setOpen(false);
@@ -713,7 +641,6 @@ export default function Expenses() {
     setIsPaid(false);
     setStatusWithProvider("pending");
     setSplitMode("all");
-    setSelectedParticipantIds([]);
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
     setReceiptFile(null);
@@ -774,7 +701,6 @@ export default function Expenses() {
     setOpen(true);
   };
 
-  // Decorate expenses with installment info (without modifying the title)
   const decoratedExpenses = useMemo(() => {
     return allExpenses.map((e) => {
       const inst = installmentByExpenseId.get(e.id);
@@ -805,7 +731,6 @@ export default function Expenses() {
 
   const filteredCollective = (decoratedExpenses ?? []).filter((e: any) => e.expense_type === "collective");
 
-  // Handlers for installment-aware edit/delete
   const handleEditClick = (expense: any) => {
     if (expense._is_installment && expense.installments > 1) {
       setEditConfirmExpense(expense);
@@ -867,12 +792,6 @@ export default function Expenses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
-      queryClient.invalidateQueries({ queryKey: ["installment-parent-expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["member-balances"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits"] });
       setQuickPayExpense(null);
       setQuickPayerUserId("me");
       setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
@@ -903,7 +822,7 @@ export default function Expenses() {
     });
   };
 
-  if (loadingExpenses || loadingRecurring || loading || loadingInstallments || loadingParents) {
+  if (loadingExpenses || loadingRecurring || loading) {
     return (
       <div className="flex justify-center py-12">
         <CustomLoader className="h-6 w-6 text-primary" />
@@ -955,7 +874,6 @@ export default function Expenses() {
         }
       />
 
-      {/* Edit form dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); setOpen(v); }}>
           <DialogContent className="max-w-lg p-0 gap-0 flex flex-col overflow-hidden max-h-[90vh]">
             <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
@@ -1044,10 +962,10 @@ export default function Expenses() {
                         <Label className="text-xs text-muted-foreground">Data do pagamento/compra</Label>
                         <Input
                           type="date"
-                          value={paymentDate}
+                          value={dateValue}
                           onChange={(e) => {
-                            setPaymentDate(e.target.value);
                             setDateValue(e.target.value);
+                            setPaymentDate(e.target.value);
                           }}
                         />
                       </div>
@@ -1128,51 +1046,6 @@ export default function Expenses() {
                 </div>
               )}
 
-              {!editingId && editingType === "expense" && expenseType === "collective" && (
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
-                    <div>
-                      <Label htmlFor="split-all-toggle" className="text-sm font-medium cursor-pointer">Ratear entre todos</Label>
-                      <p className="text-xs text-muted-foreground">Quando desligado, selecione manualmente os participantes.</p>
-                    </div>
-                    <Switch id="split-all-toggle" checked={splitBetweenAll} onCheckedChange={setSplitBetweenAll} />
-                  </div>
-
-                  {!splitBetweenAll && (
-                    <div className="space-y-2 rounded-lg border p-3">
-                      <Label>Participantes ativos</Label>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {activeMembers.map((member) => {
-                          const checked = selectedParticipantIds.includes(member.user_id);
-                          return (
-                            <label key={member.user_id} className="flex items-center gap-2 text-sm cursor-pointer">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(value) => {
-                                  if (value) {
-                                    setSelectedParticipantIds((prev) => [...new Set([...prev, member.user_id])]);
-                                  } else {
-                                    setSelectedParticipantIds((prev) => prev.filter((id) => id !== member.user_id));
-                                  }
-                                }}
-                              />
-                              <span>{member.label}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {editingType === "recurring" && (
-                <div className="space-y-2">
-                  <Label>Próximo Vencimento</Label>
-                  <Input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />
-                </div>
-              )}
-
               <div className="space-y-2">
                 <Label>Título</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Mercado Mensal" maxLength={200} />
@@ -1236,9 +1109,6 @@ export default function Expenses() {
                     <div className="space-y-2 animate-accordion-down">
                       <Label>Dia do Vencimento (mensal)</Label>
                       <Input type="number" min="1" max="31" value={recurrenceDay} onChange={(e) => setRecurrenceDay(e.target.value)} />
-                      <p className="text-xs text-muted-foreground">
-                        Será criada uma regra na aba "Recorrentes" para gerar essa despesa todo mês.
-                      </p>
                     </div>
                   )}
                 </div>
@@ -1259,9 +1129,6 @@ export default function Expenses() {
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setQuickPayExpense(null);
-              setQuickPayerUserId("me");
-              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
-              setQuickReceiptFile(null);
             }
           }}
         >
@@ -1274,7 +1141,6 @@ export default function Expenses() {
                 <Label className="text-xs text-muted-foreground">Despesa</Label>
                 <p className="text-sm font-medium">{quickPayExpense?.title}</p>
               </div>
-
               <div className="space-y-2">
                 <Label>Pagador</Label>
                 <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
@@ -1289,12 +1155,10 @@ export default function Expenses() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Data</Label>
                 <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
               </div>
-
               <div className="space-y-2">
                 <Label>Comprovante</Label>
                 <Input
@@ -1303,7 +1167,6 @@ export default function Expenses() {
                   onChange={(e) => setQuickReceiptFile(e.target.files?.[0] || null)}
                 />
               </div>
-
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button
@@ -1318,7 +1181,6 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit confirmation for installment expenses */}
         <AlertDialog open={!!editConfirmExpense} onOpenChange={(v) => { if (!v) setEditConfirmExpense(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1340,7 +1202,6 @@ export default function Expenses() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Delete confirmation for installment expenses */}
         <AlertDialog open={!!deleteConfirmExpense} onOpenChange={(v) => { if (!v) setDeleteConfirmExpense(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1445,7 +1306,6 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="recurring" className="space-y-3 mt-4">
-        <p className="text-xs text-muted-foreground mb-4">Modelos de despesas que se repetem (não dependem do filtro de mês).</p>
         {!recurringExpenses?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
         {recurringExpenses?.map((r: any) => (
           <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />
