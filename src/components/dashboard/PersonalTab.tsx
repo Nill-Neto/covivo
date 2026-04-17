@@ -31,7 +31,8 @@ interface PersonalTabProps {
   individualPending: any[];
   totalPersonalCash: number;
   totalBill: number;
-  totalUserExpenses: number;
+  totalUserExpensesCompetence: number;
+  totalUserExpensesCurrentBalance: number;
   myCollectiveShare: number;
   personalChartData: any[];
   myPersonalExpenses: any[];
@@ -50,7 +51,8 @@ export function PersonalTab({
   individualPending,
   totalPersonalCash,
   totalBill,
-  totalUserExpenses,
+  totalUserExpensesCompetence,
+  totalUserExpensesCurrentBalance,
   myCollectiveShare,
   personalChartData,
   myPersonalExpenses,
@@ -59,7 +61,7 @@ export function PersonalTab({
   republicChartData,
   onPayRateio,
 }: PersonalTabProps) {
-  const totalSpentCompetence = totalUserExpenses + totalPersonalCash;
+  const totalSpentCompetence = totalUserExpensesCompetence + totalPersonalCash;
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPreviousCollectiveOpen, setIsPreviousCollectiveOpen] = useState(false);
@@ -75,7 +77,7 @@ export function PersonalTab({
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Total Comprometido (Mês) - DESTAQUE PREMIUM */}
+        {/* Total Comprometido (Saldo Atual Consolidado) - DESTAQUE PREMIUM */}
         <Card className="relative overflow-hidden border-0 sm:col-span-2 lg:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
           {/* Premium Background Effects */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
@@ -98,11 +100,11 @@ export function PersonalTab({
           
           <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
             <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
-              R$ {totalUserExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="flex items-center">
               <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
-                Meu Rateio + Gastos Pessoais
+                Saldo atual consolidado (inclui pendências anteriores)
               </span>
             </div>
           </CardContent>
@@ -475,7 +477,7 @@ export function PersonalTab({
             <div className="text-2xl font-bold text-foreground">
               R$ {totalSpentCompetence.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Comprometido + À Vista.</p>
+            <p className="text-xs text-muted-foreground mt-1">Competência vigente: comprometido do ciclo + à vista.</p>
           </CardContent>
         </Card>
       </div>

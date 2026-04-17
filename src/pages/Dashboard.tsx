@@ -343,7 +343,8 @@ export default function Dashboard() {
     .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
     
   const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
-  const totalUserExpenses = myCollectiveShare + totalIndividualPending;
+  const totalUserExpensesCompetence = myCollectiveShare + totalIndividualPending;
+  const totalUserExpensesCurrentBalance = totalUserExpensesCompetence + totalCollectivePendingPrevious;
 
   const cardsBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
@@ -527,7 +528,8 @@ export default function Dashboard() {
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
-            totalUserExpenses={totalUserExpenses}
+            totalUserExpensesCompetence={totalUserExpensesCompetence}
+            totalUserExpensesCurrentBalance={totalUserExpensesCurrentBalance}
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
