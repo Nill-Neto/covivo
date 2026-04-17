@@ -64,10 +64,10 @@ export default function Admin() {
           .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
-          .eq("expenses.competence_year", competenceYear)
-          .eq("expenses.competence_month", competenceMonth),
+          .eq("expenses.competence_year", selectedCompetenceYear)
+          .eq("expenses.competence_month", selectedCompetenceMonth),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_year, competence_month, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_year, competence_month, competence_key, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"]),
         supabase
@@ -99,8 +99,10 @@ export default function Admin() {
         const bulkPayments = allPayments.filter(p => 
           p.paid_by === m.user_id && 
           !p.expense_split_id &&
-          p.competence_year === selectedCompetenceYear &&
-          p.competence_month === selectedCompetenceMonth
+          (
+            (p.competence_year === selectedCompetenceYear && p.competence_month === selectedCompetenceMonth) ||
+            p.competence_key === `${selectedCompetenceYear}-${String(selectedCompetenceMonth).padStart(2, "0")}`
+          )
         );
         
         const totalPaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
