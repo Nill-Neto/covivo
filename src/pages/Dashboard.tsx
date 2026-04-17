@@ -45,11 +45,11 @@ export default function Dashboard() {
 
   // --- Queries ---
 
-  const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
-    queryFn: async () => {
-      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
+  const { data: expensesInCycle = [] } = useQuery({
+    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
         .select(`
@@ -60,7 +60,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence_key", competenceKey);
+        .eq("competence", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -73,7 +73,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, competence, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -217,8 +217,6 @@ export default function Dashboard() {
   // Filtering Logic for Pending Splits (Debts)
   
   // 1. Collective Debt (Rateio Pendente)
-  const currentCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
-
   const collectivePending = pendingSplits
     .filter((s: any) => {
       if (s.expenses?.expense_type !== "collective") return false;
@@ -226,10 +224,17 @@ export default function Dashboard() {
       const hasPayment = (s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
       return !hasPayment;
     })
-    .map((split: any) => ({
-      ...split,
-      competenceKey: split.expenses?.competence_key ?? null,
-    }));
+    .map((split: any) => {
+      // Usa a competência que já vem da despesa
+      let compKey = split.expenses?.competence;
+      if (!compKey && split.expenses?.purchase_date) {
+        compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
+      }
+      return {
+        ...split,
+        competenceKey: compKey,
+      };
+    });
 
   // Deduct bulk payments (rateio payments without expense_split_id)
   // These are lump-sum payments that don't link to specific splits
@@ -334,7 +339,13 @@ export default function Dashboard() {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
-    const isInCycle = s.expenses?.competence_key === currentCompetenceKey;
+    
+    // Verifica se a competência é a atual
+    let compKey = s.expenses?.competence;
+    if (!compKey && s.expenses?.purchase_date) {
+      compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
+    }
+    const isInCycle = compKey === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
   });
@@ -384,10 +395,15 @@ export default function Dashboard() {
     setSaving(true);
     try {
       const parsedCurrentAmount = Number(rateioCurrentAmount.replace(",", "."));
-      const amount = scope === "previous" ? totalCollectivePendingPrevious : parsedCurrentAmount;
+      const amount = parsedCurrentAmount;
 
       if (!Number.isFinite(amount) || amount <= 0) {
         toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+        return;
+      }
+      
+      if (scope === "previous" && amount > totalCollectivePendingPrevious + 0.01) {
+        toast({ title: "Valor inválido", description: `O valor não pode ser maior que o total pendente (R$ ${totalCollectivePendingPrevious.toFixed(2)}).`, variant: "destructive" });
         return;
       }
 
@@ -399,6 +415,15 @@ export default function Dashboard() {
       const competenceMonth = currentDate.getMonth() + 1;
       const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
+      let paymentDate = new Date();
+      if (scope === "previous") {
+        // Backdate the payment so it falls into the previous competence
+        // Using cycleStart minus 12 hours ensures it falls in the preceding cycle
+        paymentDate = new Date(cycleStart.getTime() - 12 * 60 * 60 * 1000);
+      }
+
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: null,
@@ -406,11 +431,10 @@ export default function Dashboard() {
         competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount,
         receipt_url: urlData.publicUrl,
-        competence_year: competenceYear,
-        competence_month: competenceMonth,
-        competence_key: competenceKey,
+        created_at: paymentDate.toISOString(),
+        competence: compKey,
         notes: scope === "previous"
-          ? `Pagamento de Rateio - competências anteriores (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
+          ? `Pagamento de Rateio - competências anteriores`
           : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
       });
 
@@ -439,6 +463,9 @@ export default function Dashboard() {
       const competenceMonth = currentDate.getMonth() + 1;
       const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
+      const paymentDate = new Date();
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
@@ -446,9 +473,8 @@ export default function Dashboard() {
         competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
-        competence_year: competenceYear,
-        competence_month: competenceMonth,
-        competence_key: competenceKey,
+        created_at: paymentDate.toISOString(),
+        competence: compKey,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
       });
 
@@ -538,7 +564,7 @@ export default function Dashboard() {
               if (scope === "current") {
                 setRateioCurrentAmount(totalCollectivePendingCurrent.toFixed(2));
               } else {
-                setRateioCurrentAmount("");
+                setRateioCurrentAmount(totalCollectivePendingPrevious.toFixed(2));
               }
               setPayRateioOpen(true);
             }}

@@ -88,45 +88,33 @@ type UpdatedExpensesTable = Omit<Database["public"]["Tables"]["expenses"], "Row"
     credit_card_id: string | null;
     installments: number;
     purchase_date: string;
-    competence_year: number;
-    competence_month: number;
-    competence_key: string;
+    competence: string | null;
   };
   Insert: Database["public"]["Tables"]["expenses"]["Insert"] & {
     payment_method?: string;
     credit_card_id?: string | null;
     installments?: number;
     purchase_date?: string;
-    competence_year?: number;
-    competence_month?: number;
-    competence_key?: string;
+    competence?: string | null;
   };
   Update: Database["public"]["Tables"]["expenses"]["Update"] & {
     payment_method?: string;
     credit_card_id?: string | null;
     installments?: number;
     purchase_date?: string;
-    competence_year?: number;
-    competence_month?: number;
-    competence_key?: string;
+    competence?: string | null;
   };
 };
 
 type UpdatedPaymentsTable = Omit<Database["public"]["Tables"]["payments"], "Row" | "Insert" | "Update"> & {
   Row: Database["public"]["Tables"]["payments"]["Row"] & {
-    competence_year: number;
-    competence_month: number;
-    competence_key: string;
+    competence: string | null;
   };
   Insert: Database["public"]["Tables"]["payments"]["Insert"] & {
-    competence_year?: number;
-    competence_month?: number;
-    competence_key?: string;
+    competence?: string | null;
   };
   Update: Database["public"]["Tables"]["payments"]["Update"] & {
-    competence_year?: number;
-    competence_month?: number;
-    competence_key?: string;
+    competence?: string | null;
   };
 };
 
@@ -245,9 +233,10 @@ type PublicSchema = Database["public"];
 
 export type ExtendedDatabase = Omit<Database, "public"> & {
   public: Omit<PublicSchema, "Tables"> & {
-    Tables: Omit<PublicSchema["Tables"], "expenses" | "groups" | "payments" | "profiles" | "profile_sensitive"> & {
+    Tables: Omit<PublicSchema["Tables"], "expenses" | "payments" | "groups" | "profiles" | "profile_sensitive"> & {
       credit_cards: CreditCardTable;
       expenses: UpdatedExpensesTable;
+      payments: UpdatedPaymentsTable;
       expense_installments: ExpenseInstallmentsTable;
       groups: UpdatedGroupsTable;
       group_fees: GroupFeesTable;

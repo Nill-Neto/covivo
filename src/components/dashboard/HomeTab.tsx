@@ -48,28 +48,20 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     return comps;
   }, [closingDay]);
 
-  const competenceKeys = useMemo(() => chartDataTemplate.map((c) => c.key), [chartDataTemplate]);
-  const competenceWindowFilter = useMemo(() => {
-    return competenceKeys
-      .map((key) => {
-        const [year, month] = key.split("-").map(Number);
-        return `and(competence_year.eq.${year},competence_month.eq.${month})`;
-      })
-      .join(",");
-  }, [competenceKeys]);
-
   // Busca despesas e parcelas com suporte correto a faturas de cartão e rateios
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, competenceKeys.join(",")],
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
+      const compKeys = chartDataTemplate.map(c => c.key);
+
       const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
         supabase
           .from("expenses")
-          .select("id, amount, expense_type, created_by, competence_key, payment_method, expense_splits(user_id, amount)")
+          .select("id, amount, expense_type, created_by, purchase_date, payment_method, competence, expense_splits(user_id, amount)")
           .eq("group_id", activeGroupId)
-          .in("competence_key", competenceKeys),
+          .in("competence", compKeys),
           
         supabase
           .from("expense_installments")
@@ -105,7 +97,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
 
     // 1. Processa Despesas base (Coletivas totais, Meu Rateio e Individuais em Dinheiro/Pix)
     rawData.expenses.forEach((e) => {
-      const key = e.competence_key;
+      const key = e.competence || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
       if (!key) return;
       const bucket = dataCopy.find((c) => c.key === key);
       

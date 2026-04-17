@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
+import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 
 export default function Admin() {
   const { user, membership, isAdmin, profile } = useAuth();
@@ -20,11 +21,11 @@ export default function Admin() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
-    queryFn: async () => {
-      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
+  const { data: expensesInCycle = [] } = useQuery({
+    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
         .select(`
@@ -32,7 +33,7 @@ export default function Admin() {
           expense_splits ( user_id, amount )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence_key", selectedCompetenceKey);
+        .eq("competence", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -44,24 +45,21 @@ export default function Admin() {
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
   const { data: adminData, isLoading } = useQuery({
-    queryKey: ["admin-dashboard-data", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["admin-dashboard-data", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
-
-      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
           .from("expense_splits")
-          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date)")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
-          .eq("expenses.competence_year", selectedCompetenceYear)
-          .eq("expenses.competence_month", selectedCompetenceMonth),
+          .eq("expenses.competence", currentCompetenceKey),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_date, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"])
           .gte("competence_date", dbStart)
@@ -81,33 +79,36 @@ export default function Admin() {
 
       const cycleSplits = cycleSplitsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
-      const cycleLabel = format(currentDate, "MMMM/yyyy", { locale: ptBR });
 
       const cycleBalances = (membersRes.data || []).map(m => {
-        const userSplits = cycleSplits.filter(s => s.user_id === m.user_id);
-        const totalOwed = userSplits.reduce((acc, s) => acc + Number(s.amount), 0);
+        // Calculate strictly for the CURRENT cycle
+        const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
+        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount), 0);
         
-        const linkedPayments = allPayments.filter(p => 
-          p.paid_by === m.user_id && 
-          p.expense_split_id && 
-          userSplits.some(s => s.id === p.expense_split_id)
-        );
-        
-        const bulkPayments = allPayments.filter(p =>
+        // Linked payments to current cycle splits
+        const linkedPayments = allPayments.filter(p =>
           p.paid_by === m.user_id &&
-          !p.expense_split_id &&
-          (!p.notes || p.notes.includes(cycleLabel))
+          p.expense_split_id &&
+          userCycleSplits.some(s => s.id === p.expense_split_id)
         );
         
-        const totalPaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
-        const paidSplitsTotal = userSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount) : 0), 0);
-        const finalPaid = Math.max(totalPaid, paidSplitsTotal);
+        // Bulk payments meant for the current cycle
+        const bulkPayments = allPayments.filter(p => {
+          if (p.paid_by !== m.user_id || p.expense_split_id) return false;
+          
+          const pCompKey = p.competence || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
+          return pCompKey === currentCompetenceKey;
+        });
+        
+        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount) : 0), 0);
+        const finalCyclePaid = Math.max(totalCyclePaid, paidSplitsTotalCycle);
 
         return {
            ...m,
-           total_owed: totalOwed,
-           total_paid: finalPaid,
-           balance: finalPaid - totalOwed
+           total_owed: cycleOwed,
+           total_paid: finalCyclePaid,
+           balance: finalCyclePaid - cycleOwed
         };
       });
 

@@ -117,7 +117,22 @@ export function PaymentDialogs({
                 <div className="px-4 py-2.5 bg-muted/40 border-b shrink-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Detalhamento</p>
                 </div>
-                <div className="max-h-[220px] overflow-y-auto overscroll-contain bg-background">
+                <div
+                  className="max-h-[220px] overflow-y-auto bg-background"
+                  onWheel={(e) => {
+                    const target = e.currentTarget;
+                    const isAtTop = target.scrollTop <= 0;
+                    const isAtBottom = Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) <= 1;
+
+                    if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+                      const parent = target.closest('.flex-1.overflow-y-auto');
+                      if (parent) {
+                        parent.scrollTop += e.deltaY;
+                        e.preventDefault();
+                      }
+                    }
+                  }}
+                >
                   <div className="divide-y">
                     {rateioScope === "previous"
                       ? groupedPreviousEntries.map(([competence, items]) => (
@@ -152,24 +167,26 @@ export function PaymentDialogs({
               </div>
             )}
 
-            {rateioScope === "current" && (
-              <div className="space-y-2 shrink-0">
-                <Label htmlFor="current-rateio-amount" className="text-sm font-medium">Valor pago (R$) *</Label>
-                <Input
-                  id="current-rateio-amount"
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  inputMode="decimal"
-                  value={rateioCurrentAmount}
-                  onChange={(e) => setRateioCurrentAmount(e.target.value)}
-                  placeholder="0,00"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Você pode informar qualquer valor acima de zero. Se pagar a mais, o excedente vira crédito.
-                </p>
-              </div>
-            )}
+            <div className="space-y-2 shrink-0">
+              <Label htmlFor="rateio-amount" className="text-sm font-medium">Valor pago (R$) *</Label>
+              <Input
+                id="rateio-amount"
+                type="number"
+                min={0.01}
+                step="0.01"
+                max={rateioScope === "previous" ? selectedScopeData.total : undefined}
+                inputMode="decimal"
+                value={rateioCurrentAmount}
+                onChange={(e) => setRateioCurrentAmount(e.target.value)}
+                placeholder="0,00"
+              />
+              <p className="text-xs text-muted-foreground">
+                {rateioScope === "previous"
+                  ? "Você pode fazer um pagamento parcial ou integral das pendências anteriores."
+                  : "Você pode informar qualquer valor acima de zero. Se pagar a mais, o excedente vira crédito."}
+              </p>
+            </div>
+
             <div className="space-y-2 shrink-0">
               <Label className="text-sm font-medium">Comprovante *</Label>
               <Input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} className="cursor-pointer" />
@@ -181,7 +198,7 @@ export function PaymentDialogs({
               <Button variant="outline" onClick={() => setPayRateioOpen(false)}>Cancelar</Button>
               <Button
                 onClick={() => onPayRateio(rateioScope)}
-                disabled={saving || !receiptFile || (rateioScope === "current" && !rateioCurrentAmount)}
+                disabled={saving || !receiptFile || !rateioCurrentAmount}
               >
                 {saving && <CustomLoader className="h-4 w-4 mr-2" />} Enviar Comprovante
               </Button>
