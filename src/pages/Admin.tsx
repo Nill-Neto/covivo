@@ -54,7 +54,7 @@ export default function Admin() {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
+      const [membersRes, rolesRes, cycleSplitsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -63,12 +63,6 @@ export default function Admin() {
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
           .eq("expenses.competence_key", currentCompetenceKey),
-        supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_key, expense_splits(expenses(expense_type))")
-          .eq("group_id", membership.group_id)
-          .in("status", ["pending", "confirmed"])
-          .gte("competence_date", dbStart)
-          .lt("competence_date", dbEnd),
         supabase
           .from("audit_log")
           .select("created_at, details")
@@ -82,27 +76,37 @@ export default function Admin() {
           .eq("group_id", membership.group_id)
       ]);
 
-      const cycleSplits = cycleSplitsRes.data || [];
-      const allPayments = allPaymentsRes.data || [];
+      // Fetch all payments for this group. Filtering in JS is safer for complex OR conditions.
+      const { data: allPayments, error: paymentsError } = await supabase.from("payments")
+        .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_key, expense_splits(expenses(expense_type))")
+        .eq("group_id", membership.group_id)
+        .in("status", ["pending", "confirmed"]);
+      
+      if (paymentsError) console.error("[Admin] Payments fetch error:", paymentsError);
+      
+      const payments = allPayments || [];
 
       const cycleBalances = (membersRes.data || []).map(m => {
         const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
-        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount), 0);
+        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
         
-        const linkedPayments = allPayments.filter(p =>
+        // Linked payments: paid for a split that belongs to THIS competence
+        const linkedPayments = payments.filter(p =>
           p.paid_by === m.user_id &&
           p.expense_split_id &&
-          userCycleSplits.some(s => s.id === p.expense_split_id)
+          cycleSplitIds.includes(p.expense_split_id)
         );
         
-        const bulkPayments = allPayments.filter(p => {
+        // Bulk payments: no split link, but tagged with THIS competence
+        const bulkPayments = payments.filter(p => {
           if (p.paid_by !== m.user_id || p.expense_split_id) return false;
-          const pCompKey = p.competence_key || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
-          return pCompKey === currentCompetenceKey;
+          return p.competence_key === currentCompetenceKey;
         });
         
-        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
-        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount) : 0), 0);
+        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount || 0), 0);
+        
+        // Fallback to split status if no payment record found (legacy or edge case)
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount || 0) : 0), 0);
         const finalCyclePaid = Math.max(totalCyclePaid, paidSplitsTotalCycle);
 
         return {
@@ -122,10 +126,15 @@ export default function Admin() {
         role: rolesRes.data?.find(r => r.user_id === m.user_id)?.role ?? 'morador'
       }));
 
-      const pendingPaymentsCount = allPayments.filter(p => {
+      const pendingPaymentsCount = payments.filter(p => {
          if (p.status !== 'pending') return false;
          if (!p.expense_split_id) return true;
-         return p.expense_splits?.expenses?.expense_type === 'collective';
+         // p.expense_splits might be an array or object depending on schema
+         const split: any = p.expense_splits;
+         const expenseType = Array.isArray(split)
+           ? split[0]?.expenses?.expense_type
+           : split?.expenses?.expense_type;
+         return expenseType === 'collective';
       }).length;
 
       const departuresCount = (departuresRes.data || []).length;

@@ -1,0 +1,1 @@
+SELECT id, amount, status, competence_key, group_id FROM payments WHERE paid_by = 'b17f7a34-9ce4-448e-b651-a9e557bad655' AND competence_key = '2026-03';
