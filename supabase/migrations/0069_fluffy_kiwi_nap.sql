@@ -1,0 +1,1 @@
+SELECT pg_get_functiondef('set_payment_competence_date'::regproc);
