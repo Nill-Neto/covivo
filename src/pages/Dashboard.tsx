@@ -523,7 +523,7 @@ export default function Dashboard() {
         )}
 
         <TabsContent value="home" className="space-y-6">
-          <HomeTab closingDay={closingDay} />
+          <HomeTab closingDay={closingDay} currentDate={currentDate} />
         </TabsContent>
 
         <TabsContent value="personal" className="space-y-6">

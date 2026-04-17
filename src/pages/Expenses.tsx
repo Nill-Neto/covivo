@@ -188,12 +188,16 @@ export default function Expenses() {
       const targetYear = currentDate.getFullYear();
 
       const { data, error } = await supabase
-        .from("expense_installments")
-        .select("id, expense_id, installment_number, amount, bill_month, bill_year")
+        .from("expense_installments" as any)
+        .select("id, expense_id, installment_number, amount, bill_month, bill_year, expenses!inner(group_id)")
+        .eq("expenses.group_id", membership!.group_id)
         .eq("bill_month", targetMonth)
         .eq("bill_year", targetYear);
 
-      if (error) return [] as InstallmentRow[];
+      if (error) {
+        console.error("[Expenses] Error fetching month installments:", error);
+        return [] as InstallmentRow[];
+      }
       return (data ?? []) as InstallmentRow[];
     },
     enabled: !!membership?.group_id,

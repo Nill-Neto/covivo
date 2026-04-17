@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
-import { format } from "date-fns";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,39 +16,33 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 
 interface HomeTabProps {
   closingDay: number;
+  currentDate: Date;
 }
 
-export function HomeTab({ closingDay }: HomeTabProps) {
+export function HomeTab({ closingDay, currentDate }: HomeTabProps) {
   const { memberships, activeGroupId, setActiveGroupId, user } = useAuth();
   const navigate = useNavigate();
 
   const chartDataTemplate = useMemo(() => {
-    const currentCompKey = getCompetenceKeyFromDate(new Date(), closingDay || 1);
-    const [currYear, currMonth] = currentCompKey.split("-").map(Number);
+    // Generate 6 months ending at the CURRENTLY SELECTED month (not necessarily today)
     const comps = [];
     
     for (let i = 5; i >= 0; i--) {
-      let m = currMonth - i;
-      let y = currYear;
-      while (m < 1) {
-        m += 12;
-        y -= 1;
-      }
-      const key = `${y}-${String(m).padStart(2, "0")}`;
-      const dateObj = new Date(y, m - 1, 1);
+      const d = subMonths(currentDate, i);
+      const key = formatCompetenceKey(d);
       comps.push({
         key,
-        label: format(dateObj, "MMM/yy", { locale: ptBR }),
+        label: format(d, "MMM/yy", { locale: ptBR }),
         Coletivo: 0,
         MeuRateio: 0,
         Individual: 0,
       });
     }
     return comps;
-  }, [closingDay]);
+  }, [currentDate]);
 
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ["home-expenses-evolution", activeGroupId, user?.id],
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, formatCompetenceKey(currentDate)],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
