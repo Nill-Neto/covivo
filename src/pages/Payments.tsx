@@ -93,7 +93,7 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    const competence = payment.competence || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
     setEditCompetence(competence);
   };
 
@@ -102,7 +102,7 @@ export default function Payments() {
       let newDate = editingPayment.created_at;
       const [y, m] = values.competence.split("-").map(Number);
       
-      if (values.competence && values.competence !== editingPayment.competence) {
+      if (values.competence && values.competence !== editingPayment.competence_key) {
         const safeDate = new Date(y, m - 1, 15, 12, 0, 0);
         newDate = safeDate.toISOString();
       }
@@ -114,7 +114,7 @@ export default function Payments() {
           notes: values.notes || null,
           status: values.status,
           created_at: newDate,
-          competence: values.competence || editingPayment.competence,
+          competence_key: values.competence || editingPayment.competence_key,
           competence_year: y,
           competence_month: m,
         } as any)
@@ -159,7 +159,7 @@ export default function Payments() {
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .or(`status.eq.pending,competence.eq.${currentCompetenceKey}`)
+        .or(`status.eq.pending,competence_key.eq.${currentCompetenceKey}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -329,7 +329,6 @@ export default function Payments() {
         amount: Number(split.amount),
         receipt_url: urlData.publicUrl,
         notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
-        competence: compKey,
       }));
 
       const creditAmount = paidAmount - selectedTotal;
@@ -344,7 +343,6 @@ export default function Payments() {
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
-          competence: compKey,
         });
       }
 

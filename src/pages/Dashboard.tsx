@@ -59,7 +59,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence", currentCompetenceKey);
+        .eq("competence_key", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -72,7 +72,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, competence, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, competence_key, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -215,7 +215,7 @@ export default function Dashboard() {
       return !hasPayment;
     })
     .map((split: any) => {
-      let compKey = split.expenses?.competence;
+      let compKey = split.expenses?.competence_key;
       if (!compKey && split.expenses?.purchase_date) {
         compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
       }
@@ -316,7 +316,7 @@ export default function Dashboard() {
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
     
-    let compKey = s.expenses?.competence;
+    let compKey = s.expenses?.competence_key;
     if (!compKey && s.expenses?.purchase_date) {
       compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
     }
@@ -402,7 +402,6 @@ export default function Dashboard() {
         amount,
         receipt_url: urlData.publicUrl,
         created_at: paymentDate.toISOString(),
-        competence: compKey,
         competence_year: y,
         competence_month: m,
         notes: scope === "previous"
@@ -444,7 +443,6 @@ export default function Dashboard() {
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
         created_at: paymentDate.toISOString(),
-        competence: compKey,
         competence_year: y,
         competence_month: m,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`

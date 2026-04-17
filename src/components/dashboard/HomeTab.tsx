@@ -63,9 +63,9 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
         supabase
           .from("expenses")
-          .select("id, amount, expense_type, created_by, purchase_date, payment_method, competence, expense_splits(user_id, amount)")
+          .select("id, amount, expense_type, created_by, purchase_date, payment_method, competence_key, expense_splits(user_id, amount)")
           .eq("group_id", activeGroupId)
-          .in("competence", compKeys),
+          .in("competence_key", compKeys),
           
         supabase
           .from("expense_installments")
@@ -100,7 +100,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     if (!rawData) return dataCopy;
 
     rawData.expenses.forEach((e) => {
-      const key = e.competence || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
+      const key = e.competence_key || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
       if (!key) return;
       const bucket = dataCopy.find((c) => c.key === key);
       

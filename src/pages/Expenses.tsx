@@ -83,7 +83,7 @@ type ExpenseRow = {
   credit_card_id: string | null;
   installments: number;
   purchase_date: string;
-  competence: string | null;
+  competence_key: string | null;
   expense_splits?: Array<{
     id: string;
     user_id: string;
@@ -172,7 +172,7 @@ export default function Expenses() {
         .from("expenses")
         .select("*, expense_splits(id, user_id, amount, status, paid_at)")
         .eq("group_id", membership!.group_id)
-        .eq("competence", currentCompetenceKey)
+        .eq("competence_key", currentCompetenceKey)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;
@@ -469,7 +469,7 @@ export default function Expenses() {
             paid_to_provider: providerPaid,
             due_date: paymentDate || null,
             receipt_url: uploadedReceiptUrl,
-            competence: compKey,
+            competence_key: compKey,
           })
           .eq("id", editingId);
         if (error) throw error;

@@ -35,7 +35,7 @@ export default function Admin() {
           expense_splits ( user_id, amount )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence", currentCompetenceKey);
+        .eq("competence_key", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -59,12 +59,12 @@ export default function Admin() {
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
           .from("expense_splits")
-          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence)")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
-          .eq("expenses.competence", currentCompetenceKey),
+          .eq("expenses.competence_key", currentCompetenceKey),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_key, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"])
           .gte("competence_date", dbStart)
@@ -97,7 +97,7 @@ export default function Admin() {
         
         const bulkPayments = allPayments.filter(p => {
           if (p.paid_by !== m.user_id || p.expense_split_id) return false;
-          const pCompKey = p.competence || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
+          const pCompKey = p.competence_key || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
           return pCompKey === currentCompetenceKey;
         });
         
