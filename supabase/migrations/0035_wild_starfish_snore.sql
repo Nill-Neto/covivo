@@ -1,0 +1,1 @@
+SELECT pg_get_functiondef('is_member_of_group'::regproc);

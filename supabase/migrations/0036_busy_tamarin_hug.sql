@@ -1,0 +1,1 @@
+SELECT created_by FROM expenses WHERE title = 'Xita doces' AND purchase_date = '2026-04-13';

@@ -44,7 +44,7 @@ import {
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
 
 const CATEGORIES = [
@@ -163,7 +163,7 @@ export default function Expenses() {
     }
   }, [category]);
 
-  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
     queryKey: ["expenses", membership?.group_id, currentCompetenceKey],

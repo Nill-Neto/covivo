@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -44,7 +44,7 @@ export default function Dashboard() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
@@ -107,16 +107,17 @@ export default function Dashboard() {
   });
 
   const { data: billInstallments = [], isLoading: isLoadingBillInstallments } = useQuery({
-    queryKey: ["bill-installments-dashboard", user?.id, currentDate.getMonth(), currentDate.getFullYear()],
+    queryKey: ["bill-installments-dashboard", user?.id, membership?.group_id, currentDate.getMonth(), currentDate.getFullYear()],
     queryFn: async () => {
-      const targetMonth = currentDate.getMonth() + 1; 
+      const targetMonth = currentDate.getMonth() + 1;
       const targetYear = currentDate.getFullYear();
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
           .from("expense_installments" as any)
-          .select("id, amount, installment_number, expenses(title, category, credit_card_id, expense_type, purchase_date, installments)")
+          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id)")
           .eq("user_id", user!.id)
+          .eq("expenses.group_id", membership!.group_id)
           .eq("bill_month", targetMonth)
           .eq("bill_year", targetYear)
           .limit(1000),
@@ -128,6 +129,9 @@ export default function Dashboard() {
           .eq("bill_year", targetYear)
           .limit(1000),
       ]);
+
+      if (groupRes.error) console.error("[Dashboard] group installments error:", groupRes.error);
+      if (personalRes.error) console.error("[Dashboard] personal installments error:", personalRes.error);
 
       const groupItems = (groupRes.data as any[] ?? []);
       const personalItems = (personalRes.data as any[] ?? []).map((p: any) => ({
@@ -144,8 +148,18 @@ export default function Dashboard() {
 
       return [...groupItems, ...personalItems];
     },
-    enabled: !!user,
+    enabled: !!user && !!membership?.group_id,
   });
+
+  // Debugging logs
+  useEffect(() => {
+    if (membership?.group_id) {
+      console.log("[Dashboard] Active Group:", membership.group_name, membership.group_id);
+      console.log("[Dashboard] Competence Key:", currentCompetenceKey);
+      console.log("[Dashboard] Expenses in cycle count:", expensesInCycle.length);
+      console.log("[Dashboard] Collective expenses count:", collectiveExpenses.length);
+    }
+  }, [membership, currentCompetenceKey, expensesInCycle.length, collectiveExpenses.length]);
 
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);

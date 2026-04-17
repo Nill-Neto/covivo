@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
@@ -23,7 +23,7 @@ export default function Admin() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],

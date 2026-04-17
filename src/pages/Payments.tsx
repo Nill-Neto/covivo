@@ -30,7 +30,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/layout/PageHero";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Capacitor } from "@capacitor/core";
 
@@ -150,7 +150,7 @@ export default function Payments() {
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
-  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
+  const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ["payments", membership?.group_id, currentCompetenceKey],

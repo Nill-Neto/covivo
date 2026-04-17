@@ -1,0 +1,1 @@
+SELECT title, payment_method, competence_key FROM expenses WHERE title = 'Chai' AND competence_key = '2026-05';

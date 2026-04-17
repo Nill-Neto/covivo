@@ -1,0 +1,1 @@
+SELECT count(*) FROM expenses WHERE group_id = '90f5e632-8cb0-46f4-8679-cdb1a7aacd2c';
