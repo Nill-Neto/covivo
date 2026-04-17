@@ -99,18 +99,23 @@ export default function Payments() {
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
-      let newDate = editingPayment.created_at;
       const [y, m] = values.competence.split("-").map(Number);
+      const cleanAmount = values.amount.replace(",", ".");
+      const amountNum = Number(cleanAmount);
       
+      if (isNaN(amountNum)) throw new Error("Valor numérico inválido");
+
+      let newDate = editingPayment.created_at;
       if (values.competence && values.competence !== editingPayment.competence_key) {
-        const safeDate = new Date(y, m - 1, 15, 12, 0, 0);
+        // Use the 1st of the month as a base. The trigger will now respect competence_key override.
+        const safeDate = new Date(y, m - 1, 1, 12, 0, 0);
         newDate = safeDate.toISOString();
       }
 
       const { error } = await supabase
         .from("payments")
         .update({
-          amount: Number(values.amount),
+          amount: amountNum,
           notes: values.notes || null,
           status: values.status,
           created_at: newDate,
