@@ -95,18 +95,24 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(), closingDay);
     setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
+      const [competenceYearRaw, competenceMonthRaw] = values.competence.split("-");
+      const competenceYear = Number(competenceYearRaw);
+      const competenceMonth = Number(competenceMonthRaw);
+
       const { error } = await supabase
         .from("payments")
         .update({
           amount: Number(values.amount),
           notes: values.notes || null,
           status: values.status,
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
           competence_key: values.competence,
         })
         .eq("id", editingPayment.id);

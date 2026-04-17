@@ -48,8 +48,7 @@ export default function Dashboard() {
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const competenceYear = currentDate.getFullYear();
-      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
@@ -61,8 +60,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence_year", competenceYear)
-        .eq("competence_month", competenceMonth);
+        .eq("competence_key", competenceKey);
       
       if (error) throw error;
       return data ?? [];

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,8 +23,7 @@ export default function Admin() {
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const competenceYear = currentDate.getFullYear();
-      const competenceMonth = currentDate.getMonth() + 1;
+      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
@@ -34,8 +32,7 @@ export default function Admin() {
           expense_splits ( user_id, amount )
         `)
         .eq("group_id", membership!.group_id)
-        .eq("competence_year", competenceYear)
-        .eq("competence_month", competenceMonth);
+        .eq("competence_key", selectedCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -51,10 +48,7 @@ export default function Admin() {
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
 
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-      const selectedCompetenceYear = currentDate.getFullYear();
-      const selectedCompetenceMonth = currentDate.getMonth() + 1;
+      const selectedCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
@@ -64,10 +58,9 @@ export default function Admin() {
           .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
-          .eq("expenses.competence_year", competenceYear)
-          .eq("expenses.competence_month", competenceMonth),
+          .eq("expenses.competence_key", selectedCompetenceKey),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_year, competence_month, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_key, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"]),
         supabase
@@ -99,8 +92,7 @@ export default function Admin() {
         const bulkPayments = allPayments.filter(p => 
           p.paid_by === m.user_id && 
           !p.expense_split_id &&
-          p.competence_year === selectedCompetenceYear &&
-          p.competence_month === selectedCompetenceMonth
+          p.competence_key === selectedCompetenceKey
         );
         
         const totalPaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);
