@@ -48,30 +48,20 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     return comps;
   }, [closingDay]);
 
-  const startDateQuery = useMemo(() => {
-    const firstComp = chartDataTemplate[0];
-    const [y, m] = firstComp.key.split("-").map(Number);
-    let startM = m - 1;
-    let startY = y;
-    if (startM < 1) {
-      startM = 12;
-      startY--;
-    }
-    return `${startY}-${String(startM).padStart(2, "0")}-01`;
-  }, [chartDataTemplate]);
+  const competenceKeys = useMemo(() => chartDataTemplate.map((c) => c.key), [chartDataTemplate]);
 
   // Busca despesas e parcelas com suporte correto a faturas de cartão e rateios
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ["home-expenses-evolution", activeGroupId, startDateQuery, user?.id],
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, competenceKeys.join(",")],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
       const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
         supabase
           .from("expenses")
-          .select("id, amount, expense_type, created_by, purchase_date, payment_method, expense_splits(user_id, amount)")
+          .select("id, amount, expense_type, created_by, competence_key, payment_method, expense_splits(user_id, amount)")
           .eq("group_id", activeGroupId)
-          .gte("purchase_date", startDateQuery),
+          .in("competence_key", competenceKeys),
           
         supabase
           .from("expense_installments")
@@ -105,8 +95,8 @@ export function HomeTab({ closingDay }: HomeTabProps) {
 
     // 1. Processa Despesas base (Coletivas totais, Meu Rateio e Individuais em Dinheiro/Pix)
     rawData.expenses.forEach((e) => {
-      if (!e.purchase_date) return;
-      const key = getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1);
+      const key = e.competence_key;
+      if (!key) return;
       const bucket = dataCopy.find((c) => c.key === key);
       
       if (bucket) {
@@ -151,7 +141,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
     }));
-  }, [rawData, chartDataTemplate, closingDay, user?.id]);
+  }, [rawData, chartDataTemplate, user?.id]);
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">

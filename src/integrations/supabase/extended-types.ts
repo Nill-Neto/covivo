@@ -82,18 +82,27 @@ type UpdatedExpensesTable = Omit<Database["public"]["Tables"]["expenses"], "Row"
     credit_card_id: string | null;
     installments: number;
     purchase_date: string;
+    competence_year: number;
+    competence_month: number;
+    competence_key: string;
   };
   Insert: Database["public"]["Tables"]["expenses"]["Insert"] & {
     payment_method?: string;
     credit_card_id?: string | null;
     installments?: number;
     purchase_date?: string;
+    competence_year?: number;
+    competence_month?: number;
+    competence_key?: string;
   };
   Update: Database["public"]["Tables"]["expenses"]["Update"] & {
     payment_method?: string;
     credit_card_id?: string | null;
     installments?: number;
     purchase_date?: string;
+    competence_year?: number;
+    competence_month?: number;
+    competence_key?: string;
   };
 };
 
