@@ -225,6 +225,9 @@ export type Database = {
           paid_to_provider: boolean
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           receipt_url: string | null
           recurring_expense_id: string | null
           title: string
@@ -246,6 +249,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title: string
@@ -267,6 +273,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title?: string
@@ -726,6 +735,9 @@ export type Database = {
           installments: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -737,6 +749,9 @@ export type Database = {
           installments?: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -748,6 +763,9 @@ export type Database = {
           installments?: number
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           title?: string
           user_id?: string
         }

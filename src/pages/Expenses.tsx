@@ -83,6 +83,9 @@ type ExpenseRow = {
   credit_card_id: string | null;
   installments: number;
   purchase_date: string;
+  competence_year: number;
+  competence_month: number;
+  competence_key: string;
   expense_splits?: Array<{
     id: string;
     user_id: string;
@@ -172,17 +175,17 @@ export default function Expenses() {
 
   // Fetch expenses whose purchase_date falls in the current cycle
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["expenses", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["expenses", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
 
       const { data, error } = await supabase
         .from("expenses")
         .select("*, expense_splits(id, user_id, amount, status, paid_at)")
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd)
+        .eq("competence_year", competenceYear)
+        .eq("competence_month", competenceMonth)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;
