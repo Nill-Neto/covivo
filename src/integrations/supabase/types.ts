@@ -624,6 +624,7 @@ export type Database = {
           amount: number
           confirmed_at: string | null
           confirmed_by: string | null
+          competence_date: string
           created_at: string
           expense_split_id: string | null
           group_id: string
@@ -637,6 +638,7 @@ export type Database = {
           amount: number
           confirmed_at?: string | null
           confirmed_by?: string | null
+          competence_date?: string
           created_at?: string
           expense_split_id?: string | null
           group_id: string
@@ -650,6 +652,7 @@ export type Database = {
           amount?: number
           confirmed_at?: string | null
           confirmed_by?: string | null
+          competence_date?: string
           created_at?: string
           expense_split_id?: string | null
           group_id?: string

@@ -66,9 +66,11 @@ export default function Admin() {
           .gte("expenses.purchase_date", dbStart)
           .lt("expenses.purchase_date", dbEnd),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence_date, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
-          .in("status", ["pending", "confirmed"]),
+          .in("status", ["pending", "confirmed"])
+          .gte("competence_date", dbStart)
+          .lt("competence_date", dbEnd),
         supabase
           .from("audit_log")
           .select("created_at, details")
@@ -85,8 +87,6 @@ export default function Admin() {
       const cycleSplits = cycleSplitsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
       const cycleLabel = format(currentDate, "MMMM/yyyy", { locale: ptBR });
-      const cycleStartMs = cycleStart.getTime();
-      const cycleEndMs = cycleEnd.getTime();
 
       const cycleBalances = (membersRes.data || []).map(m => {
         const userSplits = cycleSplits.filter(s => s.user_id === m.user_id);
@@ -98,13 +98,10 @@ export default function Admin() {
           userSplits.some(s => s.id === p.expense_split_id)
         );
         
-        const bulkPayments = allPayments.filter(p => 
-          p.paid_by === m.user_id && 
+        const bulkPayments = allPayments.filter(p =>
+          p.paid_by === m.user_id &&
           !p.expense_split_id &&
-          (
-            (p.notes && p.notes.includes(cycleLabel)) || 
-            (!p.notes && new Date(p.created_at).getTime() >= cycleStartMs && new Date(p.created_at).getTime() <= cycleEndMs + (10 * 86400000))
-          )
+          (!p.notes || p.notes.includes(cycleLabel))
         );
         
         const totalPaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);

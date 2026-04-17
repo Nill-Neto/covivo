@@ -1490,7 +1490,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date || expense.created_at), "dd/MM/yyyy")}
+                <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date), "dd/MM/yyyy")}
               </span>
               <Badge variant={expense.paid_to_provider ? "default" : "secondary"} className="text-[10px]">
                 {expense.paid_to_provider ? "Paga ao fornecedor" : "Pendente com fornecedor"}

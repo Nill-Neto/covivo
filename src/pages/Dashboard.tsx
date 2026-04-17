@@ -77,7 +77,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
