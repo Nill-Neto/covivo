@@ -22,7 +22,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
   const { memberships, activeGroupId, setActiveGroupId, user } = useAuth();
   const navigate = useNavigate();
 
-  // Gera as últimas 6 competências baseadas na data atual e no dia de fechamento
   const chartDataTemplate = useMemo(() => {
     const currentCompKey = getCompetenceKeyFromDate(new Date(), closingDay || 1);
     const [currYear, currMonth] = currentCompKey.split("-").map(Number);
@@ -48,13 +47,18 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     return comps;
   }, [closingDay]);
 
-  // Busca despesas e parcelas com suporte correto a faturas de cartão e rateios
   const { data: rawData, isLoading } = useQuery({
     queryKey: ["home-expenses-evolution", activeGroupId, user?.id],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
       const compKeys = chartDataTemplate.map(c => c.key);
+      const competenceWindowFilter = chartDataTemplate
+        .map(c => {
+          const [y, m] = c.key.split("-").map(Number);
+          return `and(bill_year.eq.${y},bill_month.eq.${m})`;
+        })
+        .join(",");
 
       const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
         supabase
@@ -95,7 +99,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
     const dataCopy = chartDataTemplate.map((c) => ({ ...c, Coletivo: 0, MeuRateio: 0, Individual: 0 }));
     if (!rawData) return dataCopy;
 
-    // 1. Processa Despesas base (Coletivas totais, Meu Rateio e Individuais em Dinheiro/Pix)
     rawData.expenses.forEach((e) => {
       const key = e.competence || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
       if (!key) return;
@@ -104,22 +107,17 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       if (bucket) {
         if (e.expense_type === "collective") {
           bucket.Coletivo += Number(e.amount || 0);
-          
-          // Separa a fatia do usuário
           const mySplit = e.expense_splits?.find((s: { user_id: string; amount: number | string | null }) => s.user_id === user?.id);
           if (mySplit) {
             bucket.MeuRateio += Number(mySplit.amount || 0);
           }
         }
-        // Despesas individuais entram aqui apenas se NÃO forem no cartão de crédito
-        // Se forem no cartão, o valor será contabilizado pelas parcelas (installments) abaixo
         if (e.expense_type === "individual" && e.created_by === user?.id && e.payment_method !== "credit_card") {
           bucket.Individual += Number(e.amount || 0);
         }
       }
     });
 
-    // 2. Processa as Parcelas (Cartão de crédito individual do grupo)
     rawData.installments.forEach((i) => {
       const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
       const bucket = dataCopy.find((c) => c.key === key);
@@ -128,7 +126,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       }
     });
 
-    // 3. Processa as Parcelas (Cartão de crédito pessoal - fora do grupo)
     rawData.personalInstallments.forEach((i) => {
       const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
       const bucket = dataCopy.find((c) => c.key === key);
@@ -143,12 +140,11 @@ export function HomeTab({ closingDay }: HomeTabProps) {
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
     }));
-  }, [rawData, chartDataTemplate, user?.id]);
+  }, [rawData, chartDataTemplate, user?.id, closingDay]);
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Card Grupos */}
         <Card className="flex flex-col shadow-sm bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-base">
@@ -195,8 +191,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
                     
                     <div className="flex items-center gap-2">
                       {isActive && <Check className="h-4 w-4 text-primary shrink-0" />}
-                      
-                      {/* O botão de configurações só aparece se a pessoa for admin */}
                       {m.role === 'admin' && (
                         <Button
                           variant="ghost"
@@ -221,7 +215,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           </CardContent>
         </Card>
 
-        {/* Card Convites */}
         <Card className="flex flex-col border-l-4 border-l-primary shadow-sm bg-card h-full justify-between">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -242,7 +235,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
         </Card>
       </div>
 
-      {/* Gráfico de Evolução */}
       <Card className="shadow-sm bg-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -313,7 +305,7 @@ export function HomeTab({ closingDay }: HomeTabProps) {
                   type="monotone"
                   dataKey="Individual" 
                   name="Meus Gastos (Individuais)" 
-                  stroke="#0ea5e9" /* Blue sky */
+                  stroke="#0ea5e9"
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
@@ -323,7 +315,6 @@ export function HomeTab({ closingDay }: HomeTabProps) {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }
