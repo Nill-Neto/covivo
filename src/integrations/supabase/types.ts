@@ -134,6 +134,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month: number
+          competence_year: number
           created_at: string
           expense_id: string
           id: string
@@ -144,6 +146,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           expense_id: string
           id?: string
@@ -154,6 +158,8 @@ export type Database = {
           amount?: number
           bill_month?: number
           bill_year?: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           expense_id?: string
           id?: string
@@ -225,6 +231,9 @@ export type Database = {
           paid_to_provider: boolean
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           receipt_url: string | null
           recurring_expense_id: string | null
           title: string
@@ -246,6 +255,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title: string
@@ -267,6 +279,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title?: string
@@ -622,6 +637,9 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at: string | null
           confirmed_by: string | null
           competence_date: string
@@ -636,6 +654,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at?: string | null
           confirmed_by?: string | null
           competence_date?: string
@@ -650,6 +671,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           confirmed_at?: string | null
           confirmed_by?: string | null
           competence_date?: string
@@ -684,6 +708,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month: number
+          competence_year: number
           created_at: string
           id: string
           installment_number: number
@@ -694,6 +720,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           id?: string
           installment_number: number
@@ -704,6 +732,8 @@ export type Database = {
           amount?: number
           bill_month?: number
           bill_year?: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           id?: string
           installment_number?: number
@@ -729,6 +759,9 @@ export type Database = {
           installments: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -740,6 +773,9 @@ export type Database = {
           installments?: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -751,6 +787,9 @@ export type Database = {
           installments?: number
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           title?: string
           user_id?: string
         }

@@ -83,6 +83,9 @@ type ExpenseRow = {
   credit_card_id: string | null;
   installments: number;
   purchase_date: string;
+  competence_year: number;
+  competence_month: number;
+  competence_key: string;
   expense_splits?: Array<{
     id: string;
     user_id: string;
@@ -156,7 +159,7 @@ export default function Expenses() {
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
   // --- Date Cycle Logic ---
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading, closingDay: groupClosingDay } = useCycleDates(membership?.group_id);
+  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading } = useCycleDates(membership?.group_id);
 
   useEffect(() => {
     if (!editingId && activeTab !== "recurring") {
@@ -172,17 +175,15 @@ export default function Expenses() {
 
   // Fetch expenses whose purchase_date falls in the current cycle
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["expenses", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["expenses", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
         .select("*, expense_splits(id, user_id, amount, status, paid_at)")
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd)
+        .eq("competence_key", competenceKey)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;
@@ -414,6 +415,17 @@ export default function Expenses() {
     }
   };
 
+  const fetchSavedExpense = async (expenseId: string) => {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("id, purchase_date")
+      .eq("id", expenseId)
+      .single();
+
+    if (error) throw error;
+    return data as Pick<ExpenseRow, "id" | "purchase_date">;
+  };
+
   const handleSave = async () => {
     const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
     const individualParticipantIds = user?.id ? [user.id] : [];
@@ -448,32 +460,6 @@ export default function Expenses() {
     const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid" || isPaid;
 
     let uploadedReceiptUrl = receiptUrl;
-
-    // If card already closed before group competence closes, launch in next competence
-    let finalPurchaseDate = dateValue;
-    if (!editingId && editingType === "expense" && paymentMethod === "credit_card" && finalCreditCardId) {
-      const card = cards.find((c: any) => c.id === finalCreditCardId);
-      if (card && card.closing_day < groupClosingDay) {
-        const purchaseDate = new Date(`${dateValue}T12:00:00`);
-        const purchaseDay = purchaseDate.getDate();
-        if (purchaseDay > card.closing_day) {
-          const daysInPurchaseMonth = new Date(
-            purchaseDate.getFullYear(),
-            purchaseDate.getMonth() + 1,
-            0,
-          ).getDate();
-          const nextGroupClosingDate = new Date(
-            purchaseDate.getFullYear(),
-            purchaseDate.getMonth(),
-            Math.min(groupClosingDay, daysInPurchaseMonth),
-          );
-          if (nextGroupClosingDate <= purchaseDate) {
-            nextGroupClosingDate.setMonth(nextGroupClosingDate.getMonth() + 1);
-          }
-          finalPurchaseDate = format(nextGroupClosingDate, "yyyy-MM-dd");
-        }
-      }
-    }
 
     setSaving(true);
     try {
@@ -522,6 +508,9 @@ export default function Expenses() {
           })
           .eq("id", editingId);
         if (error) throw error;
+        const savedExpense = await fetchSavedExpense(editingId);
+        const persistedPurchaseDate = savedExpense.purchase_date;
+        setDateValue(persistedPurchaseDate);
 
         // Update split amounts proportionally if amount changed
         if (editingOriginalAmount && parsedAmount !== editingOriginalAmount) {
@@ -547,7 +536,7 @@ export default function Expenses() {
           const card = cards.find((c) => c.id === finalCreditCardId);
           if (card) {
             const closingDay = card.closing_day;
-            const purchaseDate = new Date(dateValue + "T12:00:00");
+            const purchaseDate = new Date(`${persistedPurchaseDate}T12:00:00`);
             const billBase = new Date(purchaseDate);
             if (purchaseDate.getDate() >= closingDay) {
               billBase.setMonth(billBase.getMonth() + 1);
@@ -598,7 +587,7 @@ export default function Expenses() {
           _payment_method: paymentMethod,
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
-          _purchase_date: finalPurchaseDate,
+          _purchase_date: dateValue,
         };
 
         const { data: newExpenseIdWithParticipants, error: createWithParticipantsError } = await supabase.rpc(
@@ -637,6 +626,8 @@ export default function Expenses() {
             })
             .eq("id", newExpenseId);
           if (updateMetaError) throw updateMetaError;
+          const savedExpense = await fetchSavedExpense(newExpenseId);
+          setDateValue(savedExpense.purchase_date);
         }
 
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {

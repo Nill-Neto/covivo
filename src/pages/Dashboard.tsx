@@ -9,7 +9,6 @@ import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { parseLocalDate } from "@/lib/utils";
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HomeTab } from "@/components/dashboard/HomeTab";
@@ -18,7 +17,6 @@ import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -48,10 +46,9 @@ export default function Dashboard() {
   // --- Queries ---
 
   const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["expenses-dashboard", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("expenses")
@@ -63,8 +60,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd);
+        .eq("competence_key", competenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -223,11 +219,6 @@ export default function Dashboard() {
   // 1. Collective Debt (Rateio Pendente)
   const currentCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
-  const getCompetenceKeyFromPurchaseDate = (purchaseDate?: string | null) => {
-    if (!purchaseDate) return null;
-    return getCompetenceKeyFromDate(new Date(`${purchaseDate}T12:00:00`), closingDay);
-  };
-
   const collectivePending = pendingSplits
     .filter((s: any) => {
       if (s.expenses?.expense_type !== "collective") return false;
@@ -237,7 +228,7 @@ export default function Dashboard() {
     })
     .map((split: any) => ({
       ...split,
-      competenceKey: getCompetenceKeyFromPurchaseDate(split.expenses?.purchase_date),
+      competenceKey: split.expenses?.competence_key ?? null,
     }));
 
   // Deduct bulk payments (rateio payments without expense_split_id)
@@ -313,8 +304,7 @@ export default function Dashboard() {
     if (totalCollectivePendingPrevious <= 0.01) return [];
 
     const grouped = displayCollectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
-      const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
-      const competence = purchaseDate ? format(purchaseDate, "MM/yyyy") : "Sem competência";
+      const competence = item.expenses?.competence_key ?? "Sem competência";
       if (!acc[competence]) acc[competence] = [];
       acc[competence].push(item);
       return acc;
@@ -327,8 +317,8 @@ export default function Dashboard() {
         total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
       }))
       .sort((a, b) => {
-        const [monthA, yearA] = a.competence.split("/").map(Number);
-        const [monthB, yearB] = b.competence.split("/").map(Number);
+        const [yearA, monthA] = a.competence.split("-").map(Number);
+        const [yearB, monthB] = b.competence.split("-").map(Number);
 
         if (!monthA || !yearA) return 1;
         if (!monthB || !yearB) return -1;
@@ -340,16 +330,11 @@ export default function Dashboard() {
   }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
 
   // 2. Individual Pending (Manual + Installments)
-  const dbStart = format(cycleStart, "yyyy-MM-dd");
-  const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
-    
-    const pd = s.expenses?.purchase_date;
-    const isInCycle = pd ? (pd >= dbStart && pd < dbEnd) : false;
+    const isInCycle = s.expenses?.competence_key === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
   });
@@ -410,13 +395,20 @@ export default function Dashboard() {
       const path = `${user!.id}/${Date.now()}_rateio.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: null,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount,
         receipt_url: urlData.publicUrl,
+        competence_year: competenceYear,
+        competence_month: competenceMonth,
+        competence_key: competenceKey,
         notes: scope === "previous"
           ? `Pagamento de Rateio - competências anteriores (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
           : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
@@ -443,13 +435,20 @@ export default function Dashboard() {
       const path = `${user!.id}/${Date.now()}_indiv.${ext}`;
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
 
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
+        competence_year: competenceYear,
+        competence_month: competenceMonth,
+        competence_key: competenceKey,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
       });
 

@@ -163,10 +163,11 @@ export default function Payments() {
 
   // Fetch payments FILTERED by cycle
   const { data: payments, isLoading } = useQuery({
-    queryKey: ["payments", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["payments", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("payments")
@@ -416,6 +417,9 @@ export default function Payments() {
       });
 
       const paidAmount = Number(amount);
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
+      const competenceKey = `${competenceYear}-${String(competenceMonth).padStart(2, "0")}`;
       const selectedSplits = (pendingSplits ?? []).filter((s) => selectedSplitIds.includes(s.id));
       const selectedTotal = selectedSplits.reduce((sum, s) => sum + Number(s.amount), 0);
 
@@ -440,9 +444,13 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: split.id,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(split.amount),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
+          competence_key: competenceKey,
         }));
 
       const creditAmount = paidAmount - selectedTotal;
@@ -451,9 +459,13 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: null,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
+          competence_year: competenceYear,
+          competence_month: competenceMonth,
+          competence_key: competenceKey,
         });
       }
 
