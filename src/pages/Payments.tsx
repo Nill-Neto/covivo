@@ -95,8 +95,7 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    // Calcula a competência baseada na data de criação do pagamento e dia de fechamento
-    const competence = getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence = payment.competence || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
     setEditCompetence(competence);
   };
 
@@ -104,11 +103,12 @@ export default function Payments() {
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
       let newDate = editingPayment.created_at;
       
-      if (values.competence) {
+      if (values.competence && values.competence !== editingPayment.competence) {
         const [yStr, mStr] = values.competence.split("-");
         const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1;
-        const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
+        const m = parseInt(mStr);
+        // Colocar a data exatamente no dia 15 ao meio dia para forçar a competência sem cair na borda
+        const safeDate = new Date(y, m - 1, 15, 12, 0, 0);
         newDate = safeDate.toISOString();
       }
 
@@ -119,6 +119,7 @@ export default function Payments() {
           notes: values.notes || null,
           status: values.status,
           created_at: newDate,
+          competence: values.competence || editingPayment.competence,
         })
         .eq("id", editingPayment.id);
       if (error) throw error;
@@ -158,18 +159,17 @@ export default function Payments() {
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
+
   // Fetch payments FILTERED by cycle
   const { data: payments, isLoading } = useQuery({
-    queryKey: ["payments", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["payments", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-
       const { data, error } = await supabase
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .or(`status.eq.pending,and(created_at.gte.${dbStart},created_at.lt.${dbEnd})`)
+        .or(`status.eq.pending,competence.eq.${currentCompetenceKey}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -430,6 +430,8 @@ export default function Payments() {
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
+      const compKey = getCompetenceKeyFromDate(new Date(), closingDay);
+
       // 2. Insert payment records (one per split)
       const paymentsToInsert = selectedSplits.map((split) => ({
           group_id: membership!.group_id,
@@ -438,6 +440,7 @@ export default function Payments() {
           amount: Number(split.amount),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
+          competence: compKey,
         }));
 
       const creditAmount = paidAmount - selectedTotal;
@@ -449,6 +452,7 @@ export default function Payments() {
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",
+          competence: compKey,
         });
       }
 
@@ -720,7 +724,7 @@ export default function Payments() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground -mt-2">
-              Selecione o mês para que o sistema direcione este pagamento para a competência correta.
+              Ajuste para reatribuir este pagamento a outra competência financeira.
             </p>
 
             <div className="space-y-2">

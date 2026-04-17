@@ -43,6 +43,7 @@ import {
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCycleDates } from "@/hooks/useCycleDates";
+import { getCompetenceKeyFromDate } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { Receipt } from "lucide-react";
@@ -83,6 +84,7 @@ type ExpenseRow = {
   credit_card_id: string | null;
   installments: number;
   purchase_date: string;
+  competence: string | null;
   expense_splits?: Array<{
     id: string;
     user_id: string;
@@ -170,19 +172,17 @@ export default function Expenses() {
     }
   }, [category]);
 
-  // Fetch expenses whose purchase_date falls in the current cycle
-  const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["expenses", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
-    queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, groupClosingDay);
 
+  // Fetch expenses whose competence matches the current cycle
+  const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
+    queryKey: ["expenses", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
         .select("*, expense_splits(id, user_id, amount, status, paid_at)")
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd)
+        .eq("competence", currentCompetenceKey)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;
@@ -505,6 +505,11 @@ export default function Expenses() {
         const parsedAmount = parseFloat(amount);
         const parsedInstallments = parseInt(installments) || 1;
 
+        const compKey = getCompetenceKeyFromDate(
+          new Date(`${dateValue}T12:00:00`), 
+          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : groupClosingDay
+        );
+
         const { error } = await supabase
           .from("expenses")
           .update({
@@ -519,6 +524,7 @@ export default function Expenses() {
             paid_to_provider: providerPaid,
             due_date: paymentDate || null,
             receipt_url: uploadedReceiptUrl,
+            competence: compKey,
           })
           .eq("id", editingId);
         if (error) throw error;
@@ -584,6 +590,11 @@ export default function Expenses() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["expense-splits"] });
       } else {
+        const compKey = getCompetenceKeyFromDate(
+          new Date(`${finalPurchaseDate}T12:00:00`), 
+          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : groupClosingDay
+        );
+
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
           _title: title.trim(),
@@ -599,6 +610,7 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: finalPurchaseDate,
+          _competence: compKey,
         };
 
         const { data: newExpenseIdWithParticipants, error: createWithParticipantsError } = await supabase.rpc(

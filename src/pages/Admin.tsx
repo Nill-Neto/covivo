@@ -23,12 +23,11 @@ export default function Admin() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
-    queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
+  const { data: expensesInCycle = [] } = useQuery({
+    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
         .select(`
@@ -36,8 +35,7 @@ export default function Admin() {
           expense_splits ( user_id, amount )
         `)
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd);
+        .eq("competence", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -49,25 +47,21 @@ export default function Admin() {
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
   const { data: adminData, isLoading } = useQuery({
-    queryKey: ["admin-dashboard-data", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["admin-dashboard-data", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
-
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
       const [membersRes, rolesRes, cycleSplitsRes, allPaymentsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
           .from("expense_splits")
-          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date)")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
-          .gte("expenses.purchase_date", dbStart)
-          .lt("expenses.purchase_date", dbEnd),
+          .eq("expenses.competence", currentCompetenceKey),
         supabase.from("payments")
-          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, expense_splits(expenses(expense_type))")
+          .select("id, paid_by, amount, expense_split_id, status, notes, created_at, competence, expense_splits(expenses(expense_type))")
           .eq("group_id", membership.group_id)
           .in("status", ["pending", "confirmed"]),
         supabase
@@ -85,7 +79,6 @@ export default function Admin() {
 
       const cycleSplits = cycleSplitsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
-      const cycleCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
       const cycleBalances = (membersRes.data || []).map(m => {
         // Calculate strictly for the CURRENT cycle
@@ -103,8 +96,8 @@ export default function Admin() {
         const bulkPayments = allPayments.filter(p => {
           if (p.paid_by !== m.user_id || p.expense_split_id) return false;
           
-          const pCompKey = getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
-          return pCompKey === cycleCompetenceKey;
+          const pCompKey = p.competence || getCompetenceKeyFromDate(new Date(p.created_at), closingDay);
+          return pCompKey === currentCompetenceKey;
         });
         
         const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount), 0);

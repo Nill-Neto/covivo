@@ -47,12 +47,11 @@ export default function Dashboard() {
 
   // --- Queries ---
 
-  const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
-    queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+  const currentCompetenceKey = getCompetenceKeyFromDate(currentDate, closingDay);
 
+  const { data: expensesInCycle = [] } = useQuery({
+    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
         .select(`
@@ -63,8 +62,7 @@ export default function Dashboard() {
           )
         `)
         .eq("group_id", membership!.group_id)
-        .gte("purchase_date", dbStart)
-        .lt("purchase_date", dbEnd);
+        .eq("competence", currentCompetenceKey);
       
       if (error) throw error;
       return data ?? [];
@@ -77,7 +75,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expense_splits")
-        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, credit_cards:credit_card_id(closing_day)), payments(id, status)")
+        .select("id, amount, status, expense_id, expenses:expense_id(title, category, group_id, expense_type, created_at, purchase_date, payment_method, credit_card_id, installments, competence, credit_cards:credit_card_id(closing_day)), payments(id, status)")
         .eq("user_id", user!.id)
         .eq("status", "pending");
       if (error) throw error;
@@ -221,13 +219,6 @@ export default function Dashboard() {
   // Filtering Logic for Pending Splits (Debts)
   
   // 1. Collective Debt (Rateio Pendente)
-  const currentCompetenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
-
-  const getCompetenceKeyFromPurchaseDate = (purchaseDate?: string | null) => {
-    if (!purchaseDate) return null;
-    return getCompetenceKeyFromDate(new Date(`${purchaseDate}T12:00:00`), closingDay);
-  };
-
   const collectivePending = pendingSplits
     .filter((s: any) => {
       if (s.expenses?.expense_type !== "collective") return false;
@@ -235,10 +226,17 @@ export default function Dashboard() {
       const hasPayment = (s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
       return !hasPayment;
     })
-    .map((split: any) => ({
-      ...split,
-      competenceKey: getCompetenceKeyFromPurchaseDate(split.expenses?.purchase_date),
-    }));
+    .map((split: any) => {
+      // Usa a competência que já vem da despesa
+      let compKey = split.expenses?.competence;
+      if (!compKey && split.expenses?.purchase_date) {
+        compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
+      }
+      return {
+        ...split,
+        competenceKey: compKey,
+      };
+    });
 
   // Deduct bulk payments (rateio payments without expense_split_id)
   // These are lump-sum payments that don't link to specific splits
@@ -340,16 +338,17 @@ export default function Dashboard() {
   }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
 
   // 2. Individual Pending (Manual + Installments)
-  const dbStart = format(cycleStart, "yyyy-MM-dd");
-  const dbEnd = format(cycleEnd, "yyyy-MM-dd");
-
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
     
-    const pd = s.expenses?.purchase_date;
-    const isInCycle = pd ? (pd >= dbStart && pd < dbEnd) : false;
+    // Verifica se a competência é a atual
+    let compKey = s.expenses?.competence;
+    if (!compKey && s.expenses?.purchase_date) {
+      compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
+    }
+    const isInCycle = compKey === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
   });
@@ -423,6 +422,8 @@ export default function Dashboard() {
         paymentDate = new Date(cycleStart.getTime() - 12 * 60 * 60 * 1000);
       }
 
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: null,
@@ -430,6 +431,7 @@ export default function Dashboard() {
         amount,
         receipt_url: urlData.publicUrl,
         created_at: paymentDate.toISOString(),
+        competence: compKey,
         notes: scope === "previous"
           ? `Pagamento de Rateio - competências anteriores`
           : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
@@ -457,12 +459,17 @@ export default function Dashboard() {
       await supabase.storage.from("receipts").upload(path, receiptFile);
       const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
 
+      const paymentDate = new Date();
+      const compKey = getCompetenceKeyFromDate(paymentDate, closingDay);
+
       await supabase.from("payments").insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
         paid_by: user!.id,
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
+        created_at: paymentDate.toISOString(),
+        competence: compKey,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
       });
 
