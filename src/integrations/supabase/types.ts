@@ -622,6 +622,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          competence_key: string
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -635,6 +636,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          competence_key: string
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -648,6 +650,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          competence_key?: string
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string

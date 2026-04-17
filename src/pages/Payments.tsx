@@ -95,30 +95,19 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    // Calcula a competência baseada na data de criação do pagamento e dia de fechamento
-    const competence = getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
     setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
-      let newDate = editingPayment.created_at;
-      
-      if (values.competence) {
-        const [yStr, mStr] = values.competence.split("-");
-        const y = parseInt(yStr);
-        const m = parseInt(mStr) - 1;
-        const safeDate = new Date(y, m - 1, closingDay, 12, 0, 0);
-        newDate = safeDate.toISOString();
-      }
-
       const { error } = await supabase
         .from("payments")
         .update({
           amount: Number(values.amount),
           notes: values.notes || null,
           status: values.status,
-          created_at: newDate,
+          competence_key: values.competence,
         })
         .eq("id", editingPayment.id);
       if (error) throw error;
@@ -160,17 +149,15 @@ export default function Payments() {
 
   // Fetch payments FILTERED by cycle
   const { data: payments, isLoading } = useQuery({
-    queryKey: ["payments", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
+    queryKey: ["payments", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
-      const dbStart = format(cycleStart, "yyyy-MM-dd");
-      const dbEnd = format(cycleEnd, "yyyy-MM-dd");
+      const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .gte("created_at", dbStart)
-        .lt("created_at", dbEnd)
+        .eq("competence_key", competenceKey)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -436,6 +423,7 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: split.id,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(split.amount),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || (selectedSplitIds.length > 1 ? "Pagamento em lote" : null),
@@ -447,6 +435,7 @@ export default function Payments() {
           group_id: membership!.group_id,
           expense_split_id: null,
           paid_by: user!.id,
+          competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
           amount: Number(creditAmount.toFixed(2)),
           receipt_url: urlData.publicUrl,
           notes: notes.trim() || "Crédito por pagamento acima do total devido",

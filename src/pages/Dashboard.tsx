@@ -415,6 +415,7 @@ export default function Dashboard() {
         group_id: membership!.group_id,
         expense_split_id: null,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount,
         receipt_url: urlData.publicUrl,
         notes: scope === "previous"
@@ -448,6 +449,7 @@ export default function Dashboard() {
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
         paid_by: user!.id,
+        competence_key: getCompetenceKeyFromDate(new Date(), closingDay),
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
         notes: `Pagamento individual: ${selectedIndividualSplit.expenses?.title}`
