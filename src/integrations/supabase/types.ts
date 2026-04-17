@@ -638,6 +638,8 @@ export type Database = {
         Row: {
           amount: number
           competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -652,6 +654,8 @@ export type Database = {
         Insert: {
           amount: number
           competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -666,6 +670,8 @@ export type Database = {
         Update: {
           amount?: number
           competence_key?: string
+          competence_month?: number
+          competence_year?: number
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string

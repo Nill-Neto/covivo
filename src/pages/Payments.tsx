@@ -95,18 +95,25 @@ export default function Payments() {
     setEditNotes(payment.notes || "");
     setEditStatus(payment.status);
 
-    const competence = payment.competence_key || getCompetenceKeyFromDate(new Date(payment.created_at), closingDay);
+    const competence =
+      payment.competence_key ||
+      (payment.competence_year && payment.competence_month
+        ? `${payment.competence_year}-${String(payment.competence_month).padStart(2, "0")}`
+        : getCompetenceKeyFromDate(new Date(payment.created_at), closingDay));
     setEditCompetence(competence);
   };
 
   const updatePayment = useMutation({
     mutationFn: async (values: { amount: string; notes: string; status: string; competence: string }) => {
+      const [competenceYear, competenceMonth] = values.competence.split("-").map(Number);
       const { error } = await supabase
         .from("payments")
         .update({
           amount: Number(values.amount),
           notes: values.notes || null,
           status: values.status,
+          competence_year: Number.isFinite(competenceYear) ? competenceYear : undefined,
+          competence_month: Number.isFinite(competenceMonth) ? competenceMonth : undefined,
           competence_key: values.competence,
         })
         .eq("id", editingPayment.id);
@@ -151,13 +158,17 @@ export default function Payments() {
   const { data: payments, isLoading } = useQuery({
     queryKey: ["payments", membership?.group_id, currentDate.getFullYear(), currentDate.getMonth() + 1],
     queryFn: async () => {
+      const competenceYear = currentDate.getFullYear();
+      const competenceMonth = currentDate.getMonth() + 1;
       const competenceKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("payments")
         .select("*")
         .eq("group_id", membership!.group_id)
-        .eq("competence_key", competenceKey)
+        .or(
+          `and(competence_year.eq.${competenceYear},competence_month.eq.${competenceMonth}),competence_key.eq.${competenceKey}`
+        )
         .order("created_at", { ascending: false });
       if (error) throw error;
 
