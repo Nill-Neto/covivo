@@ -18,7 +18,11 @@ import { PaymentDialogs, type RateioScope } from "@/components/dashboard/Payment
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
-import { groupPendingByCompetence } from "@/lib/collectivePending";
+import {
+  groupPendingByCompetence,
+  resolvePendingCompetenceKey,
+  sortPendingItemsByDateDesc,
+} from "@/lib/collectivePending";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -220,10 +224,12 @@ export default function Dashboard() {
       return !hasPayment;
     })
     .map((split: any) => {
-      let compKey = split.expenses?.competence_key;
-      if (!compKey && split.expenses?.purchase_date) {
-        compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
-      }
+      const compKey = resolvePendingCompetenceKey({
+        competenceKey: split.expenses?.competence_key,
+        purchaseDate: split.expenses?.purchase_date,
+        closingDay,
+        getCompetenceKeyFromDate,
+      });
       return {
         ...split,
         competenceKey: compKey,
@@ -236,7 +242,7 @@ export default function Dashboard() {
 
   const collectivePendingCurrent = collectivePending
     .filter((s: any) => s.competenceKey === currentCompetenceKey)
-    .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
+    .sort(sortPendingItemsByDateDesc);
     
   const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
   const rawTotalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
@@ -275,11 +281,7 @@ export default function Dashboard() {
       }
     }
 
-    return result.sort((a, b) => {
-      const dateA = a.expenses?.purchase_date || "";
-      const dateB = b.expenses?.purchase_date || "";
-      return dateB.localeCompare(dateA);
-    });
+    return result.sort(sortPendingItemsByDateDesc);
   };
 
   const displayCollectivePendingPrevious = totalCollectivePendingPrevious > 0.01
@@ -295,15 +297,22 @@ export default function Dashboard() {
     return groupPendingByCompetence(displayCollectivePendingPrevious);
   }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
 
+  const collectivePendingCurrentByCompetence = useMemo(() => {
+    if (totalCollectivePendingCurrent <= 0.01) return [];
+    return groupPendingByCompetence(displayCollectivePendingCurrent);
+  }, [displayCollectivePendingCurrent, totalCollectivePendingCurrent]);
+
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
     
-    let compKey = s.expenses?.competence_key;
-    if (!compKey && s.expenses?.purchase_date) {
-      compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
-    }
+    const compKey = resolvePendingCompetenceKey({
+      competenceKey: s.expenses?.competence_key,
+      purchaseDate: s.expenses?.purchase_date,
+      closingDay,
+      getCompetenceKeyFromDate,
+    });
     const isInCycle = compKey === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
@@ -503,7 +512,7 @@ export default function Dashboard() {
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
             collectivePendingPreviousByCompetence={collectivePendingPreviousByCompetence}
-            collectivePendingCurrent={displayCollectivePendingCurrent}
+            collectivePendingCurrentByCompetence={collectivePendingCurrentByCompetence}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
@@ -551,7 +560,10 @@ export default function Dashboard() {
           previous: { total: totalCollectivePendingPrevious, items: displayCollectivePendingPrevious },
           current: { total: totalCollectivePendingCurrent, items: displayCollectivePendingCurrent },
         }}
-        collectivePendingPreviousByCompetence={collectivePendingPreviousByCompetence}
+        collectivePendingByScopeGrouped={{
+          previous: collectivePendingPreviousByCompetence,
+          current: collectivePendingCurrentByCompetence,
+        }}
         rateioScope={rateioScope}
         individualPending={individualPending}
         currentDate={currentDate}

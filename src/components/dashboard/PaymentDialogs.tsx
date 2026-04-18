@@ -30,7 +30,10 @@ interface PaymentDialogsProps {
     previous: { total: number; items: PendingSplit[] };
     current: { total: number; items: PendingSplit[] };
   };
-  collectivePendingPreviousByCompetence: PendingByCompetenceGroup[];
+  collectivePendingByScopeGrouped: {
+    previous: PendingByCompetenceGroup[];
+    current: PendingByCompetenceGroup[];
+  };
   rateioScope: RateioScope;
   individualPending: any[];
   currentDate: Date;
@@ -51,7 +54,7 @@ export function PaymentDialogs({
   selectedIndividualSplit,
   setSelectedIndividualSplit,
   collectivePendingByScope,
-  collectivePendingPreviousByCompetence,
+  collectivePendingByScopeGrouped,
   rateioScope,
   individualPending,
   currentDate,
@@ -64,6 +67,7 @@ export function PaymentDialogs({
   setRateioCurrentAmount,
 }: PaymentDialogsProps) {
   const selectedScopeData = collectivePendingByScope[rateioScope];
+  const selectedScopeGroups = collectivePendingByScopeGrouped[rateioScope];
   const selectedScopeLabel = rateioScope === "previous"
     ? "Rateio pendente de competências anteriores"
     : "Rateio da competência atual";
@@ -114,25 +118,11 @@ export function PaymentDialogs({
                   }}
                 >
                   <div className="divide-y">
-                    {rateioScope === "previous"
-                      ? collectivePendingPreviousByCompetence.map((group) => (
-                          <div key={group.competenceKey ?? "missing-competence"} className="px-4 py-2.5 space-y-1.5">
-                            <p className="text-xs font-semibold text-muted-foreground">{group.competenceLabel}</p>
-                            {group.items.map((s) => (
-                              <div key={s.id} className="flex justify-between text-sm py-0.5 items-center">
-                                <div className="truncate pr-3 flex-1 flex flex-col">
-                                  <span className="truncate text-foreground">{s.expenses?.title}</span>
-                                  {s.originalAmount && s.originalAmount > s.amount && (
-                                    <span className="text-[10px] text-muted-foreground">Original: R$ {Number(s.originalAmount).toFixed(2)}</span>
-                                  )}
-                                </div>
-                                <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ))
-                      : selectedScopeData.items.map((s) => (
-                          <div key={s.id} className="px-4 py-2.5 flex justify-between text-sm items-center">
+                    {selectedScopeGroups.map((group) => (
+                      <div key={group.competenceKey ?? "missing-competence"} className="px-4 py-2.5 space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground">{group.competenceLabel}</p>
+                        {group.items.map((s) => (
+                          <div key={s.id} className="flex justify-between text-sm py-0.5 items-center">
                             <div className="truncate pr-3 flex-1 flex flex-col">
                               <span className="truncate text-foreground">{s.expenses?.title}</span>
                               {s.originalAmount && s.originalAmount > s.amount && (
@@ -142,6 +132,8 @@ export function PaymentDialogs({
                             <span className="font-medium tabular-nums text-foreground">R$ {Number(s.amount).toFixed(2)}</span>
                           </div>
                         ))}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

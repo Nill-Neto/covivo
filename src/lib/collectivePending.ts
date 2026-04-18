@@ -18,7 +18,28 @@ export type PendingByCompetenceGroup = {
   items: PendingSplitItem[];
 };
 
-const sortByPurchaseDateDesc = (a: PendingSplitItem, b: PendingSplitItem) =>
+export const getPendingCompetenceLabel = (competenceKey?: string | null) =>
+  competenceKey
+    ? `${competenceKey.slice(5, 7)}/${competenceKey.slice(0, 4)}`
+    : MISSING_COMPETENCE_LABEL;
+
+export const resolvePendingCompetenceKey = ({
+  competenceKey,
+  purchaseDate,
+  closingDay,
+  getCompetenceKeyFromDate,
+}: {
+  competenceKey?: string | null;
+  purchaseDate?: string | null;
+  closingDay: number;
+  getCompetenceKeyFromDate: (date: Date, closingDay: number) => string;
+}) => {
+  if (competenceKey) return competenceKey;
+  if (!purchaseDate) return null;
+  return getCompetenceKeyFromDate(new Date(`${purchaseDate}T12:00:00`), closingDay);
+};
+
+export const sortPendingItemsByDateDesc = (a: PendingSplitItem, b: PendingSplitItem) =>
   (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || "");
 
 export const sortByCompetenceLabelDesc = (a: PendingByCompetenceGroup, b: PendingByCompetenceGroup) => {
@@ -33,9 +54,7 @@ export const groupPendingByCompetence = (items: PendingSplitItem[]): PendingByCo
     if (!acc[competenceKey ?? "__missing__"]) {
       acc[competenceKey ?? "__missing__"] = {
         competenceKey,
-        competenceLabel: competenceKey
-          ? `${competenceKey.slice(5, 7)}/${competenceKey.slice(0, 4)}`
-          : MISSING_COMPETENCE_LABEL,
+        competenceLabel: getPendingCompetenceLabel(competenceKey),
         total: 0,
         items: [],
       };
@@ -49,7 +68,7 @@ export const groupPendingByCompetence = (items: PendingSplitItem[]): PendingByCo
   return Object.values(grouped)
     .map((group) => ({
       ...group,
-      items: [...group.items].sort(sortByPurchaseDateDesc),
+      items: [...group.items].sort(sortPendingItemsByDateDesc),
     }))
     .sort(sortByCompetenceLabelDesc);
 };

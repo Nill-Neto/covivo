@@ -24,7 +24,7 @@ interface PersonalTabProps {
   totalCollectivePendingPrevious: number;
   totalCollectivePendingCurrent: number;
   collectivePendingPreviousByCompetence: PendingByCompetenceGroup[];
-  collectivePendingCurrent: any[];
+  collectivePendingCurrentByCompetence: PendingByCompetenceGroup[];
   individualPending: any[];
   totalPersonalCash: number;
   totalBill: number;
@@ -44,7 +44,7 @@ export function PersonalTab({
   totalCollectivePendingPrevious,
   totalCollectivePendingCurrent,
   collectivePendingPreviousByCompetence,
-  collectivePendingCurrent,
+  collectivePendingCurrentByCompetence,
   individualPending,
   totalPersonalCash,
   totalBill,
@@ -239,11 +239,11 @@ export function PersonalTab({
                   Pagar competência atual
                 </Button>
               )}
-              {totalCollectivePendingCurrent > 0.01 && collectivePendingCurrent.length > 0 && (
+              {totalCollectivePendingCurrent > 0.01 && collectivePendingCurrentByCompetence.length > 0 && (
                 <Dialog open={isCurrentCollectiveOpen} onOpenChange={setIsCurrentCollectiveOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                      <List className="h-3 w-3" /> Ver itens ({collectivePendingCurrent.length})
+                      <List className="h-3 w-3" /> Ver itens ({collectivePendingCurrentByCompetence.reduce((s, g) => s + g.items.length, 0)})
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
@@ -264,36 +264,51 @@ export function PersonalTab({
                     <div className="border-t">
                       <div className="overflow-y-auto max-h-[50vh]">
                         <div className="divide-y">
-                          {collectivePendingCurrent.map((item) => (
-                            <div key={item.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                              <div className="min-w-0 pr-4">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-sm font-medium truncate text-foreground">
-                                    {item.expenses?.title || "Despesa sem título"}
-                                    {item.originalAmount && item.originalAmount > item.amount && (
-                                      <span className="ml-2 font-normal text-[10px] text-muted-foreground">
-                                        (Parcial - Orig: R$ {Number(item.originalAmount).toFixed(2)})
-                                      </span>
-                                    )}
-                                  </p>
-                                  {item.expenses?.installments > 1 && (
-                                    <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
-                                      Parc. {item.installment_number || 1}/{item.expenses.installments}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
-                                    {getCategoryLabel(item.expenses?.category)}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
-                                  </span>
-                                </div>
+                          {collectivePendingCurrentByCompetence.map((group) => (
+                            <div key={group.competenceKey ?? "missing-competence"} className="px-5 py-4 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-foreground">
+                                  Competência {group.competenceLabel}
+                                </p>
+                                <Badge variant="secondary" className="font-semibold text-xs">
+                                  R$ {group.total.toFixed(2)}
+                                </Badge>
                               </div>
-                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
-                                R$ {Number(item.amount).toFixed(2)}
-                              </span>
+
+                              <div className="space-y-1.5">
+                                {group.items.map((item) => (
+                                  <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2.5">
+                                    <div className="min-w-0 pr-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium truncate text-foreground">
+                                          {item.expenses?.title || "Despesa sem título"}
+                                          {item.originalAmount && item.originalAmount > item.amount && (
+                                            <span className="ml-2 font-normal text-[10px] text-muted-foreground">
+                                              (Parcial - Orig: R$ {Number(item.originalAmount).toFixed(2)})
+                                            </span>
+                                          )}
+                                        </p>
+                                        {item.expenses?.installments > 1 && (
+                                          <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5 leading-none shrink-0">
+                                            Parc. {item.installment_number || 1}/{item.expenses.installments}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                                          {getCategoryLabel(item.expenses?.category)}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-foreground">
+                                      R$ {Number(item.amount).toFixed(2)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>
