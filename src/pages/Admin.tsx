@@ -54,7 +54,7 @@ export default function Admin() {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, departuresRes, inventoryRes, balancesRes] = await Promise.all([
+      const [membersRes, rolesRes, cycleSplitsRes, pendingSplitsRes, departuresRes, inventoryRes, balancesRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -63,6 +63,12 @@ export default function Admin() {
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
           .eq("expenses.competence_key", currentCompetenceKey),
+        supabase
+          .from("expense_splits")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key)")
+          .eq("status", "pending")
+          .eq("expenses.group_id", membership.group_id)
+          .eq("expenses.expense_type", "collective"),
         supabase
           .from("audit_log")
           .select("created_at, details")
@@ -81,6 +87,7 @@ export default function Admin() {
       ]);
 
       const cycleSplits = cycleSplitsRes.data || [];
+      const pendingSplits = pendingSplitsRes.data || [];
 
       // Fetch all payments for this group. Filtering in JS is safer for complex OR conditions.
       const { data: allPayments, error: paymentsError } = await supabase.from("payments")
