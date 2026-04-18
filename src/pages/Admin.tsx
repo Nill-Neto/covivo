@@ -62,7 +62,27 @@ export default function Admin() {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, pendingSplitsRes, departuresRes, inventoryRes, balancesRes] = await Promise.all([
+      const logErrorBySource = ({
+        source,
+        error,
+        severity,
+      }: {
+        source: string;
+        error: unknown;
+        severity: "critical" | "non-critical";
+      }) => {
+        console.error("[Admin] Query failure", {
+          source,
+          severity,
+          group_id: membership.group_id,
+          competence_key: currentCompetenceKey,
+          cycle_start: dbStart,
+          cycle_end: dbEnd,
+          error,
+        });
+      };
+
+      const [membersRes, rolesRes, cycleSplitsRes, balancesRes, profilesRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -71,6 +91,17 @@ export default function Admin() {
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
           .eq("expenses.competence_key", currentCompetenceKey),
+        supabase.rpc("get_admin_member_competence_balances", {
+          _group_id: membership.group_id,
+          _competence_key: currentCompetenceKey
+        }),
+        supabase
+          .from("group_member_profiles")
+          .select("id, full_name, avatar_url")
+          .eq("group_id", membership.group_id),
+      ]);
+
+      const [pendingSplitsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase
           .from("expense_splits")
           .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key)")
@@ -88,35 +119,55 @@ export default function Admin() {
           .from("inventory_items")
           .select("quantity, min_quantity")
           .eq("group_id", membership.group_id),
-        supabase.rpc("get_admin_member_competence_balances", {
-          _group_id: membership.group_id,
-          _competence_key: currentCompetenceKey
-        })
       ]);
 
-      const queryErrors = [
+      const criticalQueryErrors = [
         { label: "group_members", error: membersRes.error },
         { label: "user_roles", error: rolesRes.error },
-        { label: "expense_splits", error: cycleSplitsRes.error },
-        { label: "audit_log", error: departuresRes.error },
-        { label: "inventory_items", error: inventoryRes.error },
+        { label: "expense_splits_current_cycle", error: cycleSplitsRes.error },
         { label: "get_admin_member_competence_balances", error: balancesRes.error },
+        { label: "group_member_profiles", error: profilesRes.error },
       ].filter((entry) => Boolean(entry.error));
 
-      if (queryErrors.length > 0) {
+      if (criticalQueryErrors.length > 0) {
         const groupedErrors = Object.fromEntries(
-          queryErrors.map((entry) => [entry.label, entry.error])
+          criticalQueryErrors.map((entry) => [entry.label, entry.error])
         );
+
+        criticalQueryErrors.forEach((entry) => {
+          logErrorBySource({
+            source: entry.label,
+            error: entry.error,
+            severity: "critical",
+          });
+        });
 
         console.error("[Admin] Falha ao carregar dados administrativos", {
           queryKey: adminDashboardQueryKey,
           group_id: membership.group_id,
           competence_key: currentCompetenceKey,
+          severity: "critical",
           queryErrors: groupedErrors,
         });
 
         throw new Error("Falha ao carregar dados administrativos");
       }
+
+      const nonCriticalWarnings: string[] = [];
+      const nonCriticalQueryErrors = [
+        { label: "expense_splits_pending", error: pendingSplitsRes.error, warning: "Pendências de rateios indisponíveis no momento." },
+        { label: "audit_log", error: departuresRes.error, warning: "Histórico de saídas de membros indisponível no momento." },
+        { label: "inventory_items", error: inventoryRes.error, warning: "Indicadores de estoque indisponíveis no momento." },
+      ].filter((entry) => Boolean(entry.error));
+
+      nonCriticalQueryErrors.forEach((entry) => {
+        logErrorBySource({
+          source: entry.label,
+          error: entry.error,
+          severity: "non-critical",
+        });
+        nonCriticalWarnings.push(entry.warning);
+      });
 
       const cycleSplits = cycleSplitsRes.data || [];
       const pendingSplits = pendingSplitsRes.data || [];
@@ -128,12 +179,12 @@ export default function Admin() {
         .in("status", ["pending", "confirmed"]);
       
       if (paymentsError) {
-        console.error("[Admin] Payments fetch error", {
-          queryKey: adminDashboardQueryKey,
-          group_id: membership.group_id,
-          competence_key: currentCompetenceKey,
+        logErrorBySource({
+          source: "payments",
           error: paymentsError,
+          severity: "non-critical",
         });
+        nonCriticalWarnings.push("Pagamentos pendentes podem estar desatualizados.");
       }
       
       const payments = allPayments || [];
@@ -164,22 +215,7 @@ export default function Admin() {
         };
       });
 
-      const userIds = membersRes.data?.map(m => m.user_id) ?? [];
-      const { data: profiles, error: profilesError } = await supabase
-        .from("group_member_profiles")
-        .select("id, full_name, avatar_url")
-        .eq("group_id", membership.group_id)
-        .in("id", userIds);
-
-      if (profilesError) {
-        console.error("[Admin] Profiles fetch error", {
-          queryKey: adminDashboardQueryKey,
-          group_id: membership.group_id,
-          competence_key: currentCompetenceKey,
-          error: profilesError,
-        });
-        throw profilesError;
-      }
+      const profiles = profilesRes.data || [];
 
       const members = cycleBalances.map(m => ({
         ...m,
@@ -215,19 +251,18 @@ export default function Admin() {
           .in("expense_id", collectiveExpenses.map(e => e.id));
 
         if (exMembersSplitsError) {
-          console.error("[Admin] Ex-members splits fetch error", {
-            queryKey: adminDashboardQueryKey,
-            group_id: membership.group_id,
-            competence_key: currentCompetenceKey,
+          logErrorBySource({
+            source: "expense_splits_ex_members",
             error: exMembersSplitsError,
+            severity: "non-critical",
           });
-          throw exMembersSplitsError;
+          nonCriticalWarnings.push("Dívida de ex-membros pode estar incompleta.");
+        } else {
+          const activeUserIds = new Set(members.map(m => m.user_id));
+          exMembersDebt = (exMembersSplits || [])
+            .filter((s: any) => !activeUserIds.has(s.user_id))
+            .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
         }
-          
-        const activeUserIds = new Set(members.map(m => m.user_id));
-        exMembersDebt = (exMembersSplits || [])
-          .filter((s: any) => !activeUserIds.has(s.user_id))
-          .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
       }
 
       return {
@@ -239,6 +274,7 @@ export default function Admin() {
         lowStockCount,
         cycleSplits,
         pendingSplits,
+        nonCriticalWarnings,
       };
     },
     enabled: !!membership?.group_id && !!collectiveExpenses && isAdmin
@@ -300,22 +336,34 @@ export default function Admin() {
           </button>
         </div>
       ) : adminData ? (
-        <AdminTab 
-          members={adminData.members} 
-          pendingPaymentsCount={adminData.pendingPaymentsCount}
-          collectiveExpenses={collectiveExpenses}
-          totalMonthExpenses={totalMonthExpenses}
-          cycleStart={cycleStart}
-          cycleEnd={cycleEnd}
-          currentDate={currentDate}
-          exMembersDebt={adminData.exMembersDebt}
-          departuresCount={adminData.departuresCount}
-          redistributedCount={adminData.redistributedCount}
-          lowStockCount={adminData.lowStockCount}
-          cycleSplits={adminData.cycleSplits}
-          pendingSplits={adminData.pendingSplits}
-          closingDay={closingDay}
-        />
+        <div className="space-y-3">
+          {adminData.nonCriticalWarnings.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-amber-300/50 bg-amber-50 p-4 text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
+              <p className="text-sm font-semibold">Alguns dados auxiliares estão indisponíveis.</p>
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {adminData.nonCriticalWarnings.map((warning, index) => (
+                  <li key={`${warning}-${index}`}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <AdminTab 
+            members={adminData.members} 
+            pendingPaymentsCount={adminData.pendingPaymentsCount}
+            collectiveExpenses={collectiveExpenses}
+            totalMonthExpenses={totalMonthExpenses}
+            cycleStart={cycleStart}
+            cycleEnd={cycleEnd}
+            currentDate={currentDate}
+            exMembersDebt={adminData.exMembersDebt}
+            departuresCount={adminData.departuresCount}
+            redistributedCount={adminData.redistributedCount}
+            lowStockCount={adminData.lowStockCount}
+            cycleSplits={adminData.cycleSplits}
+            pendingSplits={adminData.pendingSplits}
+            closingDay={closingDay}
+          />
+        </div>
       ) : (
         <div className="space-y-3 rounded-lg border p-6 text-center">
           <p className="font-medium text-foreground">Dados administrativos indisponíveis para este ciclo.</p>
