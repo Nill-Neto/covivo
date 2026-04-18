@@ -168,6 +168,7 @@ export default function Admin() {
         redistributedCount,
         lowStockCount,
         cycleSplits,
+        pendingSplits,
       };
     },
     enabled: !!membership?.group_id && !!collectiveExpenses && isAdmin
@@ -215,6 +216,7 @@ export default function Admin() {
           redistributedCount={adminData.redistributedCount}
           lowStockCount={adminData.lowStockCount}
           cycleSplits={adminData.cycleSplits}
+          pendingSplits={adminData.pendingSplits}
           closingDay={closingDay}
         />
       ) : null}
