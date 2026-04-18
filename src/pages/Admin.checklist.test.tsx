@@ -56,6 +56,16 @@ describe("Checklist funcional do Admin - fallback", () => {
     render(<Admin />);
 
     expect(screen.getByText(/Não foi possível carregar os dados administrativos/i)).toBeInTheDocument();
-    expect(screen.getByText(/erro_simulado_query_admin/i)).toBeInTheDocument();
+    expect(screen.getByText(/Código de referência:/i)).toBeInTheDocument();
+    expect(screen.getByText(/ADMIN_LOAD_FAILED_RPC/i)).toBeInTheDocument();
+    expect(screen.getByText(/Verificar RPC/i)).toBeInTheDocument();
+    expect(screen.getByText(/Verificar grants/i)).toBeInTheDocument();
+    expect(screen.getByText(/Verificar migration aplicada/i)).toBeInTheDocument();
+
+    if (import.meta.env.DEV) {
+      expect(screen.getByText(/erro_simulado_query_admin/i)).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText(/erro_simulado_query_admin/i)).not.toBeInTheDocument();
+    }
   });
 });

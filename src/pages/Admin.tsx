@@ -12,6 +12,7 @@ import { formatCompetenceKey } from "@/lib/cycleDates";
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
   const [heroCompact, setHeroCompact] = useState(false);
+  const isDevEnvironment = import.meta.env.DEV;
   
   const {
     currentDate,
@@ -24,6 +25,8 @@ export default function Admin() {
   } = useCycleDates(membership?.group_id);
 
   const currentCompetenceKey = formatCompetenceKey(currentDate);
+  const adminDashboardQueryKey = ["admin-dashboard-data", membership?.group_id, currentCompetenceKey] as const;
+  const adminLoadErrorCode = "ADMIN_LOAD_FAILED_RPC";
 
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
@@ -52,7 +55,7 @@ export default function Admin() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["admin-dashboard-data", membership?.group_id, currentCompetenceKey],
+    queryKey: adminDashboardQueryKey,
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
 
@@ -106,6 +109,7 @@ export default function Admin() {
         );
 
         console.error("[Admin] Falha ao carregar dados administrativos", {
+          queryKey: adminDashboardQueryKey,
           group_id: membership.group_id,
           competence_key: currentCompetenceKey,
           queryErrors: groupedErrors,
@@ -125,6 +129,7 @@ export default function Admin() {
       
       if (paymentsError) {
         console.error("[Admin] Payments fetch error", {
+          queryKey: adminDashboardQueryKey,
           group_id: membership.group_id,
           competence_key: currentCompetenceKey,
           error: paymentsError,
@@ -168,6 +173,7 @@ export default function Admin() {
 
       if (profilesError) {
         console.error("[Admin] Profiles fetch error", {
+          queryKey: adminDashboardQueryKey,
           group_id: membership.group_id,
           competence_key: currentCompetenceKey,
           error: profilesError,
@@ -210,6 +216,7 @@ export default function Admin() {
 
         if (exMembersSplitsError) {
           console.error("[Admin] Ex-members splits fetch error", {
+            queryKey: adminDashboardQueryKey,
             group_id: membership.group_id,
             competence_key: currentCompetenceKey,
             error: exMembersSplitsError,
@@ -268,7 +275,22 @@ export default function Admin() {
       ) : error ? (
         <div className="space-y-3 rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center">
           <p className="font-medium text-destructive">Não foi possível carregar os dados administrativos.</p>
-          <p className="text-sm text-muted-foreground">Tente novamente em alguns instantes.</p>
+          <p className="text-sm text-muted-foreground">
+            Tente novamente em alguns instantes. Código de referência: <span className="font-medium">{adminLoadErrorCode}</span>.
+          </p>
+          <div className="rounded-md border border-destructive/20 bg-background/80 p-3 text-left text-sm text-muted-foreground">
+            <p className="mb-2 font-medium text-foreground">Checklist de suporte:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Verificar RPC.</li>
+              <li>Verificar grants.</li>
+              <li>Verificar migration aplicada.</li>
+            </ul>
+          </div>
+          {isDevEnvironment ? (
+            <pre className="overflow-x-auto rounded-md border border-dashed border-destructive/30 bg-background p-3 text-left text-xs text-muted-foreground">
+              {`Detalhes técnicos (dev): ${error.message}`}
+            </pre>
+          ) : null}
           <button
             type="button"
             onClick={() => refetch()}
