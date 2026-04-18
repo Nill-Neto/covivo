@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import { formatCompetenceKey } from "@/lib/cycleDates";
 
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
@@ -54,7 +54,7 @@ export default function Admin() {
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, departuresRes, inventoryRes] = await Promise.all([
+      const [membersRes, rolesRes, cycleSplitsRes, departuresRes, inventoryRes, balancesRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -73,11 +73,14 @@ export default function Admin() {
         supabase
           .from("inventory_items")
           .select("quantity, min_quantity")
-          .eq("group_id", membership.group_id)
+          .eq("group_id", membership.group_id),
+        supabase.rpc("get_admin_member_competence_balances", {
+          _group_id: membership.group_id,
+          _competence_key: currentCompetenceKey
+        })
       ]);
 
       const cycleSplits = cycleSplitsRes.data || [];
-      const cycleSplitIds = cycleSplits.map(s => s.id);
 
       // Fetch all payments for this group. Filtering in JS is safer for complex OR conditions.
       const { data: allPayments, error: paymentsError } = await supabase.from("payments")
@@ -89,34 +92,29 @@ export default function Admin() {
       
       const payments = allPayments || [];
 
-      const cycleBalances = (membersRes.data || []).map(m => {
-        const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
-        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
-        
-        // Linked payments: paid for a split that belongs to THIS competence
-        const linkedPayments = payments.filter(p =>
-          p.paid_by === m.user_id &&
-          p.expense_split_id &&
-          cycleSplitIds.includes(p.expense_split_id)
-        );
-        
-        // Bulk payments: no split link, but tagged with THIS competence
-        const bulkPayments = payments.filter(p => {
-          if (p.paid_by !== m.user_id || p.expense_split_id) return false;
-          return p.competence_key === currentCompetenceKey;
-        });
-        
-        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount || 0), 0);
-        
-        // Fallback to split status if no payment record found (legacy or edge case)
-        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount || 0) : 0), 0);
-        const finalCyclePaid = Math.max(totalCyclePaid, paidSplitsTotalCycle);
+      const balancesByUser = new Map(
+        (balancesRes.data || []).map((row) => [row.user_id, row])
+      );
+
+      const cycleBalances = (membersRes.data || []).map((m) => {
+        const userCycleSplits = cycleSplits.filter((s) => s.user_id === m.user_id);
+        const rpcBalance = balancesByUser.get(m.user_id);
+        const cycleOwedFallback = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0);
+        const currentCyclePaid = Math.max(Number(rpcBalance?.current_cycle_paid || 0), paidSplitsTotalCycle);
+        const currentCycleOwed = Number(rpcBalance?.current_cycle_owed ?? cycleOwedFallback);
+        const previousDebt = Number(rpcBalance?.previous_debt || 0);
+        const accruedDebt = previousDebt + currentCycleOwed - currentCyclePaid;
 
         return {
-           ...m,
-           total_owed: cycleOwed,
-           total_paid: finalCyclePaid,
-           balance: finalCyclePaid - cycleOwed
+          ...m,
+          previous_debt: previousDebt,
+          current_cycle_owed: currentCycleOwed,
+          current_cycle_paid: currentCyclePaid,
+          accrued_debt: accruedDebt,
+          total_owed: currentCycleOwed,
+          total_paid: currentCyclePaid,
+          balance: -accruedDebt,
         };
       });
 

@@ -1281,6 +1281,16 @@ export type Database = {
           split_percentage: number
         }[]
       }
+      get_admin_member_competence_balances: {
+        Args: { _competence_key: string; _group_id: string }
+        Returns: {
+          accrued_debt: number
+          current_cycle_owed: number
+          current_cycle_paid: number
+          previous_debt: number
+          user_id: string
+        }[]
+      }
       get_member_balances: {
         Args: { _group_id: string }
         Returns: {
