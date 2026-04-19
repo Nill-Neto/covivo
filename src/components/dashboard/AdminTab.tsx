@@ -563,15 +563,15 @@ export function AdminTab({
                       <div className="px-3 py-2.5 grid grid-cols-3 gap-2 text-[11px] border-b">
                         <div>
                           <p className="text-muted-foreground">Total competência</p>
-                          <p className="font-semibold tabular-nums">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums">R$ {group.totalCompetence.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pago</p>
-                          <p className="font-semibold tabular-nums text-success">R$ 0.00</p>
+                          <p className="font-semibold tabular-nums text-success">R$ {group.totalPaid.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pendente</p>
-                          <p className="font-semibold tabular-nums text-destructive">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums text-destructive">R$ {group.totalPending.toFixed(2)}</p>
                         </div>
                       </div>
                       <Accordion type="single" collapsible className="w-full">
