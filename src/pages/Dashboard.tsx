@@ -9,7 +9,6 @@ import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { parseLocalDate } from "@/lib/utils";
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HomeTab } from "@/components/dashboard/HomeTab";
@@ -19,6 +18,11 @@ import { PaymentDialogs, type RateioScope } from "@/components/dashboard/Payment
 import { getCategoryLabel } from "@/constants/categories";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import {
+  groupPendingByCompetence,
+  resolvePendingCompetenceKey,
+  sortPendingItemsByDateDesc,
+} from "@/lib/collectivePending";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -220,10 +224,12 @@ export default function Dashboard() {
       return !hasPayment;
     })
     .map((split: any) => {
-      let compKey = split.expenses?.competence_key;
-      if (!compKey && split.expenses?.purchase_date) {
-        compKey = getCompetenceKeyFromDate(new Date(`${split.expenses.purchase_date}T12:00:00`), closingDay);
-      }
+      const compKey = resolvePendingCompetenceKey({
+        competenceKey: split.expenses?.competence_key,
+        purchaseDate: split.expenses?.purchase_date,
+        closingDay,
+        getCompetenceKeyFromDate,
+      });
       return {
         ...split,
         competenceKey: compKey,
@@ -236,7 +242,7 @@ export default function Dashboard() {
 
   const collectivePendingCurrent = collectivePending
     .filter((s: any) => s.competenceKey === currentCompetenceKey)
-    .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
+    .sort(sortPendingItemsByDateDesc);
     
   const collectivePendingPrevious = collectivePending.filter((s: any) => !s.competenceKey || s.competenceKey < currentCompetenceKey);
   const rawTotalCollectivePendingPrevious = collectivePendingPrevious.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
@@ -275,11 +281,7 @@ export default function Dashboard() {
       }
     }
 
-    return result.sort((a, b) => {
-      const dateA = a.expenses?.purchase_date || "";
-      const dateB = b.expenses?.purchase_date || "";
-      return dateB.localeCompare(dateA);
-    });
+    return result.sort(sortPendingItemsByDateDesc);
   };
 
   const displayCollectivePendingPrevious = totalCollectivePendingPrevious > 0.01
@@ -292,39 +294,25 @@ export default function Dashboard() {
 
   const collectivePendingPreviousByCompetence = useMemo(() => {
     if (totalCollectivePendingPrevious <= 0.01) return [];
-
-    const grouped = displayCollectivePendingPrevious.reduce((acc: Record<string, any[]>, item: any) => {
-      const purchaseDate = item.expenses?.purchase_date ? parseLocalDate(item.expenses.purchase_date) : null;
-      const competence = purchaseDate ? format(purchaseDate, "MM/yyyy") : "Sem competência";
-      if (!acc[competence]) acc[competence] = [];
-      acc[competence].push(item);
-      return acc;
-    }, {} as Record<string, any[]>);
-
-    return Object.entries(grouped)
-      .map(([competence, items]: [string, any[]]) => ({
-        competence,
-        items: items.sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || "")),
-        total: items.reduce((sum: number, split: any) => sum + Number(split.amount), 0),
-      }))
-      .sort((a, b) => {
-        const [monthA, yearA] = a.competence.split("/").map(Number);
-        const [monthB, yearB] = b.competence.split("/").map(Number);
-        if (!monthA || !yearA) return 1;
-        if (!monthB || !yearB) return -1;
-        return new Date(yearB, monthB - 1, 1).getTime() - new Date(yearA, monthA - 1, 1).getTime();
-      });
+    return groupPendingByCompetence(displayCollectivePendingPrevious);
   }, [displayCollectivePendingPrevious, totalCollectivePendingPrevious]);
+
+  const collectivePendingCurrentByCompetence = useMemo(() => {
+    if (totalCollectivePendingCurrent <= 0.01) return [];
+    return groupPendingByCompetence(displayCollectivePendingCurrent);
+  }, [displayCollectivePendingCurrent, totalCollectivePendingCurrent]);
 
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
     const hasNoPayment = !(s.payments || []).some((p: any) => p.status === 'pending' || p.status === 'confirmed');
     
-    let compKey = s.expenses?.competence_key;
-    if (!compKey && s.expenses?.purchase_date) {
-      compKey = getCompetenceKeyFromDate(new Date(`${s.expenses.purchase_date}T12:00:00`), closingDay);
-    }
+    const compKey = resolvePendingCompetenceKey({
+      competenceKey: s.expenses?.competence_key,
+      purchaseDate: s.expenses?.purchase_date,
+      closingDay,
+      getCompetenceKeyFromDate,
+    });
     const isInCycle = compKey === currentCompetenceKey;
 
     return isIndividual && isNotCreditCard && hasNoPayment && isInCycle;
@@ -343,7 +331,8 @@ export default function Dashboard() {
     .sort((a: any, b: any) => (b.expenses?.purchase_date || "").localeCompare(a.expenses?.purchase_date || ""));
     
   const totalIndividualPending = individualPending.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
-  const totalUserExpenses = myCollectiveShare + totalIndividualPending;
+  const totalUserExpensesCompetence = myCollectiveShare + totalIndividualPending;
+  const totalUserExpensesCurrentBalance = totalUserExpensesCompetence + totalCollectivePendingPrevious;
 
   const cardsBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
@@ -523,11 +512,12 @@ export default function Dashboard() {
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}
             collectivePendingPreviousByCompetence={collectivePendingPreviousByCompetence}
-            collectivePendingCurrent={displayCollectivePendingCurrent}
+            collectivePendingCurrentByCompetence={collectivePendingCurrentByCompetence}
             individualPending={individualPending}
             totalPersonalCash={totalPersonalCash}
             totalBill={totalBill}
-            totalUserExpenses={totalUserExpenses}
+            totalUserExpensesCompetence={totalUserExpensesCompetence}
+            totalUserExpensesCurrentBalance={totalUserExpensesCurrentBalance}
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
@@ -569,6 +559,10 @@ export default function Dashboard() {
         collectivePendingByScope={{
           previous: { total: totalCollectivePendingPrevious, items: displayCollectivePendingPrevious },
           current: { total: totalCollectivePendingCurrent, items: displayCollectivePendingCurrent },
+        }}
+        collectivePendingByScopeGrouped={{
+          previous: collectivePendingPreviousByCompetence,
+          current: collectivePendingCurrentByCompetence,
         }}
         rateioScope={rateioScope}
         individualPending={individualPending}

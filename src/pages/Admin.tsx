@@ -7,11 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import { formatCompetenceKey } from "@/lib/cycleDates";
 
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
   const [heroCompact, setHeroCompact] = useState(false);
+  const isDevEnvironment = import.meta.env.DEV;
   
   const {
     currentDate,
@@ -24,6 +25,8 @@ export default function Admin() {
   } = useCycleDates(membership?.group_id);
 
   const currentCompetenceKey = formatCompetenceKey(currentDate);
+  const adminDashboardQueryKey = ["admin-dashboard-data", membership?.group_id, currentCompetenceKey] as const;
+  const adminLoadErrorCode = "ADMIN_LOAD_FAILED_RPC";
 
   const { data: expensesInCycle = [] } = useQuery({
     queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
@@ -46,15 +49,40 @@ export default function Admin() {
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
   const totalMonthExpenses = collectiveExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const { data: adminData, isLoading } = useQuery({
-    queryKey: ["admin-dashboard-data", membership?.group_id, currentCompetenceKey],
+  const {
+    data: adminData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: adminDashboardQueryKey,
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
 
       const dbStart = format(cycleStart, "yyyy-MM-dd");
       const dbEnd = format(cycleEnd, "yyyy-MM-dd");
 
-      const [membersRes, rolesRes, cycleSplitsRes, departuresRes, inventoryRes] = await Promise.all([
+      const logErrorBySource = ({
+        source,
+        error,
+        severity,
+      }: {
+        source: string;
+        error: unknown;
+        severity: "critical" | "non-critical";
+      }) => {
+        console.error("[Admin] Query failure", {
+          source,
+          severity,
+          group_id: membership.group_id,
+          competence_key: currentCompetenceKey,
+          cycle_start: dbStart,
+          cycle_end: dbEnd,
+          error,
+        });
+      };
+
+      const [membersRes, rolesRes, cycleSplitsRes, balancesRes, profilesRes] = await Promise.all([
         supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
         supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
         supabase
@@ -63,6 +91,22 @@ export default function Admin() {
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective")
           .eq("expenses.competence_key", currentCompetenceKey),
+        supabase.rpc("get_admin_member_competence_balances", {
+          _group_id: membership.group_id,
+          _competence_key: currentCompetenceKey
+        }),
+        supabase
+          .from("group_member_profiles")
+          .select("id, full_name, avatar_url")
+          .eq("group_id", membership.group_id),
+      ]);
+
+      const [pendingSplitsRes, departuresRes, inventoryRes] = await Promise.all([
+        supabase
+          .from("expense_splits")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key)")
+          .eq("expenses.group_id", membership.group_id)
+          .eq("expenses.expense_type", "collective"),
         supabase
           .from("audit_log")
           .select("created_at, details")
@@ -73,11 +117,59 @@ export default function Admin() {
         supabase
           .from("inventory_items")
           .select("quantity, min_quantity")
-          .eq("group_id", membership.group_id)
+          .eq("group_id", membership.group_id),
       ]);
 
+      const criticalQueryErrors = [
+        { label: "group_members", error: membersRes.error },
+        { label: "user_roles", error: rolesRes.error },
+        { label: "expense_splits_current_cycle", error: cycleSplitsRes.error },
+        { label: "get_admin_member_competence_balances", error: balancesRes.error },
+        { label: "group_member_profiles", error: profilesRes.error },
+      ].filter((entry) => Boolean(entry.error));
+
+      if (criticalQueryErrors.length > 0) {
+        const groupedErrors = Object.fromEntries(
+          criticalQueryErrors.map((entry) => [entry.label, entry.error])
+        );
+
+        criticalQueryErrors.forEach((entry) => {
+          logErrorBySource({
+            source: entry.label,
+            error: entry.error,
+            severity: "critical",
+          });
+        });
+
+        console.error("[Admin] Falha ao carregar dados administrativos", {
+          queryKey: adminDashboardQueryKey,
+          group_id: membership.group_id,
+          competence_key: currentCompetenceKey,
+          severity: "critical",
+          queryErrors: groupedErrors,
+        });
+
+        throw new Error("Falha ao carregar dados administrativos");
+      }
+
+      const nonCriticalWarnings: string[] = [];
+      const nonCriticalQueryErrors = [
+        { label: "expense_splits_pending", error: pendingSplitsRes.error, warning: "Pendências de rateios indisponíveis no momento." },
+        { label: "audit_log", error: departuresRes.error, warning: "Histórico de saídas de membros indisponível no momento." },
+        { label: "inventory_items", error: inventoryRes.error, warning: "Indicadores de estoque indisponíveis no momento." },
+      ].filter((entry) => Boolean(entry.error));
+
+      nonCriticalQueryErrors.forEach((entry) => {
+        logErrorBySource({
+          source: entry.label,
+          error: entry.error,
+          severity: "non-critical",
+        });
+        nonCriticalWarnings.push(entry.warning);
+      });
+
       const cycleSplits = cycleSplitsRes.data || [];
-      const cycleSplitIds = cycleSplits.map(s => s.id);
+      const pendingSplits = pendingSplitsRes.data || [];
 
       // Fetch all payments for this group. Filtering in JS is safer for complex OR conditions.
       const { data: allPayments, error: paymentsError } = await supabase.from("payments")
@@ -85,43 +177,55 @@ export default function Admin() {
         .eq("group_id", membership.group_id)
         .in("status", ["pending", "confirmed"]);
       
-      if (paymentsError) console.error("[Admin] Payments fetch error:", paymentsError);
+      if (paymentsError) {
+        logErrorBySource({
+          source: "payments",
+          error: paymentsError,
+          severity: "non-critical",
+        });
+        nonCriticalWarnings.push("Pagamentos pendentes podem estar desatualizados.");
+      }
       
       const payments = allPayments || [];
+      const memberPaymentsByCompetence = payments
+        .filter((p: any) => p.status === "confirmed" && p.paid_by && p.competence_key)
+        .reduce((acc: Record<string, Record<string, number>>, payment: any) => {
+          const userId = payment.paid_by;
+          const competenceKey = payment.competence_key;
+          const amount = Number(payment.amount || 0);
 
-      const cycleBalances = (membersRes.data || []).map(m => {
-        const userCycleSplits = cycleSplits.filter(s => s.user_id === m.user_id);
-        const cycleOwed = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
-        
-        // Linked payments: paid for a split that belongs to THIS competence
-        const linkedPayments = payments.filter(p =>
-          p.paid_by === m.user_id &&
-          p.expense_split_id &&
-          cycleSplitIds.includes(p.expense_split_id)
-        );
-        
-        // Bulk payments: no split link, but tagged with THIS competence
-        const bulkPayments = payments.filter(p => {
-          if (p.paid_by !== m.user_id || p.expense_split_id) return false;
-          return p.competence_key === currentCompetenceKey;
-        });
-        
-        const totalCyclePaid = [...linkedPayments, ...bulkPayments].reduce((acc, p) => acc + Number(p.amount || 0), 0);
-        
-        // Fallback to split status if no payment record found (legacy or edge case)
-        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === 'paid' ? Number(s.amount || 0) : 0), 0);
-        const finalCyclePaid = Math.max(totalCyclePaid, paidSplitsTotalCycle);
+          if (!acc[userId]) acc[userId] = {};
+          acc[userId][competenceKey] = (acc[userId][competenceKey] || 0) + amount;
+          return acc;
+        }, {});
+
+      const balancesByUser = new Map(
+        (balancesRes.data || []).map((row) => [row.user_id, row])
+      );
+
+      const cycleBalances = (membersRes.data || []).map((m) => {
+        const userCycleSplits = cycleSplits.filter((s) => s.user_id === m.user_id);
+        const rpcBalance = balancesByUser.get(m.user_id);
+        const cycleOwedFallback = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0);
+        const currentCyclePaid = Math.max(Number(rpcBalance?.current_cycle_paid || 0), paidSplitsTotalCycle);
+        const currentCycleOwed = Number(rpcBalance?.current_cycle_owed ?? cycleOwedFallback);
+        const previousDebt = Number(rpcBalance?.previous_debt || 0);
+        const accruedDebt = previousDebt + currentCycleOwed - currentCyclePaid;
 
         return {
-           ...m,
-           total_owed: cycleOwed,
-           total_paid: finalCyclePaid,
-           balance: finalCyclePaid - cycleOwed
+          ...m,
+          previous_debt: previousDebt,
+          current_cycle_owed: currentCycleOwed,
+          current_cycle_paid: currentCyclePaid,
+          accrued_debt: accruedDebt,
+          total_owed: currentCycleOwed,
+          total_paid: currentCyclePaid,
+          balance: -accruedDebt,
         };
       });
 
-      const userIds = membersRes.data?.map(m => m.user_id) ?? [];
-      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id).in("id", userIds);
+      const profiles = profilesRes.data || [];
 
       const members = cycleBalances.map(m => ({
         ...m,
@@ -150,16 +254,25 @@ export default function Admin() {
 
       let exMembersDebt = 0;
       if (collectiveExpenses.length > 0) {
-        const { data: exMembersSplits } = await supabase
+        const { data: exMembersSplits, error: exMembersSplitsError } = await supabase
           .from("expense_splits")
           .select("id, user_id, amount")
           .eq("status", "pending")
           .in("expense_id", collectiveExpenses.map(e => e.id));
-          
-        const activeUserIds = new Set(members.map(m => m.user_id));
-        exMembersDebt = (exMembersSplits || [])
-          .filter((s: any) => !activeUserIds.has(s.user_id))
-          .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+
+        if (exMembersSplitsError) {
+          logErrorBySource({
+            source: "expense_splits_ex_members",
+            error: exMembersSplitsError,
+            severity: "non-critical",
+          });
+          nonCriticalWarnings.push("Dívida de ex-membros pode estar incompleta.");
+        } else {
+          const activeUserIds = new Set(members.map(m => m.user_id));
+          exMembersDebt = (exMembersSplits || [])
+            .filter((s: any) => !activeUserIds.has(s.user_id))
+            .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+        }
       }
 
       return {
@@ -170,6 +283,9 @@ export default function Admin() {
         redistributedCount,
         lowStockCount,
         cycleSplits,
+        pendingSplits,
+        memberPaymentsByCompetence,
+        nonCriticalWarnings,
       };
     },
     enabled: !!membership?.group_id && !!collectiveExpenses && isAdmin
@@ -203,23 +319,76 @@ export default function Admin() {
 
       {isLoading ? (
         <div className="py-12 text-center text-muted-foreground">Carregando dados administrativos...</div>
+      ) : error ? (
+        <div className="space-y-3 rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center">
+          <p className="font-medium text-destructive">Não foi possível carregar os dados administrativos.</p>
+          <p className="text-sm text-muted-foreground">
+            Tente novamente em alguns instantes. Código de referência: <span className="font-medium">{adminLoadErrorCode}</span>.
+          </p>
+          <div className="rounded-md border border-destructive/20 bg-background/80 p-3 text-left text-sm text-muted-foreground">
+            <p className="mb-2 font-medium text-foreground">Checklist de suporte:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Verificar RPC.</li>
+              <li>Verificar grants.</li>
+              <li>Verificar migration aplicada.</li>
+            </ul>
+          </div>
+          {isDevEnvironment ? (
+            <pre className="overflow-x-auto rounded-md border border-dashed border-destructive/30 bg-background p-3 text-left text-xs text-muted-foreground">
+              {`Detalhes técnicos (dev): ${error.message}`}
+            </pre>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : adminData ? (
-        <AdminTab 
-          members={adminData.members} 
-          pendingPaymentsCount={adminData.pendingPaymentsCount}
-          collectiveExpenses={collectiveExpenses}
-          totalMonthExpenses={totalMonthExpenses}
-          cycleStart={cycleStart}
-          cycleEnd={cycleEnd}
-          currentDate={currentDate}
-          exMembersDebt={adminData.exMembersDebt}
-          departuresCount={adminData.departuresCount}
-          redistributedCount={adminData.redistributedCount}
-          lowStockCount={adminData.lowStockCount}
-          cycleSplits={adminData.cycleSplits}
-          closingDay={closingDay}
-        />
-      ) : null}
+        <div className="space-y-3">
+          {adminData.nonCriticalWarnings.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-amber-300/50 bg-amber-50 p-4 text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
+              <p className="text-sm font-semibold">Alguns dados auxiliares estão indisponíveis.</p>
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {adminData.nonCriticalWarnings.map((warning, index) => (
+                  <li key={`${warning}-${index}`}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <AdminTab 
+            members={adminData.members} 
+            pendingPaymentsCount={adminData.pendingPaymentsCount}
+            collectiveExpenses={collectiveExpenses}
+            totalMonthExpenses={totalMonthExpenses}
+            cycleStart={cycleStart}
+            cycleEnd={cycleEnd}
+            currentDate={currentDate}
+            exMembersDebt={adminData.exMembersDebt}
+            departuresCount={adminData.departuresCount}
+            redistributedCount={adminData.redistributedCount}
+            lowStockCount={adminData.lowStockCount}
+            cycleSplits={adminData.cycleSplits}
+            pendingSplits={adminData.pendingSplits}
+            memberPaymentsByCompetence={adminData.memberPaymentsByCompetence}
+            closingDay={closingDay}
+          />
+        </div>
+      ) : (
+        <div className="space-y-3 rounded-lg border p-6 text-center">
+          <p className="font-medium text-foreground">Dados administrativos indisponíveis para este ciclo.</p>
+          <p className="text-sm text-muted-foreground">Nenhum dado foi retornado no momento. Atualize para tentar novamente.</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Atualizar dados
+          </button>
+        </div>
+      )}
     </div>
   );
 }
