@@ -83,6 +83,10 @@ export function AdminTab({
   }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
 
   const selectedPreviousByCompetence = useMemo(() => {
+    const selectedMemberPaymentsByCompetence = selectedMemberId
+      ? (memberPaymentsByCompetence[selectedMemberId] || {})
+      : {};
+
     const groups: Record<string, any[]> = {};
     selectedMemberPreviousSplits.forEach((split: any) => {
       const key = split.expenses?.competence_key || "sem-competencia";
@@ -94,10 +98,12 @@ export function AdminTab({
         competenceKey,
         items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
         totalCompetence: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
-        totalPaid: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
+        totalPaidFromSplits: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
+        totalPaidFromPayments: Number(selectedMemberPaymentsByCompetence[competenceKey] || 0),
       }))
       .map((group) => ({
         ...group,
+        totalPaid: Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments),
         totalPending: Math.max(group.totalCompetence - group.totalPaid, 0),
         pendingItems: group.items.filter((split: any) => split.status !== "paid"),
       }))
@@ -107,7 +113,13 @@ export function AdminTab({
 
   const selectedHeaderTotals = useMemo(() => {
     const currentCompetenceTotal = Number(selectedMember?.total_owed ?? selectedMember?.current_cycle_owed ?? 0);
-    const currentCompetencePaid = Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0);
+    const currentCompetencePaidFallback = selectedMemberId
+      ? Number(memberPaymentsByCompetence[selectedMemberId]?.[currentCompetenceKey] || 0)
+      : 0;
+    const currentCompetencePaid = Math.max(
+      Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0),
+      currentCompetencePaidFallback
+    );
     const previousPendingTotal = selectedPreviousByCompetence.reduce((acc, group) => acc + group.totalPending, 0);
     const totalConsolidated = Math.max(previousPendingTotal + currentCompetenceTotal - currentCompetencePaid, 0);
 
@@ -117,7 +129,7 @@ export function AdminTab({
       currentCompetencePaid,
       totalConsolidated,
     };
-  }, [selectedMember, selectedPreviousByCompetence]);
+  }, [currentCompetenceKey, memberPaymentsByCompetence, selectedMember, selectedMemberId, selectedPreviousByCompetence]);
 
   const formatCompetenceLabel = (key?: string) => {
     if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";
@@ -343,7 +355,8 @@ export function AdminTab({
                 const currentBalance = member.balance || 0;
                 const previousDebt = member.previous_debt || 0;
                 const competenceTotal = Number(member.total_owed ?? 0);
-                const competencePaid = Number(member.total_paid ?? 0);
+                const competencePaidFallback = Number(memberPaymentsByCompetence[member.user_id]?.[currentCompetenceKey] || 0);
+                const competencePaid = Math.max(Number(member.total_paid ?? 0), competencePaidFallback);
                 const competencePending = Math.max(competenceTotal - competencePaid, 0);
                 const status = getBalanceStyle(currentBalance);
                 const isDebt = currentBalance < -0.05;
