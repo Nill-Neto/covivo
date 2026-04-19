@@ -142,7 +142,10 @@ export function AdminTab({
       Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0),
       currentCompetencePaidFallback
     );
-    const previousPendingTotal = selectedPreviousByCompetence.reduce<number>((acc, group) => acc + Number(group.totalPending || 0), 0);
+    let previousPendingTotal = 0;
+    for (const group of selectedPreviousByCompetence) {
+      previousPendingTotal += Number((group as any).totalPending || 0);
+    }
     const totalConsolidated = Math.max(previousPendingTotal + currentCompetenceTotal - currentCompetencePaid, 0);
 
     return {
