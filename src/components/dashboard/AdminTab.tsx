@@ -93,7 +93,7 @@ export function AdminTab({
       groups[key] = groups[key] || [];
       groups[key].push(split);
     });
-    return Object.entries(groups)
+    const grouped = Object.entries(groups)
       .map(([competenceKey, items]) => ({
         competenceKey,
         items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
@@ -109,7 +109,25 @@ export function AdminTab({
       }))
       .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
-  }, [memberPaymentsByCompetence, selectedMemberId, selectedMemberPreviousSplits]);
+
+    if (grouped.length > 0) return grouped;
+
+    if (previousDebtFallback > 0.05) {
+      return [{
+        competenceKey: "saldo-anterior",
+        items: [],
+        totalCompetence: previousDebtFallback,
+        totalPaidFromSplits: 0,
+        totalPaidFromPayments: 0,
+        totalPaid: 0,
+        totalPending: previousDebtFallback,
+        pendingItems: [],
+        synthetic: true,
+      }];
+    }
+
+    return [];
+  }, [memberPaymentsByCompetence, selectedMember?.previous_debt, selectedMemberId, selectedMemberPreviousSplits]);
 
   const selectedHeaderTotals = useMemo(() => {
     const currentCompetenceTotal = Number(selectedMember?.total_owed ?? selectedMember?.current_cycle_owed ?? 0);
@@ -570,7 +588,7 @@ export function AdminTab({
                     <div key={group.competenceKey} className="rounded-lg border bg-background/70">
                       <div className="px-3 py-2 border-b">
                         <p className="text-xs font-medium capitalize text-muted-foreground">
-                          Competência {formatCompetenceLabel(group.competenceKey)}
+                          {group.synthetic ? "Saldo anterior consolidado" : `Competência ${formatCompetenceLabel(group.competenceKey)}`}
                         </p>
                       </div>
                       <div className="px-3 py-2.5 grid grid-cols-3 gap-2 text-[11px] border-b">
@@ -587,23 +605,29 @@ export function AdminTab({
                           <p className="font-semibold tabular-nums text-destructive">R$ {group.totalPending.toFixed(2)}</p>
                         </div>
                       </div>
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value={`pending-${group.competenceKey}`} className="border-b-0">
-                          <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
-                            Itens da competência ({group.items.length})
-                          </AccordionTrigger>
-                          <AccordionContent className="divide-y">
-                            {group.items.map((split: any) => (
-                              <div key={split.id} className="px-3 py-2.5">
-                                <div className="flex justify-between gap-2">
-                                  <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
-                                  <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                      {group.items.length > 0 ? (
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value={`pending-${group.competenceKey}`} className="border-b-0">
+                            <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
+                              Itens da competência ({group.items.length})
+                            </AccordionTrigger>
+                            <AccordionContent className="divide-y">
+                              {group.items.map((split: any) => (
+                                <div key={split.id} className="px-3 py-2.5">
+                                  <div className="flex justify-between gap-2">
+                                    <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
+                                    <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
+                              ))}
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Sem detalhamento por item para este saldo anterior.
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
