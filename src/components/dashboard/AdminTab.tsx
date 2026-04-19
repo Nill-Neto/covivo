@@ -83,6 +83,7 @@ export function AdminTab({
   }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
 
   const selectedPreviousByCompetence = useMemo(() => {
+    const previousDebtFallback = Number(selectedMember?.previous_debt || 0);
     const selectedMemberPaymentsByCompetence = selectedMemberId
       ? (memberPaymentsByCompetence[selectedMemberId] || {})
       : {};
@@ -93,6 +94,7 @@ export function AdminTab({
       groups[key] = groups[key] || [];
       groups[key].push(split);
     });
+
     const grouped = Object.entries(groups)
       .map(([competenceKey, items]) => ({
         competenceKey,
@@ -101,12 +103,15 @@ export function AdminTab({
         totalPaidFromSplits: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
         totalPaidFromPayments: Number(selectedMemberPaymentsByCompetence[competenceKey] || 0),
       }))
-      .map((group) => ({
-        ...group,
-        totalPaid: Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments),
-        totalPending: Math.max(group.totalCompetence - group.totalPaid, 0),
-        pendingItems: group.items.filter((split: any) => split.status !== "paid"),
-      }))
+      .map((group) => {
+        const totalPaid = Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments);
+        return {
+          ...group,
+          totalPaid,
+          totalPending: Math.max(group.totalCompetence - totalPaid, 0),
+          pendingItems: group.items.filter((split: any) => split.status !== "paid"),
+        };
+      })
       .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
 

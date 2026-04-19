@@ -4,10 +4,13 @@ export type PendingSplitItem = {
   id: string;
   amount: number;
   originalAmount?: number;
+  installment_number?: number;
   competenceKey?: string | null;
   expenses?: {
     title?: string | null;
     purchase_date?: string | null;
+    installments: number;
+    category: string;
   };
 };
 
