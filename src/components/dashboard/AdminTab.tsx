@@ -574,8 +574,10 @@ export function AdminTab({
               <p className="text-sm font-semibold tabular-nums text-success">R$ {selectedHeaderTotals.currentCompetencePaid.toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total consolidado</p>
-              <p className="text-sm font-semibold tabular-nums">R$ {selectedHeaderTotals.totalConsolidated.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total acumulado</p>
+              <p className={`text-sm font-semibold tabular-nums ${getBalanceStyle(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).className}`}>
+                R$ {Math.abs(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).toFixed(2)}
+              </p>
             </div>
           </div>
 
@@ -683,13 +685,6 @@ export function AdminTab({
                 </Accordion>
               )}
             </div>
-          </div>
-          
-          <div className="px-5 py-4 bg-muted/20 border-t shrink-0 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-            <span className="text-sm font-medium text-muted-foreground">Total acumulado</span>
-            <span className={`text-lg font-bold ${getBalanceStyle(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).className}`}>
-              R$ {Math.abs(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).toFixed(2)}
-            </span>
           </div>
         </DialogContent>
       </Dialog>
