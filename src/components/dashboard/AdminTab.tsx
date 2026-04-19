@@ -54,10 +54,11 @@ export function AdminTab({
 }: AdminTabProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const currentCompetenceKey = format(currentDate, "yyyy-MM");
+  const getCompetenceBalance = (member: any) => Number(member?.total_paid ?? 0) - Number(member?.total_owed ?? 0);
 
-  // Ordena os membros pelo saldo acumulado (negativos primeiro)
+  // Ordena os membros pelo saldo da competência (negativos primeiro)
   const sortedMembers = useMemo(() =>
-    [...members].sort((a, b) => (a.accumulated_balance ?? a.balance) - (b.accumulated_balance ?? b.balance)),
+    [...members].sort((a, b) => getCompetenceBalance(a) - getCompetenceBalance(b)),
     [members]
   );
 
@@ -92,12 +93,36 @@ export function AdminTab({
         competenceKey,
         items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
         totalCompetence: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
-        totalPaid: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
+        totalPaid: items.reduce((acc, s) => {
+          const amount = Number(s.amount || 0);
+          const paymentCovered = Array.isArray(s.payments)
+            ? s.payments.reduce((pAcc: number, p: any) => {
+              if (p?.status === "pending" || p?.status === "confirmed") {
+                return pAcc + Number(p?.amount || 0);
+              }
+              return pAcc;
+            }, 0)
+            : 0;
+          const covered = s.status === "paid" ? amount : Math.min(paymentCovered, amount);
+          return acc + covered;
+        }, 0),
       }))
       .map((group) => ({
         ...group,
         totalPending: Math.max(group.totalCompetence - group.totalPaid, 0),
-        pendingItems: group.items.filter((split: any) => split.status !== "paid"),
+        pendingItems: group.items.filter((split: any) => {
+          const amount = Number(split.amount || 0);
+          const paymentCovered = Array.isArray(split.payments)
+            ? split.payments.reduce((acc: number, p: any) => {
+              if (p?.status === "pending" || p?.status === "confirmed") {
+                return acc + Number(p?.amount || 0);
+              }
+              return acc;
+            }, 0)
+            : 0;
+          const pending = split.status === "paid" ? 0 : Math.max(amount - Math.min(paymentCovered, amount), 0);
+          return pending > 0.05;
+        }),
       }))
       .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
@@ -133,11 +158,12 @@ export function AdminTab({
     return { label: "Neutro", className: "text-muted-foreground", badgeClass: "outline" as const };
   };
 
-  const totalReceivable = sortedMembers.reduce(
-    (acc, m) => acc + ((m.accumulated_balance ?? m.balance) < -0.01 ? Math.abs(m.accumulated_balance ?? m.balance) : 0), 0
-  );
+  const totalReceivable = sortedMembers.reduce((acc, m) => {
+    const competenceBalance = getCompetenceBalance(m);
+    return acc + (competenceBalance < -0.01 ? Math.abs(competenceBalance) : 0);
+  }, 0);
 
-  const membersInDebt = sortedMembers.filter(m => (m.accumulated_balance ?? m.balance) < -0.05);
+  const membersInDebt = sortedMembers.filter(m => getCompetenceBalance(m) < -0.05);
   const collectRate = members.length > 0
     ? Math.round(((members.length - membersInDebt.length) / members.length) * 100)
     : 100;
@@ -575,10 +601,10 @@ export function AdminTab({
                       <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value={`pending-${group.competenceKey}`} className="border-b-0">
                           <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
-                            Itens da competência ({group.items.length})
+                            Itens pendentes ({group.pendingItems.length})
                           </AccordionTrigger>
                           <AccordionContent className="divide-y">
-                            {group.items.map((split: any) => {
+                            {group.pendingItems.map((split: any) => {
                               const statusLabel = split.status === "paid"
                                 ? "Pago"
                                 : split.status === "confirmed"
@@ -587,7 +613,17 @@ export function AdminTab({
                               const statusBadgeVariant = split.status === "paid"
                                 ? ("secondary" as const)
                                 : ("outline" as const);
-                              const statusAmountClass = split.status === "paid" ? "text-success" : "text-destructive";
+                              const paymentCovered = Array.isArray(split.payments)
+                                ? split.payments.reduce((acc: number, p: any) => {
+                                  if (p?.status === "pending" || p?.status === "confirmed") {
+                                    return acc + Number(p?.amount || 0);
+                                  }
+                                  return acc;
+                                }, 0)
+                                : 0;
+                              const pendingAmount = split.status === "paid"
+                                ? 0
+                                : Math.max(Number(split.amount || 0) - Math.min(paymentCovered, Number(split.amount || 0)), 0);
 
                               return (
                               <div key={split.id} className="px-3 py-2.5">
@@ -597,8 +633,8 @@ export function AdminTab({
                                     <Badge variant={statusBadgeVariant} className="h-4 text-[10px] px-1.5">
                                       {statusLabel}
                                     </Badge>
-                                    <span className={`text-sm font-semibold tabular-nums ${statusAmountClass}`}>
-                                      R$ {Number(split.amount).toFixed(2)}
+                                    <span className="text-sm font-semibold tabular-nums text-destructive">
+                                      R$ {pendingAmount.toFixed(2)}
                                     </span>
                                   </div>
                                 </div>

@@ -104,7 +104,7 @@ export default function Admin() {
       const [pendingSplitsRes, departuresRes, inventoryRes] = await Promise.all([
         supabase
           .from("expense_splits")
-          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key)")
+          .select("id, user_id, amount, status, expenses!inner(id, title, description, amount, category, group_id, expense_type, purchase_date, competence_key), payments(amount, status)")
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "collective"),
         supabase

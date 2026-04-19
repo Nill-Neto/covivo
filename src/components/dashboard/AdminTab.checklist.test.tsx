@@ -171,7 +171,7 @@ describe("Checklist funcional do AdminTab", () => {
     expect(screen.getAllByText("R$ 120.00").length).toBeGreaterThan(0);
     expect(screen.getAllByText("R$ 200.00").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getAllByText("Itens da competência (1)")[0]);
+    fireEvent.click(screen.getAllByText("Itens pendentes (1)")[0]);
     expect(await screen.findByText("Luz")).toBeInTheDocument();
   });
 
