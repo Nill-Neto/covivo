@@ -40,6 +40,16 @@ function renderAdminTab() {
             total_owed: 40,
             total_paid: 0,
           },
+          {
+            user_id: "u-3",
+            profile: { full_name: "Carla Lima", avatar_url: null },
+            role: "morador",
+            previous_debt: 90,
+            balance: -90,
+            accumulated_balance: -90,
+            total_owed: 0,
+            total_paid: 0,
+          },
         ]}
         pendingPaymentsCount={1}
         collectiveExpenses={[
@@ -135,6 +145,7 @@ describe("Checklist funcional do AdminTab", () => {
     expect(screen.getByText("Resumo da Competência")).toBeInTheDocument();
     expect(screen.getByText("Ana Silva")).toBeInTheDocument();
     expect(screen.getByText("Bruno Costa")).toBeInTheDocument();
+    expect(screen.getByText("Carla Lima")).toBeInTheDocument();
   });
 
   it("mostra resumo da competência com total, pago, pendente e pendências anteriores", () => {
@@ -150,17 +161,18 @@ describe("Checklist funcional do AdminTab", () => {
     renderAdminTab();
     fireEvent.click(screen.getByText("Ana Silva"));
 
-    expect(await screen.findByText(/Competência março\/2026/i)).toBeInTheDocument();
-    expect(screen.getByText(/Competência fevereiro\/2026/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Competência fevereiro\/2026/i)).toBeInTheDocument();
     expect(screen.getAllByText("Total competência").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Total pago").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Total pendente").length).toBeGreaterThan(0);
     expect(screen.queryByText("Água")).not.toBeInTheDocument();
     expect(screen.queryByText("Luz")).not.toBeInTheDocument();
     expect(screen.queryByText("Competência abril/2026")).not.toBeInTheDocument();
+    expect(screen.getAllByText("R$ 120.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("R$ 200.00").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByText("Itens da competência (1)")[0]);
-    expect(await screen.findByText("Água")).toBeInTheDocument();
+    expect(await screen.findByText("Luz")).toBeInTheDocument();
   });
 
   it("mantém valores corretos para usuário sem pendência anterior", () => {
@@ -169,5 +181,14 @@ describe("Checklist funcional do AdminTab", () => {
     expect(screen.getByText("Total competência: R$ 40.00")).toBeInTheDocument();
     expect(screen.getByText("Total pendente: R$ 40.00")).toBeInTheDocument();
     expect(screen.getByText("Pendências anteriores: R$ 0.00")).toBeInTheDocument();
+  });
+
+  it("usa saldo da competência atual para status do morador", () => {
+    renderAdminTab();
+    const carlaRow = screen.getByText("Carla Lima").closest("div.flex.items-center.justify-between");
+
+    expect(carlaRow).not.toBeNull();
+    expect(screen.getByText("Pendências anteriores: R$ 90.00")).toBeInTheDocument();
+    expect(screen.getByText("Neutro")).toBeInTheDocument();
   });
 });

@@ -103,6 +103,20 @@ export function AdminTab({
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
   }, [selectedMemberPreviousSplits]);
 
+  const selectedHeaderTotals = useMemo(() => {
+    const currentCompetenceTotal = Number(selectedMember?.total_owed ?? 0);
+    const currentCompetencePaid = Number(selectedMember?.total_paid ?? 0);
+    const previousPendingTotal = Math.max(Number(selectedMember?.previous_debt ?? 0), 0);
+    const currentCompetencePending = Math.max(currentCompetenceTotal - currentCompetencePaid, 0);
+
+    return {
+      currentCompetenceTotal,
+      currentCompetencePaid,
+      previousPendingTotal,
+      totalConsolidated: previousPendingTotal + currentCompetencePending,
+    };
+  }, [selectedMember]);
+
   const formatCompetenceLabel = (key?: string) => {
     if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";
     const [y, m] = key.split("-");
@@ -324,13 +338,13 @@ export function AdminTab({
           <CardContent className="p-0">
             <div className="divide-y">
               {sortedMembers.map(member => {
-                const currentBalance = member.balance || 0;
                 const previousDebt = member.previous_debt || 0;
                 const competenceTotal = Number(member.total_owed ?? 0);
                 const competencePaid = Number(member.total_paid ?? 0);
                 const competencePending = Math.max(competenceTotal - competencePaid, 0);
-                const status = getBalanceStyle(currentBalance);
-                const isDebt = currentBalance < -0.05;
+                const competenceBalance = competencePaid - competenceTotal;
+                const status = getBalanceStyle(competenceBalance);
+                const isDebt = competenceBalance < -0.05;
 
                 return (
                   <div
@@ -360,7 +374,7 @@ export function AdminTab({
 
                     <div className="text-right flex-shrink-0 ml-4">
                       <span className={`font-semibold text-sm tabular-nums ${status.className}`}>
-                        {currentBalance > 0.05 ? "+" : currentBalance < -0.05 ? "-" : ""}R$ {Math.abs(currentBalance).toFixed(2)}
+                        {competenceBalance > 0.05 ? "+" : competenceBalance < -0.05 ? "-" : ""}R$ {Math.abs(competenceBalance).toFixed(2)}
                       </span>
                       <p className="text-[11px] text-muted-foreground tabular-nums mt-1">
                         Total competência: R$ {competenceTotal.toFixed(2)}
@@ -547,15 +561,15 @@ export function AdminTab({
                       <div className="px-3 py-2.5 grid grid-cols-3 gap-2 text-[11px] border-b">
                         <div>
                           <p className="text-muted-foreground">Total competência</p>
-                          <p className="font-semibold tabular-nums">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums">R$ {group.totalCompetence.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pago</p>
-                          <p className="font-semibold tabular-nums text-success">R$ 0.00</p>
+                          <p className="font-semibold tabular-nums text-success">R$ {group.totalPaid.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pendente</p>
-                          <p className="font-semibold tabular-nums text-destructive">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums text-destructive">R$ {group.totalPending.toFixed(2)}</p>
                         </div>
                       </div>
                       <Accordion type="single" collapsible className="w-full">
@@ -564,14 +578,33 @@ export function AdminTab({
                             Itens da competência ({group.items.length})
                           </AccordionTrigger>
                           <AccordionContent className="divide-y">
-                            {group.items.map((split: any) => (
+                            {group.items.map((split: any) => {
+                              const statusLabel = split.status === "paid"
+                                ? "Pago"
+                                : split.status === "confirmed"
+                                  ? "Confirmado"
+                                  : "Pendente";
+                              const statusBadgeVariant = split.status === "paid"
+                                ? ("secondary" as const)
+                                : ("outline" as const);
+                              const statusAmountClass = split.status === "paid" ? "text-success" : "text-destructive";
+
+                              return (
                               <div key={split.id} className="px-3 py-2.5">
                                 <div className="flex justify-between gap-2">
                                   <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
-                                  <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={statusBadgeVariant} className="h-4 text-[10px] px-1.5">
+                                      {statusLabel}
+                                    </Badge>
+                                    <span className={`text-sm font-semibold tabular-nums ${statusAmountClass}`}>
+                                      R$ {Number(split.amount).toFixed(2)}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            ))}
+                            );
+                            })}
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
