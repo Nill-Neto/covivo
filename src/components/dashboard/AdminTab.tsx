@@ -91,8 +91,15 @@ export function AdminTab({
       .map(([competenceKey, items]) => ({
         competenceKey,
         items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
-        total: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
+        totalCompetence: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
+        totalPaid: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
       }))
+      .map((group) => ({
+        ...group,
+        totalPending: Math.max(group.totalCompetence - group.totalPaid, 0),
+        pendingItems: group.items.filter((split: any) => split.status !== "paid"),
+      }))
+      .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
   }, [selectedMemberPreviousSplits]);
 
@@ -501,12 +508,20 @@ export function AdminTab({
 
           <div className="px-5 py-3 bg-muted/10 grid grid-cols-2 gap-4 border-b shrink-0">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Rateado</p>
-              <p className="text-sm font-semibold tabular-nums">R$ {selectedMember?.total_owed?.toFixed(2) || "0.00"}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total competência atual</p>
+              <p className="text-sm font-semibold tabular-nums">R$ {selectedHeaderTotals.currentCompetenceTotal.toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pago</p>
-              <p className="text-sm font-semibold tabular-nums text-success">R$ {selectedMember?.total_paid?.toFixed(2) || "0.00"}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Pendências anteriores</p>
+              <p className="text-sm font-semibold tabular-nums text-destructive">R$ {selectedHeaderTotals.previousPendingTotal.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total pago (comp. atual)</p>
+              <p className="text-sm font-semibold tabular-nums text-success">R$ {selectedHeaderTotals.currentCompetencePaid.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total consolidado</p>
+              <p className="text-sm font-semibold tabular-nums">R$ {selectedHeaderTotals.totalConsolidated.toFixed(2)}</p>
             </div>
           </div>
 
@@ -573,32 +588,39 @@ export function AdminTab({
               {selectedMemberSplits.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhuma despesa rateada nesta competência.</p>
               ) : (
-                <div className="space-y-2">
-                  {selectedMemberSplits.map((split: any) => (
-                    <div key={split.id} className="rounded-lg border px-3 py-2.5 bg-background/70">
-                      <div className="flex justify-between items-start mb-1 gap-2">
-                        <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
-                        <div className="flex flex-col items-end shrink-0">
-                          <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
-                            R$ {Number(split.amount).toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
-                            de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
-                          </span>
+                <Accordion type="single" collapsible className="w-full rounded-lg border bg-background/70 px-1">
+                  <AccordionItem value="current-competence-items" className="border-b-0">
+                    <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
+                      Itens da competência atual ({selectedMemberSplits.length})
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-2 px-2 pb-2">
+                      {selectedMemberSplits.map((split: any) => (
+                        <div key={split.id} className="rounded-lg border px-3 py-2.5 bg-background/70">
+                          <div className="flex justify-between items-start mb-1 gap-2">
+                            <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
+                            <div className="flex flex-col items-end shrink-0">
+                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
+                                R$ {Number(split.amount).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                                de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                          {split.expenses?.description && (
+                            <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                              {getCategoryLabel(split.expenses?.category)}
+                            </Badge>
+                            <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
+                          </div>
                         </div>
-                      </div>
-                      {split.expenses?.description && (
-                        <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
-                          {getCategoryLabel(split.expenses?.category)}
-                        </Badge>
-                        <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
             </div>
           </div>

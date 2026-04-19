@@ -92,6 +92,7 @@ function renderAdminTab() {
             id: "split-prev-1",
             user_id: "u-1",
             amount: 50,
+            status: "paid",
             expenses: {
               title: "Água",
               purchase_date: "2026-03-15",
@@ -102,6 +103,7 @@ function renderAdminTab() {
             id: "split-prev-2",
             user_id: "u-1",
             amount: 70,
+            status: "pending",
             expenses: {
               title: "Luz",
               purchase_date: "2026-02-15",
@@ -112,6 +114,7 @@ function renderAdminTab() {
             id: "split-current-pending",
             user_id: "u-1",
             amount: 80,
+            status: "pending",
             expenses: {
               title: "Mercado",
               purchase_date: "2026-04-03",
