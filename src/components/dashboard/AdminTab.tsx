@@ -83,32 +83,65 @@ export function AdminTab({
   }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
 
   const selectedPreviousByCompetence = useMemo(() => {
+    const selectedMemberPaymentsByCompetence = selectedMemberId
+      ? (memberPaymentsByCompetence[selectedMemberId] || {})
+      : {};
+    const previousDebtFallback = Number(selectedMember?.previous_debt || 0);
+
     const groups: Record<string, any[]> = {};
     selectedMemberPreviousSplits.forEach((split: any) => {
       const key = split.expenses?.competence_key || "sem-competencia";
       groups[key] = groups[key] || [];
       groups[key].push(split);
     });
-    return Object.entries(groups)
+    const grouped = Object.entries(groups)
       .map(([competenceKey, items]) => ({
         competenceKey,
         items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
         totalCompetence: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
-        totalPaid: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
+        totalPaidFromSplits: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
+        totalPaidFromPayments: Number(selectedMemberPaymentsByCompetence[competenceKey] || 0),
       }))
       .map((group) => ({
         ...group,
+        totalPaid: Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments),
         totalPending: Math.max(group.totalCompetence - group.totalPaid, 0),
         pendingItems: group.items.filter((split: any) => split.status !== "paid"),
       }))
       .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
-  }, [memberPaymentsByCompetence, selectedMemberId, selectedMemberPreviousSplits]);
+
+    if (grouped.length > 0) return grouped;
+
+    if (previousDebtFallback > 0.05) {
+      return [{
+        competenceKey: "saldo-anterior",
+        items: [],
+        totalCompetence: previousDebtFallback,
+        totalPaidFromSplits: 0,
+        totalPaidFromPayments: 0,
+        totalPaid: 0,
+        totalPending: previousDebtFallback,
+        pendingItems: [],
+        synthetic: true,
+      }];
+    }
+
+    return [];
+  }, [memberPaymentsByCompetence, selectedMember?.previous_debt, selectedMemberId, selectedMemberPreviousSplits]);
 
   const selectedHeaderTotals = useMemo(() => {
     const currentCompetenceTotal = Number(selectedMember?.total_owed ?? selectedMember?.current_cycle_owed ?? 0);
-    const currentCompetencePaid = Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0);
-    const previousPendingTotal = selectedPreviousByCompetence.reduce((acc, group) => acc + group.totalPending, 0);
+    const currentCompetencePaidFallback = selectedMemberId
+      ? Number(memberPaymentsByCompetence[selectedMemberId]?.[currentCompetenceKey] || 0)
+      : 0;
+    const currentCompetencePaid = Math.max(
+      Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0),
+      currentCompetencePaidFallback
+    );
+    const previousPendingFromGroups = selectedPreviousByCompetence.reduce((acc, group) => acc + group.totalPending, 0);
+    const previousPendingFallback = Number(selectedMember?.previous_debt || 0);
+    const previousPendingTotal = Math.max(previousPendingFromGroups, previousPendingFallback);
     const totalConsolidated = Math.max(previousPendingTotal + currentCompetenceTotal - currentCompetencePaid, 0);
 
     return {
@@ -117,7 +150,7 @@ export function AdminTab({
       currentCompetencePaid,
       totalConsolidated,
     };
-  }, [selectedMember, selectedPreviousByCompetence]);
+  }, [currentCompetenceKey, memberPaymentsByCompetence, selectedMember, selectedMemberId, selectedPreviousByCompetence]);
 
   const formatCompetenceLabel = (key?: string) => {
     if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";
@@ -343,7 +376,8 @@ export function AdminTab({
                 const currentBalance = member.balance || 0;
                 const previousDebt = member.previous_debt || 0;
                 const competenceTotal = Number(member.total_owed ?? 0);
-                const competencePaid = Number(member.total_paid ?? 0);
+                const competencePaidFallback = Number(memberPaymentsByCompetence[member.user_id]?.[currentCompetenceKey] || 0);
+                const competencePaid = Math.max(Number(member.total_paid ?? 0), competencePaidFallback);
                 const competencePending = Math.max(competenceTotal - competencePaid, 0);
                 const status = getBalanceStyle(currentBalance);
                 const isDebt = currentBalance < -0.05;
@@ -355,12 +389,12 @@ export function AdminTab({
                     className={`flex items-center justify-between px-6 py-3 transition-colors hover:bg-muted/50 cursor-pointer ${isDebt ? "bg-destructive/5" : ""}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-9 w-9 border border-border">
-                        <AvatarImage src={member.profile?.avatar_url} />
-                        <AvatarFallback className="text-xs font-medium bg-muted">
-                          {member.profile?.full_name?.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                        <Avatar className="h-9 w-9 border border-border">
+                          <AvatarImage src={member.profile?.avatar_url} />
+                          <AvatarFallback className="text-xs font-medium bg-muted">
+                          {member.profile?.full_name?.substring(0, 2)?.toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{member.profile?.full_name}</p>
                         <div className="flex items-center gap-2">
@@ -557,40 +591,46 @@ export function AdminTab({
                     <div key={group.competenceKey} className="rounded-lg border bg-background/70">
                       <div className="px-3 py-2 border-b">
                         <p className="text-xs font-medium capitalize text-muted-foreground">
-                          Competência {formatCompetenceLabel(group.competenceKey)}
+                          {group.synthetic ? "Saldo anterior consolidado" : `Competência ${formatCompetenceLabel(group.competenceKey)}`}
                         </p>
                       </div>
                       <div className="px-3 py-2.5 grid grid-cols-3 gap-2 text-[11px] border-b">
                         <div>
                           <p className="text-muted-foreground">Total competência</p>
-                          <p className="font-semibold tabular-nums">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums">R$ {group.totalCompetence.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pago</p>
-                          <p className="font-semibold tabular-nums text-success">R$ 0.00</p>
+                          <p className="font-semibold tabular-nums text-success">R$ {group.totalPaid.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Total pendente</p>
-                          <p className="font-semibold tabular-nums text-destructive">R$ {group.total.toFixed(2)}</p>
+                          <p className="font-semibold tabular-nums text-destructive">R$ {group.totalPending.toFixed(2)}</p>
                         </div>
                       </div>
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value={`pending-${group.competenceKey}`} className="border-b-0">
-                          <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
-                            Itens da competência ({group.items.length})
-                          </AccordionTrigger>
-                          <AccordionContent className="divide-y">
-                            {group.items.map((split: any) => (
-                              <div key={split.id} className="px-3 py-2.5">
-                                <div className="flex justify-between gap-2">
-                                  <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
-                                  <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                      {group.items.length > 0 ? (
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value={`pending-${group.competenceKey}`} className="border-b-0">
+                            <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
+                              Itens da competência ({group.items.length})
+                            </AccordionTrigger>
+                            <AccordionContent className="divide-y">
+                              {group.items.map((split: any) => (
+                                <div key={split.id} className="px-3 py-2.5">
+                                  <div className="flex justify-between gap-2">
+                                    <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
+                                    <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
+                              ))}
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Sem detalhamento por item para este saldo anterior.
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
