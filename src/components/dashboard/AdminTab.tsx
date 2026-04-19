@@ -9,7 +9,7 @@ import { parseLocalDate } from "@/lib/utils";
 import {
   Users, ArrowRight, RefreshCw, DollarSign, AlertTriangle,
   Receipt, Settings, ClipboardList, BarChart3,
-  CheckCircle2, Clock, UserPlus, Scale, UserMinus, Package
+  Clock, UserPlus, Scale, UserMinus, Package
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +31,7 @@ interface AdminTabProps {
   redistributedCount: number;
   lowStockCount: number;
   cycleSplits: any[];
+  pendingSplits: any[];
   closingDay: number;
 }
 
@@ -47,13 +48,15 @@ export function AdminTab({
   redistributedCount,
   lowStockCount,
   cycleSplits,
+  pendingSplits,
   closingDay,
 }: AdminTabProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const currentCompetenceKey = format(currentDate, "yyyy-MM");
 
-  // Ordena os membros pelo saldo da competência (negativos primeiro)
+  // Ordena os membros pelo saldo acumulado (negativos primeiro)
   const sortedMembers = useMemo(() =>
-    [...members].sort((a, b) => a.balance - b.balance),
+    [...members].sort((a, b) => (a.accumulated_balance ?? a.balance) - (b.accumulated_balance ?? b.balance)),
     [members]
   );
 
@@ -69,11 +72,51 @@ export function AdminTab({
       .sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime());
   }, [selectedMemberId, cycleSplits]);
 
+  const selectedMemberPreviousSplits = useMemo(() => {
+    if (!selectedMemberId || !pendingSplits) return [];
+    return pendingSplits
+      .filter((s: any) => s.user_id === selectedMemberId && s.expenses?.competence_key !== currentCompetenceKey)
+      .sort((a: any, b: any) => (b.expenses?.competence_key || "").localeCompare(a.expenses?.competence_key || ""));
+  }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
+
+  const selectedPreviousByCompetence = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    selectedMemberPreviousSplits.forEach((split: any) => {
+      const key = split.expenses?.competence_key || "sem-competencia";
+      groups[key] = groups[key] || [];
+      groups[key].push(split);
+    });
+    return Object.entries(groups)
+      .map(([competenceKey, items]) => ({
+        competenceKey,
+        items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
+        total: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
+      }))
+      .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
+  }, [selectedMemberPreviousSplits]);
+
+  const hasAccumulatedDebt = sortedMembers.some(m => (m.previous_debt || 0) > 0.05);
+  const formatCompetenceLabel = (key?: string) => {
+    if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";
+    const [y, m] = key.split("-");
+    return format(new Date(Number(y), Number(m) - 1, 1), "MMMM/yyyy", { locale: ptBR });
+  };
+
+  const getBalanceStyle = (value: number) => {
+    if (value < -0.05) {
+      return { label: "Débito", className: "text-destructive", badgeClass: "destructive" as const };
+    }
+    if (value > 0.05) {
+      return { label: "Crédito", className: "text-success", badgeClass: "secondary" as const };
+    }
+    return { label: "Neutro", className: "text-muted-foreground", badgeClass: "outline" as const };
+  };
+
   const totalReceivable = sortedMembers.reduce(
-    (acc, m) => acc + (m.balance < -0.01 ? Math.abs(m.balance) : 0), 0
+    (acc, m) => acc + ((m.accumulated_balance ?? m.balance) < -0.01 ? Math.abs(m.accumulated_balance ?? m.balance) : 0), 0
   );
 
-  const membersInDebt = sortedMembers.filter(m => m.balance < -0.05);
+  const membersInDebt = sortedMembers.filter(m => (m.accumulated_balance ?? m.balance) < -0.05);
   const collectRate = members.length > 0
     ? Math.round(((members.length - membersInDebt.length) / members.length) * 100)
     : 100;
@@ -268,14 +311,19 @@ export function AdminTab({
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Saldo restrito à competência atual ({format(currentDate, "MMM/yyyy", { locale: ptBR })}) · Clique no morador para detalhes
+              {hasAccumulatedDebt
+                ? `Saldo acumulado (inclui pendências anteriores) · Competência atual: ${format(currentDate, "MMM/yyyy", { locale: ptBR })}`
+                : `Saldo da competência atual (${format(currentDate, "MMM/yyyy", { locale: ptBR })})`} · Clique no morador para detalhes
             </p>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
               {sortedMembers.map(member => {
-                const isDebt = member.balance < -0.05;
-                const isCredit = member.balance > 0.05;
+                const currentBalance = member.balance || 0;
+                const previousDebt = member.previous_debt || 0;
+                const accumulatedBalance = member.accumulated_balance ?? currentBalance;
+                const status = getBalanceStyle(accumulatedBalance);
+                const isDebt = accumulatedBalance < -0.05;
 
                 return (
                   <div
@@ -294,34 +342,27 @@ export function AdminTab({
                         <p className="font-medium text-sm truncate">{member.profile?.full_name}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground capitalize">
-                            {member.role === "admin" ? "Admin" : "Morador"}
+                          {member.role === "admin" ? "Admin" : "Morador"}
                           </span>
-                          {isDebt && (
-                            <Badge variant="destructive" className="text-[10px] h-4 px-1.5">
-                              Pendente
-                            </Badge>
-                          )}
+                          <Badge variant={status.badgeClass} className="text-[10px] h-4 px-1.5">
+                            {status.label}
+                          </Badge>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-right flex-shrink-0 ml-4">
-                      {isDebt ? (
-                        <span className="font-semibold text-sm tabular-nums text-destructive">
-                          -R$ {Math.abs(member.balance).toFixed(2)}
-                        </span>
-                      ) : isCredit ? (
-                        <span className="font-semibold text-sm tabular-nums text-success">
-                          +R$ {member.balance.toFixed(2)}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                          Em dia
-                        </span>
-                      )}
+                      <span className={`font-semibold text-sm tabular-nums ${status.className}`}>
+                        {accumulatedBalance > 0.05 ? "+" : accumulatedBalance < -0.05 ? "-" : ""}R$ {Math.abs(accumulatedBalance).toFixed(2)}
+                      </span>
+                      <p className="text-[11px] text-muted-foreground tabular-nums mt-1">
+                        Débito anterior: R$ {previousDebt.toFixed(2)}
+                      </p>
                       <p className="text-[11px] text-muted-foreground tabular-nums">
-                        Rateio (Ciclo): R$ {member.total_owed.toFixed(2)}
+                        Competência atual: {currentBalance > 0.05 ? "+" : currentBalance < -0.05 ? "-" : ""}R$ {Math.abs(currentBalance).toFixed(2)}
+                      </p>
+                      <p className="text-[11px] font-medium tabular-nums">
+                        Total acumulado: R$ {Math.abs(accumulatedBalance).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -466,45 +507,83 @@ export function AdminTab({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-muted/5">
-            {selectedMemberSplits.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground text-sm">
-                Nenhuma despesa rateada nesta competência.
+          <div className="flex-1 overflow-y-auto bg-muted/5 divide-y divide-border/50">
+            <div className="px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendências anteriores</p>
+                <Badge variant="outline" className="text-[10px]">
+                  {selectedPreviousByCompetence.length} competência{selectedPreviousByCompetence.length !== 1 ? "s" : ""}
+                </Badge>
               </div>
-            ) : (
-              <div className="divide-y divide-border/50">
-                {selectedMemberSplits.map((split: any) => (
-                  <div key={split.id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
-                    <div className="flex justify-between items-start mb-1 gap-2">
-                      <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
-                          R$ {Number(split.amount).toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
-                          de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
-                        </span>
+              {selectedPreviousByCompetence.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sem pendências anteriores.</p>
+              ) : (
+                <div className="space-y-3">
+                  {selectedPreviousByCompetence.map(group => (
+                    <div key={group.competenceKey} className="rounded-lg border bg-background/70">
+                      <div className="px-3 py-2 border-b flex items-center justify-between">
+                        <p className="text-xs font-medium capitalize text-muted-foreground">
+                          Competência {formatCompetenceLabel(group.competenceKey)}
+                        </p>
+                        <span className="text-xs font-semibold tabular-nums text-destructive">R$ {group.total.toFixed(2)}</span>
+                      </div>
+                      <div className="divide-y">
+                        {group.items.map((split: any) => (
+                          <div key={split.id} className="px-3 py-2.5">
+                            <div className="flex justify-between gap-2">
+                              <p className="text-sm">{split.expenses?.title || "Despesa sem título"}</p>
+                              <span className="text-sm font-semibold tabular-nums text-destructive">R$ {Number(split.amount).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    {split.expenses?.description && (
-                      <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
-                        {getCategoryLabel(split.expenses?.category)}
-                      </Badge>
-                      <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Itens da competência atual ({format(currentDate, "MMM/yyyy", { locale: ptBR })})
+              </p>
+              {selectedMemberSplits.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma despesa rateada nesta competência.</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedMemberSplits.map((split: any) => (
+                    <div key={split.id} className="rounded-lg border px-3 py-2.5 bg-background/70">
+                      <div className="flex justify-between items-start mb-1 gap-2">
+                        <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
+                            R$ {Number(split.amount).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                            de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      {split.expenses?.description && (
+                        <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+                          {getCategoryLabel(split.expenses?.category)}
+                        </Badge>
+                        <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="px-5 py-4 bg-muted/20 border-t shrink-0 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-            <span className="text-sm font-medium text-muted-foreground">Saldo Pendente Atual</span>
-            <span className={`text-lg font-bold ${(selectedMember?.balance || 0) < 0 ? "text-destructive" : "text-success"}`}>
-              R$ {Math.abs(selectedMember?.balance || 0).toFixed(2)}
+            <span className="text-sm font-medium text-muted-foreground">Total acumulado</span>
+            <span className={`text-lg font-bold ${getBalanceStyle(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).className}`}>
+              R$ {Math.abs(selectedMember?.accumulated_balance ?? selectedMember?.balance ?? 0).toFixed(2)}
             </span>
           </div>
         </DialogContent>
