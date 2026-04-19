@@ -143,13 +143,13 @@ describe("Checklist funcional do AdminTab", () => {
     expect(screen.getByText("Bruno Costa")).toBeInTheDocument();
   });
 
-  it("mostra resumo da competência com total, pago, pendente e pendências anteriores", () => {
+  it("mostra o saldo principal do morador", () => {
     renderAdminTab();
 
-    expect(screen.getByText("Total competência: R$ 80.00")).toBeInTheDocument();
-    expect(screen.getAllByText("Total pago: R$ 0.00").length).toBeGreaterThan(0);
-    expect(screen.getByText("Total pendente: R$ 80.00")).toBeInTheDocument();
-    expect(screen.getByText("Pendências anteriores: R$ 120.00")).toBeInTheDocument();
+    // Ana Silva: accumulated_balance = -200
+    expect(screen.getByText("-R$ 200.00")).toBeInTheDocument();
+    // Bruno Costa: accumulated_balance = -40
+    expect(screen.getByText("-R$ 40.00")).toBeInTheDocument();
   });
 
   it("discrimina competências anteriores no modal e mantém itens colapsados por padrão", async () => {
@@ -167,13 +167,5 @@ describe("Checklist funcional do AdminTab", () => {
 
     fireEvent.click(screen.getAllByText("Itens da competência (1)")[0]);
     expect(await screen.findByText("Água")).toBeInTheDocument();
-  });
-
-  it("mantém valores corretos para usuário sem pendência anterior", () => {
-    renderAdminTab();
-
-    expect(screen.getByText("Total competência: R$ 40.00")).toBeInTheDocument();
-    expect(screen.getByText("Total pendente: R$ 40.00")).toBeInTheDocument();
-    expect(screen.getByText("Pendências anteriores: R$ 0.00")).toBeInTheDocument();
   });
 });

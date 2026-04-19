@@ -416,18 +416,6 @@ export function AdminTab({
                       <span className={`font-semibold text-sm tabular-nums ${status.className}`}>
                         {currentBalance > 0.05 ? "+" : currentBalance < -0.05 ? "-" : ""}R$ {Math.abs(currentBalance).toFixed(2)}
                       </span>
-                      <p className="text-[11px] text-muted-foreground tabular-nums mt-1">
-                        Total competência: R$ {competenceTotal.toFixed(2)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
-                        Total pago: R$ {competencePaid.toFixed(2)}
-                      </p>
-                      <p className="text-[11px] font-medium tabular-nums">
-                        Total pendente: R$ {competencePending.toFixed(2)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
-                        Pendências anteriores: R$ {previousDebt.toFixed(2)}
-                      </p>
                     </div>
                   </div>
                 );
