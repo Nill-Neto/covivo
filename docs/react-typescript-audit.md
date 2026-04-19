@@ -1,180 +1,171 @@
-# React + TypeScript Audit (12-point review)
+# Auditoria React + TypeScript (12 pontos)
 
-Date: 2026-03-11  
-Scope: `src/**`, `supabase/functions/**`, and project tooling in root
+Data: 2026-04-19  
+Escopo: `src/**` e testes/lint do projeto
 
-## Executive summary
+## Resumo executivo
 
-- The main quality risks are concentrated in three areas: **TypeScript safety** (`any` sprawl), **large multi-responsibility page components**, and **very limited automated tests**.
-- Current lint status is poor (197 findings, 186 errors), with `@typescript-eslint/no-explicit-any` accounting for 179 findings.
-- The fastest path to stability is:
-  1. Type-hardening dashboard/payment/expense modules.
-  2. Breaking large pages into feature containers + presentational components.
-  3. Expanding tests from the current smoke test to behavior-first integration tests.
+- O projeto está com **lint sem erros** (apenas 15 warnings), mas ainda com risco técnico relevante em `any` espalhado em páginas críticas e componentes de dashboard.  
+- Há oportunidade forte de **reduzir acoplamento e prop drilling** no `Dashboard`, além de quebrar componentes/páginas grandes (vários arquivos acima de 500 linhas).  
+- A suíte de testes falha hoje em um ponto crítico de execução (`previousDebtFallback is not defined` no `AdminTab`), o que reduz confiabilidade para mudanças rápidas.
 
----
+## Comandos executados
 
-## Checks run
-
-- `npm run lint` → failed (`197` findings: `186` errors, `11` warnings).
-- `npm test -- --run` → passed (`1` test), but logs warnings (`act(...)` and React Router future flags).
-- `npx eslint . -f json -o /tmp/eslint-report.json` + node summary script.
-- `find src -type f \( -name '*.tsx' -o -name '*.ts' \) -print0 | xargs -0 wc -l | sort -nr | head -n 20`.
-- `rg -n "size=\"icon\"|<button|onClick=\{.*\}" src/pages src/components | head -n 80`.
-
----
-
-## 1) DRY (Don’t Repeat Yourself)
-
-### Findings
-- Repeated date-navigation controls (previous/next month icon buttons) appear in multiple pages (`Expenses`, `Payments`, `Inventory`) with nearly identical logic/UI.
-- Repeated destructive-action patterns (`AlertDialog` + delete mutation + duplicate confirmation copy) appear across `Payments`, `ShoppingLists`, `RecurringExpenses`, and `Inventory`.
-- Repeated Supabase mutation error toast patterns are embedded inline across multiple page components.
-
-### Suggestions
-- Create shared `MonthNavigator` component (props: `currentDate`, `onPrev`, `onNext`, `label`).
-- Extract generic `ConfirmDestructiveActionDialog` with standardized CTA copy/states.
-- Add `useMutationToast` helper to centralize success/error messaging.
-
-## 2) Eliminate unused/dead code
-
-### Findings
-- The codebase contains demo-oriented routes/components (`SidebarDemoPage`, `BackgroundPathsDemoPage`, `components/ui/demo*`) that may be non-essential in production paths.
-- Lint findings are dominated by typing, so unused-code detection is currently underpowered (rules like `no-unused-vars` are not the main failing signal).
-
-### Suggestions
-- Decide if demo pages are production requirements; if not, gate or remove them.
-- Add a dead-export pass (e.g., `ts-prune`) and remove unused exports/components.
-- Add stricter lint for unused imports/locals if not already enforced through TypeScript compiler options.
-
-## 3) Consistent TypeScript usage
-
-### Findings
-- `@typescript-eslint/no-explicit-any`: **179 findings** (top lint offender).
-- `supabase/functions/generate-report/index.ts` uses `@ts-nocheck`, bypassing type safety.
-- `@typescript-eslint/no-empty-object-type` appears in UI primitives (`command.tsx`, `textarea.tsx`), indicating weak or placeholder type modeling.
-
-### Suggestions
-- Prioritize replacing `any` in high-churn files first (`CardsTab`, `AdminTab`, `Payments`, `RecurringExpenses`, edge functions).
-- Remove `@ts-nocheck` incrementally by typing input/output contracts and utility functions.
-- Standardize object shapes with explicit interfaces/types from `src/integrations/supabase/types.ts` instead of ad hoc `any`.
-
-## 4) Well-structured components
-
-### Findings
-- Several components exceed 250 LOC and mix fetching, transformation, and presentation:
-  - `src/pages/Expenses.tsx` (1062)
-  - `src/components/dashboard/CardsTab.tsx` (647)
-  - `src/pages/GroupSettings.tsx` (624)
-  - `src/pages/Dashboard.tsx` (570)
-  - `src/pages/Payments.tsx` (564)
-  - `src/components/dashboard/AdminTab.tsx` (519)
-- Large files increase cognitive load and make regression testing harder.
-
-### Suggestions
-- Split by responsibility:
-  - `*.container.tsx` for orchestration/data hooks.
-  - `*.view.tsx` for pure rendering.
-  - `*.selectors.ts` for computed data.
-- Set an internal soft limit (e.g., 250 LOC for component modules) to trigger refactor review.
-
-## 5) Efficient state management
-
-### Findings
-- Dashboard-area tabs carry many props and handlers, a sign of prop-heavy orchestration.
-- Some state appears duplicated between parent/page scope and nested dialogs/tabs.
-
-### Suggestions
-- Introduce feature-scoped contexts only where state is truly cross-tab (e.g., shared payment dialog state).
-- Keep ephemeral form state local to dialog-level components.
-- Prefer derived state via memoized selectors over storing duplicated derived values.
-
-## 6) Proper React hooks usage
-
-### Findings
-- `react-hooks/exhaustive-deps` warnings exist in:
-  - `src/contexts/AuthContext.tsx`
-  - `src/pages/AcceptInvite.tsx`
-- Current test output also shows `act(...)` warnings, suggesting async state updates in tests are not fully synchronized.
-
-### Suggestions
-- Resolve exhaustive-deps warnings by stabilizing callbacks (`useCallback`) or moving effect logic to custom hooks.
-- Update tests to await async updates (`findBy*`, `waitFor`, explicit `act`) to remove warning noise and avoid false positives.
-
-## 7) Separation of logic and presentation
-
-### Findings
-- Business rules and data access remain embedded in page modules (`Expenses`, `Payments`, `Dashboard`, `GroupSettings`).
-- Rendering and mutation logic are tightly coupled, reducing reuse and testability.
-
-### Suggestions
-- Introduce a feature service layer (e.g., `src/features/payments/api.ts`) for Supabase interactions.
-- Keep UI components data-agnostic where possible; pass normalized view models.
-
-## 8) Proper error handling
-
-### Findings
-- Error handling is inconsistent: many operations rely on inline toasts without shared normalization.
-- No explicit app-level React Error Boundary is present around the routed application shell.
-
-### Suggestions
-- Add global `ErrorBoundary` around route rendering with actionable fallback.
-- Create `normalizeAppError(error: unknown)` to convert API/runtime errors into consistent user feedback.
-- Standardize mutation/query wrappers that always map technical errors to UX-safe messages.
-
-## 9) Performance and optimizations
-
-### Findings
-- Large pages likely recompute substantial derived data in render paths.
-- Frequent inline callback creation in dense trees (tables/lists/cards) can increase render churn.
-- Potentially large lists (expenses/members/inventory) are rendered directly, without virtualization.
-
-### Suggestions
-- Move expensive transforms to memoized selectors (`useMemo`) and pure utility modules.
-- Memoize row/card components where prop identity is stable.
-- Add virtualization for very large datasets (or paginate/incrementally load where UX allows).
-
-## 10) Project organization and structure
-
-### Findings
-- Current structure is mostly technical-layer based (`pages`, `components`, `hooks`) while domain complexity is high.
-- Dashboard-related logic is split across `pages` and `components/dashboard`, making boundaries less explicit.
-
-### Suggestions
-- Move toward feature-first organization for complex domains:
-  - `src/features/dashboard/*`
-  - `src/features/expenses/*`
-  - `src/features/payments/*`
-- Keep `components/ui/*` strictly generic; move domain-specific UI near its feature.
-
-## 11) Accessibility (a11y)
-
-### Findings
-- Multiple icon-only action buttons exist; some use `title` but do not consistently expose accessible names (`aria-label`).
-- Some clickable UI elements use non-semantic interactive elements (e.g., `Badge` with `onClick` in `Inventory`) which may be keyboard-inaccessible.
-
-### Suggestions
-- Enforce explicit `aria-label` on icon-only buttons.
-- Replace clickable non-button elements with semantic `<button>` or add full keyboard/role support.
-- Add `eslint-plugin-jsx-a11y` checks and key flow tests for keyboard navigation.
-
-## 12) Adequate testing
-
-### Findings
-- Test suite currently has one smoke test (`src/test/example.test.tsx`) and lacks feature behavior coverage.
-- Critical flows (auth, invite acceptance, expenses, payments) are not protected by integration/e2e tests.
-
-### Suggestions (priority)
-1. Add integration tests (RTL + MSW) for invite acceptance, expense CRUD, and payment status transitions.
-2. Extract and unit-test pure selectors/formatters from large pages.
-3. Add e2e smoke coverage (Playwright) for login → dashboard → core CRUD happy paths.
+```bash
+npm run lint
+npm test -- --run
+find src -type f \( -name '*.tsx' -o -name '*.ts' \) -print0 | xargs -0 wc -l | sort -nr | head -n 20
+rg -n "\\bany\\b|@ts-nocheck" src supabase/functions
+rg -n "SidebarDemoPage|BackgroundPathsDemoPage|demo" src/App.tsx src/pages src/components
+rg -n "size=\\\"icon\\\"" src/pages src/components
+rg -n "ErrorBoundary|componentDidCatch|getDerivedStateFromError" src
+npx ts-prune -p tsconfig.app.json
+```
 
 ---
 
-## Prioritized remediation backlog
+## 1) DRY (evitar duplicação)
 
-1. **Type Safety Sprint**: reduce `any` in `CardsTab`, `AdminTab`, `Payments`, and edge functions.
-2. **Decomposition Sprint**: split `Expenses`, `Dashboard`, and `GroupSettings` into container/view + feature modules.
-3. **Reliability Sprint**: add Error Boundary + unified error normalization.
-4. **Testing Sprint**: move from smoke-only to behavior-first integration tests.
-5. **A11y Sprint**: audit icon buttons and clickable non-semantic elements.
+### Achados
+- Navegação de mês (botões anterior/próximo) repetida em múltiplas telas (`Expenses`, `Payments`, `Inventory`) e também no header do dashboard, com padrão visual/comportamental semelhante. 
+- Padrões de ação destrutiva com botão ícone + confirmação aparecem repetidamente em `Expenses`, `RecurringExpenses`, `Payments`, `Bulletin`, `HouseRules` e `ShoppingLists`.
+
+### Sugestões
+- Extrair um componente reutilizável `MonthNavigator` (ex.: `currentDate`, `onPrev`, `onNext`, `label`).
+- Padronizar confirmação destrutiva em um `ConfirmActionDialog` com API única e textos default.
+- Centralizar toasts de erro/sucesso em helper (`mapMutationResultToToast`) para reduzir repetição de `onError` inline.
+
+## 2) Eliminar código morto (dead code)
+
+### Achados
+- Existem rotas e componentes de demo (`/sidebar-demo`, `/background-paths-demo`) carregados no `App`, úteis para playground, mas potencialmente desnecessários em build de produção.
+- Não há evidência imediata de componentes órfãos só por leitura estática; para isso, seria ideal uma análise de exports não usados.
+- A tentativa de rodar `ts-prune` falhou por bloqueio do registry (403), então o mapeamento automático de exports mortos ficou incompleto.
+
+### Sugestões
+- Proteger demos por flag de ambiente (`import.meta.env.DEV`) ou remover do roteamento principal.
+- Rodar `ts-prune`/`knip` no CI com mirror autorizado para identificar exports não usados de forma contínua.
+
+## 3) Uso consistente de TypeScript
+
+### Achados
+- Há uso extenso de `any` em páginas centrais (`Dashboard`, `Expenses`, `Payments`, `Admin`, `GroupSettings`, etc.).
+- Também há `any` em props de componentes de dashboard (`PersonalTab`, `CardsTab`) e em componentes de UI (`donut-chart`, `sidebar`, `scroll-reveal`).
+- O problema principal de tipagem não é sintaxe de TS, e sim **fronteiras de dados sem contrato explícito**.
+
+### Sugestões
+- Priorizar tipagem por impacto: `Dashboard`, `Expenses`, `Payments`, `AdminTab`.
+- Criar tipos de view-model por feature (`DashboardPendingItem`, `InstallmentView`, etc.) em vez de arrays `any[]`.
+- Substituir casts `as any` no acesso Supabase por tipos derivados de `src/integrations/supabase/types.ts`.
+
+## 4) Componentes bem estruturados
+
+### Achados
+- Arquivos muito grandes e multi-responsabilidade:
+  - `src/pages/Expenses.tsx` (1508 linhas)
+  - `src/pages/GroupSettings.tsx` (864)
+  - `src/components/dashboard/PersonalTab.tsx` (727)
+  - `src/components/dashboard/AdminTab.tsx` (705)
+  - `src/pages/Payments.tsx` (683)
+  - `src/components/dashboard/CardsTab.tsx` (677)
+  - `src/pages/Dashboard.tsx` (580)
+- Esses módulos misturam consulta de dados, transformação de domínio, estado local e renderização extensa.
+
+### Sugestões
+- Quebrar por responsabilidade: `container + view + hooks + selectors` por feature.
+- Criar limite interno (ex.: 250-300 linhas) para iniciar refatoração obrigatória em PR.
+
+## 5) Gestão de estado eficiente
+
+### Achados
+- `Dashboard` concentra muito estado e repassa muitas props para `PersonalTab`, `CardsTab` e `PaymentDialogs`, caracterizando prop drilling.
+- Parte do estado é derivado de outras estruturas e poderia ser calculado por selectors memoizados fora do componente.
+
+### Sugestões
+- Introduzir contexto local de feature (ex.: `DashboardPaymentsContext`) só para estado compartilhado entre tabs/dialogs.
+- Migrar cálculos derivados para hooks utilitários (`useDashboardTotals`, `useCollectivePending`) para simplificar árvore de props.
+
+## 6) Uso adequado de hooks
+
+### Achados
+- `eslint` acusa dependências de hooks inconsistentes (`AuthContext`, `AcceptInvite`, `Dashboard`, `AdminTab`).
+- Warnings incluem dependência faltante e dependências instáveis em `useMemo`.
+
+### Sugestões
+- Revisar `useEffect/useMemo` com foco em estabilidade de referências (`useCallback`/memo de coleções).
+- Extrair lógicas densas de hook para custom hooks com contratos claros e testes isolados.
+
+## 7) Separação lógica x apresentação
+
+### Achados
+- Páginas como `Dashboard`, `Expenses`, `Payments` embutem regras de negócio e chamadas Supabase junto com JSX.
+- Em `Dashboard`, há transformação de dados e regras de aplicação de pagamentos no mesmo arquivo de renderização.
+
+### Sugestões
+- Criar camada `features/*/api.ts` e `features/*/selectors.ts`.
+- Deixar componentes visuais recebendo dados já normalizados (presentational-first).
+
+## 8) Tratamento de erros
+
+### Achados
+- Há tratamento parcial com toasts, porém ainda com `console.error` em chamadas assíncronas.
+- Não foi identificado Error Boundary global na aplicação.
+- Falha em teste mostra risco de erro de runtime sem fallback de UI (`previousDebtFallback is not defined`).
+
+### Sugestões
+- Adicionar `AppErrorBoundary` no shell de rotas.
+- Padronizar normalização de erro (`normalizeAppError`) e evitar mensagens técnicas diretas ao usuário.
+- Para queries críticas, exibir estados explícitos de erro + ação de retry.
+
+## 9) Performance e otimizações
+
+### Achados
+- `Dashboard` e outras páginas grandes fazem muitas transformações em tempo de render.
+- Há funções e objetos derivados recriados a cada render (inclusive apontado por warnings de `useMemo`).
+- Listas potencialmente extensas (despesas, pagamentos, convites, inventário) são renderizadas sem virtualização.
+
+### Sugestões
+- Movimentar transformações pesadas para `useMemo` estáveis e selectors puros.
+- Usar `React.memo` em cards/itens de lista com props estáveis.
+- Considerar paginação incremental ou virtualização nas listas com maior volume.
+
+## 10) Organização de projeto
+
+### Achados
+- Estrutura atual é híbrida por camadas (`pages`, `components`, `hooks`) com domínios já complexos.
+- O domínio de dashboard está espalhado entre `pages/Dashboard.tsx` e `components/dashboard/*` sem uma pasta de feature única.
+
+### Sugestões
+- Migrar gradualmente para organização por feature (ex.: `src/features/dashboard`, `src/features/expenses`).
+- Manter `components/ui/*` estritamente genérico e sem regra de negócio.
+
+## 11) Acessibilidade (a11y)
+
+### Achados
+- Há grande quantidade de botões icon-only (`size="icon"`) em várias telas.
+- Parte desses botões usa apenas `title` ou não deixa claro o nome acessível em leitores de tela.
+
+### Sugestões
+- Padronizar `aria-label` obrigatório para todo botão icon-only.
+- Revisar elementos clicáveis não semânticos e garantir navegação por teclado (tab/focus/enter/space).
+
+## 12) Testes adequados
+
+### Achados
+- A suíte atual possui testes úteis, mas há falha real em `AdminTab.checklist.test.tsx` (4 cenários quebrando por `ReferenceError`).
+- Persistem warnings de teste sobre `act(...)` e warnings de future flags do React Router.
+
+### Sugestões (ordem de prioridade)
+1. Corrigir imediatamente a regressão de runtime em `AdminTab` para restaurar confiança da suíte.
+2. Fortalecer testes de comportamento para fluxos críticos (`Dashboard`, `Payments`, `Expenses`).
+3. Criar testes unitários para selectors/hooks extraídos, reduzindo necessidade de mocks pesados em páginas gigantes.
+
+---
+
+## Backlog priorizado (curto prazo)
+
+1. **Confiabilidade imediata**: corrigir `AdminTab` (`previousDebtFallback`) e eliminar warnings de hooks mais críticos.  
+2. **Tipagem estratégica**: remover `any` dos fluxos de dashboard/pagamentos/despesas com view-models explícitos.  
+3. **Refatoração estrutural**: decompor `Dashboard`, `Expenses`, `Payments` em módulos por responsabilidade.  
+4. **A11y e UX de erro**: `aria-label` padrão + Error Boundary global + retry states.  
+5. **Qualidade contínua**: incluir análise de código morto no CI quando houver acesso ao pacote (`ts-prune`/equivalente).
