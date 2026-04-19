@@ -33,6 +33,7 @@ interface AdminTabProps {
   lowStockCount: number;
   cycleSplits: any[];
   pendingSplits: any[];
+  memberPaymentsByCompetence?: Record<string, Record<string, number>>;
   closingDay: number;
 }
 
@@ -50,6 +51,7 @@ export function AdminTab({
   lowStockCount,
   cycleSplits,
   pendingSplits,
+  memberPaymentsByCompetence = {},
   closingDay,
 }: AdminTabProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -101,7 +103,21 @@ export function AdminTab({
       }))
       .filter((group) => group.totalPending > 0.05)
       .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
-  }, [selectedMemberPreviousSplits]);
+  }, [memberPaymentsByCompetence, selectedMemberId, selectedMemberPreviousSplits]);
+
+  const selectedHeaderTotals = useMemo(() => {
+    const currentCompetenceTotal = Number(selectedMember?.total_owed ?? selectedMember?.current_cycle_owed ?? 0);
+    const currentCompetencePaid = Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0);
+    const previousPendingTotal = selectedPreviousByCompetence.reduce((acc, group) => acc + group.totalPending, 0);
+    const totalConsolidated = Math.max(previousPendingTotal + currentCompetenceTotal - currentCompetencePaid, 0);
+
+    return {
+      currentCompetenceTotal,
+      previousPendingTotal,
+      currentCompetencePaid,
+      totalConsolidated,
+    };
+  }, [selectedMember, selectedPreviousByCompetence]);
 
   const formatCompetenceLabel = (key?: string) => {
     if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";

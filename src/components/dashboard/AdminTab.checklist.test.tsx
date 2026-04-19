@@ -122,6 +122,12 @@ function renderAdminTab() {
             },
           },
         ]}
+        memberPaymentsByCompetence={{
+          "u-1": {
+            "2026-02": 20,
+            "2026-03": 50,
+          },
+        }}
         closingDay={10}
       />
     </MemoryRouter>

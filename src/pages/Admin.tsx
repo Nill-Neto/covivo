@@ -187,6 +187,17 @@ export default function Admin() {
       }
       
       const payments = allPayments || [];
+      const memberPaymentsByCompetence = payments
+        .filter((p: any) => p.status === "confirmed" && p.paid_by && p.competence_key)
+        .reduce((acc: Record<string, Record<string, number>>, payment: any) => {
+          const userId = payment.paid_by;
+          const competenceKey = payment.competence_key;
+          const amount = Number(payment.amount || 0);
+
+          if (!acc[userId]) acc[userId] = {};
+          acc[userId][competenceKey] = (acc[userId][competenceKey] || 0) + amount;
+          return acc;
+        }, {});
 
       const balancesByUser = new Map(
         (balancesRes.data || []).map((row) => [row.user_id, row])
@@ -273,6 +284,7 @@ export default function Admin() {
         lowStockCount,
         cycleSplits,
         pendingSplits,
+        memberPaymentsByCompetence,
         nonCriticalWarnings,
       };
     },
@@ -360,6 +372,7 @@ export default function Admin() {
             lowStockCount={adminData.lowStockCount}
             cycleSplits={adminData.cycleSplits}
             pendingSplits={adminData.pendingSplits}
+            memberPaymentsByCompetence={adminData.memberPaymentsByCompetence}
             closingDay={closingDay}
           />
         </div>
