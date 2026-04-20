@@ -202,6 +202,9 @@ export function CardsTab({
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
+  const formatCurrency = (value: number) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
@@ -233,7 +236,7 @@ export function CardsTab({
           </CardHeader>
           <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
             <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
-              R$ {totalBill.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              R$ {formatCurrency(totalBill)}
             </div>
             <div className="flex items-center">
               <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 capitalize">
@@ -349,6 +352,14 @@ export function CardsTab({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {creditCards.map(card => {
               const billValue = cardsBreakdown[card.id] || 0;
+              const cardInstallments = billInstallments.filter((i: any) => i.expenses?.credit_card_id === card.id);
+              const individualTotal = cardInstallments
+                .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+                .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+              const collectiveTotal = cardInstallments
+                .filter((i: any) => i.expenses?.expense_type === "collective")
+                .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
               return (
                 <Card
                   key={card.id}
@@ -393,7 +404,18 @@ export function CardsTab({
                   <CardContent className="px-4 pb-4">
                     <div className="mb-4 mt-2">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Fatura Atual</p>
-                      <p className="text-2xl font-bold text-primary">R$ {billValue.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-primary">R$ {formatCurrency(billValue)}</p>
+                    </div>
+
+                    <div className="mb-3 grid grid-cols-2 gap-2 text-[10px] rounded border border-border/50 bg-muted/25 p-2">
+                      <div>
+                        <span className="text-muted-foreground block">Individuais</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(individualTotal)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Coletivos</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(collectiveTotal)}</span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-[10px] bg-muted/40 p-2 rounded border border-border/50">
