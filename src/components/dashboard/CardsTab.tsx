@@ -359,8 +359,6 @@ export function CardsTab({
               const collectiveTotal = cardInstallments
                 .filter((i: any) => i.expenses?.expense_type === "collective")
                 .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
-              const individualPercentage = billValue > 0 ? (individualTotal / billValue) * 100 : 0;
-              const collectivePercentage = billValue > 0 ? (collectiveTotal / billValue) * 100 : 0;
 
               return (
                 <Card
@@ -409,19 +407,14 @@ export function CardsTab({
                       <p className="text-2xl font-bold text-primary">R$ {formatCurrency(billValue)}</p>
                     </div>
 
-                    <div className="mb-3 rounded-lg border-2 border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3">
-                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-primary/90">Resumo por tipo de gasto</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 block">Individuais</span>
-                          <span className="text-sm font-bold text-foreground">R$ {formatCurrency(individualTotal)}</span>
-                          <span className="block text-[10px] text-muted-foreground">{individualPercentage.toFixed(1)}% da fatura</span>
-                        </div>
-                        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 block">Coletivos</span>
-                          <span className="text-sm font-bold text-foreground">R$ {formatCurrency(collectiveTotal)}</span>
-                          <span className="block text-[10px] text-muted-foreground">{collectivePercentage.toFixed(1)}% da fatura</span>
-                        </div>
+                    <div className="mb-3 grid grid-cols-2 gap-2 text-[10px] rounded border border-border/50 bg-muted/25 p-2">
+                      <div>
+                        <span className="text-muted-foreground block">Individuais</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(individualTotal)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Coletivos</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(collectiveTotal)}</span>
                       </div>
                     </div>
 
