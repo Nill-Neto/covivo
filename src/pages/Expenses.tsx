@@ -559,7 +559,6 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
-          _competence: compKey,
         };
 
         const { data: newExpenseId, error: createError } = await supabase.rpc(
