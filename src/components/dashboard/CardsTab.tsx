@@ -17,8 +17,7 @@ import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
-import { DonutChart, type DonutChartSegment } from "@/components/ui/donut-chart";
-import { motion, AnimatePresence } from "framer-motion";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -178,7 +177,7 @@ export function CardsTab({
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
-  const donutData: DonutChartSegment[] = cardsChartData.map((entry, index) => ({
+  const donutData = cardsChartData.map((entry, index) => ({
     label: entry.name,
     value: entry.value,
     color: CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length],
@@ -286,38 +285,59 @@ export function CardsTab({
           <CardContent className="h-auto flex flex-col md:flex-row items-center justify-center gap-6 p-4 md:p-6">
             {donutData.length > 0 ? (
               <>
-                <div className="relative">
-                  <DonutChart
-                    data={donutData}
-                    size={220}
-                    strokeWidth={24}
-                    animationDuration={1}
-                    onSegmentHover={(segment) => setHoveredSegmentLabel(segment?.label || null)}
-                    centerContent={
-                      <AnimatePresence mode="wait">
-                        <motion.div
-                          key={displayLabel}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.2 }}
-                          className="flex flex-col items-center justify-center text-center px-1"
-                        >
-                          <p className="text-muted-foreground text-[10px] font-medium truncate max-w-[150px] uppercase tracking-wider leading-tight">
-                            {displayLabel}
-                          </p>
-                          <p className="text-lg font-bold text-foreground tabular-nums whitespace-nowrap">
-                            R$ {displayValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                          {activeSegment && (
-                            <p className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full mt-1">
-                              {displayPercentage.toFixed(1)}%
-                            </p>
-                          )}
-                        </motion.div>
-                      </AnimatePresence>
-                    }
-                  />
+                <div className="relative h-[220px] w-[220px] shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        dataKey="value"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={85}
+                        outerRadius={110}
+                        paddingAngle={5}
+                        stroke="none"
+                        cornerRadius={5}
+                        onMouseEnter={(_, index) => setHoveredSegmentLabel(donutData[index].label)}
+                        onMouseLeave={() => setHoveredSegmentLabel(null)}
+                      >
+                        {donutData.map((entry, i) => (
+                          <Cell 
+                            key={i} 
+                            fill={entry.color} 
+                            opacity={hoveredSegmentLabel === null || hoveredSegmentLabel === entry.label ? 1 : 0.3}
+                            className="transition-opacity duration-200"
+                            style={{ outline: "none" }}
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
+                        contentStyle={{ 
+                          borderRadius: "8px", 
+                          border: "none", 
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          fontSize: "12px"
+                        }}
+                        itemStyle={{ color: "#1e293b" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none flex flex-col items-center justify-center w-full px-4">
+                    <p className="text-muted-foreground text-[10px] font-medium truncate max-w-[140px] uppercase tracking-wider leading-tight">
+                      {displayLabel}
+                    </p>
+                    <p className="text-lg font-bold text-foreground tabular-nums whitespace-nowrap">
+                      R$ {displayValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {activeSegment && (
+                      <p className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full mt-1">
+                        {displayPercentage.toFixed(1)}%
+                      </p>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex flex-col space-y-2 w-full max-w-full md:max-w-[280px] overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
@@ -340,7 +360,7 @@ export function CardsTab({
                           {segment.label}
                         </span>
                       </div>
-                      <span className="font-semibold tabular-nums shrink-0 whitespace-nowrap text-right">
+                      <span className="font-semibold tabular-nums shrink-0 whitespace-nowrap text-right text-foreground">
                         R$ {segment.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
