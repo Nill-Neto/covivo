@@ -266,12 +266,12 @@ export function CardsTab({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-md border border-white/20 bg-black/10 px-2 py-1.5 backdrop-blur-md">
-                <span className="block text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Individuais</span>
+              <div className="rounded-md border border-white/20 bg-white/10 px-2.5 py-2 backdrop-blur-md">
+                <span className="block text-[10px] font-bold text-white/70 uppercase tracking-wider">Individuais</span>
                 <span className="block text-sm font-extrabold text-white mt-0.5">R$ {formatCurrency(globalIndividualTotal)}</span>
               </div>
-              <div className="rounded-md border border-white/20 bg-black/10 px-2 py-1.5 backdrop-blur-md">
-                <span className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider">Coletivos</span>
+              <div className="rounded-md border border-white/20 bg-white/10 px-2.5 py-2 backdrop-blur-md">
+                <span className="block text-[10px] font-bold text-white/70 uppercase tracking-wider">Coletivos</span>
                 <span className="block text-sm font-extrabold text-white mt-0.5">R$ {formatCurrency(globalCollectiveTotal)}</span>
               </div>
             </div>
