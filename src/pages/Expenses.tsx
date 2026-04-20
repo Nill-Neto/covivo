@@ -180,6 +180,7 @@ export default function Expenses() {
       return (data ?? []) as ExpenseRow[];
     },
     enabled: !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const { data: monthInstallments = [] } = useQuery({
@@ -202,6 +203,7 @@ export default function Expenses() {
 
     },
     enabled: !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const missingExpenseIds = useMemo(() => {
@@ -248,6 +250,7 @@ export default function Expenses() {
       return data;
     },
     enabled: !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const { data: cards = [] } = useQuery({

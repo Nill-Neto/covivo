@@ -39,7 +39,13 @@ const Admin = lazy(() => import("./pages/Admin"));
 const SidebarDemoPage = lazy(() => import("./pages/SidebarDemoPage"));
 const BackgroundPathsDemoPage = lazy(() => import("./pages/BackgroundPathsDemoPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 const VISIBILITY_HIDDEN_AT_KEY = "navigation_diagnostics_hidden_at";
 const LONG_PAUSE_THRESHOLD_MS = 30_000;
 
