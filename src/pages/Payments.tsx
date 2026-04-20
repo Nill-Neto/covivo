@@ -182,6 +182,7 @@ export default function Payments() {
       }));
     },
     enabled: !!membership?.group_id,
+    staleTime: 30_000,
   });
 
   const { data: pendingSplits } = useQuery({
@@ -196,6 +197,7 @@ export default function Payments() {
       return (data ?? []).filter((s: any) => s.expenses?.group_id === membership!.group_id);
     },
     enabled: !!membership?.group_id && !!user?.id,
+    staleTime: 30_000,
   });
 
   const clearPaymentDraft = () => {

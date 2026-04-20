@@ -68,7 +68,8 @@ export default function Dashboard() {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!membership?.group_id
+    enabled: !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const { data: pendingSplits = [] } = useQuery({
@@ -83,6 +84,7 @@ export default function Dashboard() {
       return (data ?? []).filter((s: any) => s.expenses?.group_id === membership!.group_id);
     },
     enabled: !!membership?.group_id && !!user?.id,
+    staleTime: 30_000,
   });
 
   const { data: myBulkPayments = [] } = useQuery({
@@ -153,6 +155,7 @@ export default function Dashboard() {
       return [...groupItems, ...personalItems];
     },
     enabled: !!user && !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
