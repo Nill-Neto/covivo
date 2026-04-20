@@ -39,9 +39,16 @@ const Admin = lazy(() => import("./pages/Admin"));
 const SidebarDemoPage = lazy(() => import("./pages/SidebarDemoPage"));
 const BackgroundPathsDemoPage = lazy(() => import("./pages/BackgroundPathsDemoPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 const VISIBILITY_HIDDEN_AT_KEY = "navigation_diagnostics_hidden_at";
 const LONG_PAUSE_THRESHOLD_MS = 30_000;
+const PRODUCTION_DIAGNOSTICS_SAMPLE_RATE = 0.15;
 
 type NavigationDiagnosticsEvent = {
   event: "pageshow" | "visibilitychange";
@@ -56,24 +63,30 @@ type NavigationDiagnosticsEvent = {
 };
 
 const emitNavigationDiagnostics = (payload: NavigationDiagnosticsEvent) => {
-  console.info("[navigation-diagnostics]", payload);
-
-  const body = JSON.stringify(payload);
-  const endpoint = "/api/diagnostics/navigation";
-
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon(endpoint, body);
-    return;
+  if (!import.meta.env.PROD) {
+    console.info("[navigation-diagnostics]", payload);
   }
 
-  void fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-    keepalive: true,
-  }).catch(() => {
-    // no-op: logging to console above remains as fallback
-  });
+  try {
+    const body = JSON.stringify(payload);
+    const endpoint = "/api/diagnostics/navigation";
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(endpoint, body);
+      return;
+    }
+
+    void fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // no-op: diagnostics are always fire-and-forget
+    });
+  } catch {
+    // no-op: diagnostics must never impact render flow
+  }
 };
 
 const AppShell = () => {
@@ -89,6 +102,9 @@ const AppShell = () => {
   }, []);
 
   useEffect(() => {
+    const shouldSampleDiagnostics = () =>
+      !import.meta.env.PROD || Math.random() < PRODUCTION_DIAGNOSTICS_SAMPLE_RATE;
+
     const emitBaseData = () => ({
       path: window.location.pathname,
       userAgent: navigator.userAgent,
@@ -99,13 +115,22 @@ const AppShell = () => {
       const hiddenAtRaw = window.sessionStorage.getItem(VISIBILITY_HIDDEN_AT_KEY);
       const hiddenAt = hiddenAtRaw ? Number(hiddenAtRaw) : undefined;
       const pauseMs = hiddenAt ? Date.now() - hiddenAt : undefined;
+      const longPause = typeof pauseMs === "number" && pauseMs > LONG_PAUSE_THRESHOLD_MS;
+
+      if (!event.persisted && !longPause) {
+        return;
+      }
+
+      if (!shouldSampleDiagnostics()) {
+        return;
+      }
 
       emitNavigationDiagnostics({
         event: "pageshow",
         persisted: event.persisted,
         hiddenAt,
         pauseMs,
-        longPause: typeof pauseMs === "number" ? pauseMs > LONG_PAUSE_THRESHOLD_MS : undefined,
+        longPause,
         ...emitBaseData(),
       });
     };
@@ -115,19 +140,32 @@ const AppShell = () => {
 
       if (document.visibilityState === "hidden") {
         window.sessionStorage.setItem(VISIBILITY_HIDDEN_AT_KEY, String(now));
+        return;
+      }
+
+      if (document.visibilityState !== "visible") {
+        return;
       }
 
       const hiddenAtRaw = window.sessionStorage.getItem(VISIBILITY_HIDDEN_AT_KEY);
       const hiddenAt = hiddenAtRaw ? Number(hiddenAtRaw) : undefined;
-      const pauseMs =
-        document.visibilityState === "visible" && hiddenAt ? now - hiddenAt : undefined;
+      const pauseMs = hiddenAt ? now - hiddenAt : undefined;
+      const longPause = typeof pauseMs === "number" && pauseMs > LONG_PAUSE_THRESHOLD_MS;
+
+      if (!longPause) {
+        return;
+      }
+
+      if (!shouldSampleDiagnostics()) {
+        return;
+      }
 
       emitNavigationDiagnostics({
         event: "visibilitychange",
-        visibilityState: document.visibilityState,
+        visibilityState: "visible",
         hiddenAt,
         pauseMs,
-        longPause: typeof pauseMs === "number" ? pauseMs > LONG_PAUSE_THRESHOLD_MS : undefined,
+        longPause,
         ...emitBaseData(),
       });
     };

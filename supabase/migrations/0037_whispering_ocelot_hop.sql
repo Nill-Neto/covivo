@@ -1,0 +1,1 @@
+SELECT title, credit_card_id, installments FROM expenses WHERE title = 'Xita doces';

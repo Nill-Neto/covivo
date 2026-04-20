@@ -75,3 +75,16 @@ Para gerar a versão de produção otimizada:
 npm run build
 ```
 Os artefatos estáticos serão gerados na pasta `/dist`, prontos para serem servidos ou hospedados (Vercel, Netlify, Render, etc).
+## 📆 Regra de competência (filtro mensal)
+
+Para padronizar filtros por competência no domínio financeiro, use **sempre** os campos `competence_year` e `competence_month` quando eles existirem na entidade.
+
+- `expenses`: usar `competence_year` + `competence_month`.
+- `personal_expenses`: usar `competence_year` + `competence_month`.
+- `payments`: usar `competence_year` + `competence_month`.
+- `expense_installments`: usar `competence_year` + `competence_month` para filtro por competência. `bill_year`/`bill_month` permanecem apenas para compatibilidade legada.
+- `personal_expense_installments`: usar `competence_year` + `competence_month` para filtro por competência. `bill_year`/`bill_month` permanecem apenas para compatibilidade legada.
+
+> Compatibilidade de parcelas: os campos `bill_year`/`bill_month` continuam disponíveis, mas são mantidos sincronizados com `competence_year`/`competence_month` no banco.
+
+Detalhamento adicional em `docs/data-rules.md`.

@@ -134,6 +134,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month: number
+          competence_year: number
           created_at: string
           expense_id: string
           id: string
@@ -144,6 +146,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           expense_id: string
           id?: string
@@ -154,6 +158,8 @@ export type Database = {
           amount?: number
           bill_month?: number
           bill_year?: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           expense_id?: string
           id?: string
@@ -225,6 +231,9 @@ export type Database = {
           paid_to_provider: boolean
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           receipt_url: string | null
           recurring_expense_id: string | null
           title: string
@@ -246,6 +255,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title: string
@@ -267,6 +279,9 @@ export type Database = {
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           receipt_url?: string | null
           recurring_expense_id?: string | null
           title?: string
@@ -622,8 +637,12 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at: string | null
           confirmed_by: string | null
+          competence_date: string
           created_at: string
           expense_split_id: string | null
           group_id: string
@@ -635,8 +654,12 @@ export type Database = {
         }
         Insert: {
           amount: number
+          competence_key: string
+          competence_month: number
+          competence_year: number
           confirmed_at?: string | null
           confirmed_by?: string | null
+          competence_date?: string
           created_at?: string
           expense_split_id?: string | null
           group_id: string
@@ -648,8 +671,12 @@ export type Database = {
         }
         Update: {
           amount?: number
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           confirmed_at?: string | null
           confirmed_by?: string | null
+          competence_date?: string
           created_at?: string
           expense_split_id?: string | null
           group_id?: string
@@ -681,6 +708,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month: number
+          competence_year: number
           created_at: string
           id: string
           installment_number: number
@@ -691,6 +720,8 @@ export type Database = {
           amount: number
           bill_month: number
           bill_year: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           id?: string
           installment_number: number
@@ -701,6 +732,8 @@ export type Database = {
           amount?: number
           bill_month?: number
           bill_year?: number
+          competence_month?: number
+          competence_year?: number
           created_at?: string
           id?: string
           installment_number?: number
@@ -726,6 +759,9 @@ export type Database = {
           installments: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -737,6 +773,9 @@ export type Database = {
           installments?: number
           payment_method: string
           purchase_date: string
+          competence_key: string
+          competence_month: number
+          competence_year: number
           title: string
           user_id: string
         }
@@ -748,6 +787,9 @@ export type Database = {
           installments?: number
           payment_method?: string
           purchase_date?: string
+          competence_key?: string
+          competence_month?: number
+          competence_year?: number
           title?: string
           user_id?: string
         }
@@ -1237,6 +1279,16 @@ export type Database = {
           group_id: string
           id: string
           split_percentage: number
+        }[]
+      }
+      get_admin_member_competence_balances: {
+        Args: { _competence_key: string; _group_id: string }
+        Returns: {
+          accrued_debt: number
+          current_cycle_owed: number
+          current_cycle_paid: number
+          previous_debt: number
+          user_id: string
         }[]
       }
       get_member_balances: {

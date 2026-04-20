@@ -1,0 +1,1 @@
+SELECT count(*) FROM expenses WHERE competence_key = '2026-06';

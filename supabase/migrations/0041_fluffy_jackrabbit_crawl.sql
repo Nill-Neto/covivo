@@ -1,0 +1,1 @@
+SELECT competence_key, count(*) FROM expenses GROUP BY competence_key;

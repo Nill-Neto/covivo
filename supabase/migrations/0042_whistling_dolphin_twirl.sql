@@ -1,0 +1,1 @@
+SELECT user_id, group_id, active FROM group_members WHERE user_id = '138a61f3-d89a-44da-befc-32d1d8cf4de2';

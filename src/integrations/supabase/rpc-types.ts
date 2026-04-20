@@ -19,3 +19,4 @@ export interface RemoveGroupMemberRpcResponse {
 
 export type GetMemberBalancesRpcResponse = RpcReturns<"get_member_balances">;
 export type GetGroupMemberPublicProfilesRpcResponse = RpcReturns<"get_group_member_public_profiles">;
+export type GetAdminMemberCompetenceBalancesRpcResponse = RpcReturns<"get_admin_member_competence_balances">;

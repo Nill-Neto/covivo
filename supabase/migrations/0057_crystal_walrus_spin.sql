@@ -1,0 +1,1 @@
+SELECT id, full_name FROM profiles WHERE id IN ('b17f7a34-9ce4-448e-b651-a9e557bad655', '138a61f3-d89a-44da-befc-32d1d8cf4de2');
