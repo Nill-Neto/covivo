@@ -215,6 +215,9 @@ export function CardsTab({
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const formatCurrency = (value: number) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
@@ -366,13 +369,9 @@ export function CardsTab({
               const individualTotal = cardInstallments
                 .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
                 .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
-              const collectiveBaseTotal = cardInstallments
+              const collectiveTotal = cardInstallments
                 .filter((i: any) => i.expenses?.expense_type === "collective")
                 .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
-              const uncategorizedTotal = Math.max(0, billValue - (individualTotal + collectiveBaseTotal));
-              const collectiveTotal = collectiveBaseTotal + uncategorizedTotal;
-              const individualPercentage = billValue > 0 ? (individualTotal / billValue) * 100 : 0;
-              const collectivePercentage = billValue > 0 ? (collectiveTotal / billValue) * 100 : 0;
 
               return (
                 <Card
@@ -421,25 +420,14 @@ export function CardsTab({
                       <p className="text-2xl font-bold text-primary">R$ {formatCurrency(billValue)}</p>
                     </div>
 
-                    <div className="mb-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                      <p className="mb-2 text-xs font-extrabold uppercase tracking-wider text-primary">Gastos da fatura</p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2">
-                          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
-                          <div className="text-right">
-                            <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(individualTotal)}</p>
-                            <p className="text-[10px] font-semibold text-emerald-800/80 dark:text-emerald-200">{individualPercentage.toFixed(1)}% da fatura</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-2">
-                          <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Coletivos</span>
-                          <div className="text-right">
-                            <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(collectiveTotal)}</p>
-                            <p className="text-[10px] font-semibold text-blue-800/80 dark:text-blue-200">{collectivePercentage.toFixed(1)}% da fatura</p>
-                          </div>
-                        </div>
+                    <div className="mb-3 grid grid-cols-2 gap-2 text-[10px] rounded border border-border/50 bg-muted/25 p-2">
+                      <div>
+                        <span className="text-muted-foreground block">Individuais</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(individualTotal)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Coletivos</span>
+                        <span className="font-semibold text-foreground">R$ {formatCurrency(collectiveTotal)}</span>
                       </div>
                     </div>
 
