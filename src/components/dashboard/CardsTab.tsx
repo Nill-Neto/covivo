@@ -201,6 +201,19 @@ export function CardsTab({
   });
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const selectedCardIndividualTotal = selectedCardInstallments
+    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const selectedCardCollectiveBaseTotal = selectedCardInstallments
+    .filter((i: any) => i.expenses?.expense_type === "collective")
+    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const selectedCardUncategorizedTotal = Math.max(0, selectedCardTotal - (selectedCardIndividualTotal + selectedCardCollectiveBaseTotal));
+  const selectedCardCollectiveTotal = selectedCardCollectiveBaseTotal + selectedCardUncategorizedTotal;
+  const selectedCardIndividualPercentage = selectedCardTotal > 0 ? (selectedCardIndividualTotal / selectedCardTotal) * 100 : 0;
+  const selectedCardCollectivePercentage = selectedCardTotal > 0 ? (selectedCardCollectiveTotal / selectedCardTotal) * 100 : 0;
+
+  const formatCurrency = (value: number) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -622,7 +635,29 @@ export function CardsTab({
           <div className="space-y-4">
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Total da Fatura</p>
-              <p className="text-2xl font-bold text-primary">R$ {selectedCardTotal.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-primary">R$ {formatCurrency(selectedCardTotal)}</p>
+            </div>
+
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="mb-2 text-xs font-extrabold uppercase tracking-wider text-primary">Gastos da fatura</p>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2">
+                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
+                  <div className="text-right">
+                    <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(selectedCardIndividualTotal)}</p>
+                    <p className="text-[10px] font-semibold text-emerald-800/80 dark:text-emerald-200">{selectedCardIndividualPercentage.toFixed(1)}% da fatura</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-2">
+                  <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Coletivos</span>
+                  <div className="text-right">
+                    <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(selectedCardCollectiveTotal)}</p>
+                    <p className="text-[10px] font-semibold text-blue-800/80 dark:text-blue-200">{selectedCardCollectivePercentage.toFixed(1)}% da fatura</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
@@ -637,7 +672,7 @@ export function CardsTab({
                       Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
                     </p>
                   </div>
-                  <p className="text-sm font-bold">R$ {Number(item.amount).toFixed(2)}</p>
+                  <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
                 </div>
               ))}
 
