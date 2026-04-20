@@ -221,6 +221,17 @@ export function CardsTab({
     return dateB.localeCompare(dateA);
   });
 
+  const globalIndividualTotal = billInstallments
+    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
+  const globalCollectiveBaseTotal = billInstallments
+    .filter((i: any) => i.expenses?.expense_type === "collective")
+    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    
+  const globalUncategorizedTotal = Math.max(0, totalBill - (globalIndividualTotal + globalCollectiveBaseTotal));
+  const globalCollectiveTotal = globalCollectiveBaseTotal + globalUncategorizedTotal;
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-4 md:grid-cols-3">
@@ -244,14 +255,25 @@ export function CardsTab({
               </div>
             </div>
           </CardHeader>
-          <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
-            <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
-              R$ {formatCurrency(totalBill)}
-            </div>
-            <div className="flex items-center">
-              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 capitalize">
+          <CardContent className="relative z-10 pt-6 pb-6 px-6 flex flex-col gap-4 mt-auto">
+            <div>
+              <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm mb-2">
+                R$ {formatCurrency(totalBill)}
+              </div>
+              <span className="inline-block text-[10px] font-medium bg-black/20 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 capitalize">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-white/20 bg-black/10 px-2 py-1.5 backdrop-blur-md">
+                <span className="block text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Individuais</span>
+                <span className="block text-sm font-extrabold text-white mt-0.5">R$ {formatCurrency(globalIndividualTotal)}</span>
+              </div>
+              <div className="rounded-md border border-white/20 bg-black/10 px-2 py-1.5 backdrop-blur-md">
+                <span className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider">Coletivos</span>
+                <span className="block text-sm font-extrabold text-white mt-0.5">R$ {formatCurrency(globalCollectiveTotal)}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
