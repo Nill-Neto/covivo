@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, RefreshCw, Calendar, Edit, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Calendar, Edit, Trash2, Users, User } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,9 +31,11 @@ import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 
 const CATEGORIES = [
   { value: "rent", label: "Aluguel" },
-  { value: "utilities", label: "Contas" },
+  { value: "utilities", label: "Contas (Luz/Água/Gás)" },
   { value: "internet", label: "Internet/TV" },
   { value: "cleaning", label: "Limpeza" },
+  { value: "maintenance", label: "Manutenção" },
+  { value: "groceries", label: "Mercado" },
   { value: "other", label: "Outros" },
 ];
 
@@ -49,11 +51,18 @@ export default function RecurringExpenses() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("other");
+  const [customCategory, setCustomCategory] = useState("");
   const [frequency, setFrequency] = useState("monthly");
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [description, setDescription] = useState("");
   const [expenseType, setExpenseType] = useState<"collective" | "individual">(isAdmin ? "collective" : "individual");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (category !== "other") {
+      setCustomCategory("");
+    }
+  }, [category]);
 
   const { data: recurring, isLoading } = useQuery({
     queryKey: ["recurring", membership?.group_id],
@@ -74,6 +83,7 @@ export default function RecurringExpenses() {
     setTitle("");
     setAmount("");
     setCategory("other");
+    setCustomCategory("");
     setFrequency("monthly");
     setDayOfMonth("1");
     setDescription("");
@@ -84,7 +94,16 @@ export default function RecurringExpenses() {
     setEditingId(rec.id);
     setTitle(rec.title);
     setAmount(String(rec.amount));
-    setCategory(CATEGORIES.some(c => c.value === rec.category) ? rec.category : "other");
+    
+    const isStandardCat = CATEGORIES.some(c => c.value === rec.category);
+    if (isStandardCat) {
+      setCategory(rec.category);
+      setCustomCategory("");
+    } else {
+      setCategory("other");
+      setCustomCategory(rec.category || "");
+    }
+    
     setFrequency(rec.frequency);
     setDayOfMonth(String(rec.day_of_month || 1));
     setDescription(rec.description || "");
@@ -98,6 +117,8 @@ export default function RecurringExpenses() {
       return;
     }
 
+    const categoryToSend = category === "other" ? customCategory.trim() : category;
+
     setSaving(true);
     try {
       const day = parseInt(dayOfMonth);
@@ -108,7 +129,7 @@ export default function RecurringExpenses() {
         title: title.trim(),
         description: description.trim() || null,
         amount: parseFloat(amount),
-        category,
+        category: categoryToSend,
         frequency,
         day_of_month: day,
         expense_type: expenseType,
@@ -219,30 +240,40 @@ export default function RecurringExpenses() {
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" /> Nova Recorrência</Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="font-serif">{editingId ? "Editar Recorrência" : "Nova Despesa Recorrente"}</DialogTitle>
+            <DialogContent className="max-w-lg p-0 gap-0 flex flex-col overflow-hidden max-h-[90vh]">
+              <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
+                <DialogTitle className="font-serif">
+                  {editingId ? "Editar Recorrência" : "Nova Despesa Recorrente"}
+                </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 pt-2">
-                {/* Expense Type Selector */}
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                  <Label className="text-base font-medium">1. Tipo</Label>
                   <Select value={expenseType} onValueChange={(v) => setExpenseType(v as any)} disabled={!!editingId}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isAdmin && <SelectItem value="collective">Coletiva</SelectItem>}
-                      <SelectItem value="individual">Individual</SelectItem>
+                      {isAdmin && (
+                        <SelectItem value="collective">
+                          <div className="flex items-center gap-2"><Users className="h-4 w-4" /> Coletiva</div>
+                        </SelectItem>
+                      )}
+                      <SelectItem value="individual">
+                        <div className="flex items-center gap-2"><User className="h-4 w-4" /> Individual</div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Título</Label>
                   <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Aluguel" maxLength={200} />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Valor (R$)</Label>
-                    <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
                   </div>
                   <div className="space-y-2">
                     <Label>Categoria</Label>
@@ -254,6 +285,14 @@ export default function RecurringExpenses() {
                     </Select>
                   </div>
                 </div>
+
+                {category === "other" && (
+                  <div className="space-y-2">
+                    <Label>Nome da Categoria</Label>
+                    <Input placeholder="Ex: Farmácia" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Frequência</Label>
@@ -271,12 +310,16 @@ export default function RecurringExpenses() {
                     <Input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
                   </div>
                 </div>
-                <div className="space-y-2">
+                
+                <div className="space-y-2 pt-2 border-t">
                   <Label>Descrição (opcional)</Label>
-                  <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+                  <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes adicionais" />
                 </div>
+
+              </div>
+              <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
                 <Button onClick={handleSave} disabled={saving} className="w-full">
-                  {saving && <CustomLoader className="h-4 w-4 mr-2" />}
+                  {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
                   {editingId ? "Salvar Alterações" : "Criar Recorrência"}
                 </Button>
               </div>
