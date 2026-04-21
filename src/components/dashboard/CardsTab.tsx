@@ -193,9 +193,9 @@ export function CardsTab({
     [currentDate],
   );
 
-  const { data: lastSixMonthsCardsData = [], isLoading: isLoadingLastSixMonthsCardsData } = useQuery({
+  const { data: rawLastSixMonthsData, isLoading: isLoadingLastSixMonthsCardsData } = useQuery({
     queryKey: [
-      "cards-last-six-months",
+      "cards-last-six-months-raw",
       user?.id,
       membership?.group_id,
       currentDate.getMonth(),
@@ -204,7 +204,6 @@ export function CardsTab({
     queryFn: async () => {
       const months = lastSixMonths.map((date) => date.getMonth() + 1);
       const years = Array.from(new Set(lastSixMonths.map((date) => date.getFullYear())));
-      const monthKeys = new Set(lastSixMonths.map((date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`));
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
@@ -227,49 +226,75 @@ export function CardsTab({
       if (groupRes.error) throw groupRes.error;
       if (personalRes.error) throw personalRes.error;
 
-      // Map format: { "2024-01": { "card_id_1": 500, "card_id_2": 300 } }
-      const totalsByMonth = new Map<string, Record<string, number>>();
-      monthKeys.forEach((key) => {
-        totalsByMonth.set(key, {});
-      });
-
-      (groupRes.data as any[] ?? []).forEach((item: any) => {
-        const month = Number(item.bill_month);
-        const year = Number(item.bill_year);
-        const key = `${year}-${String(month).padStart(2, "0")}`;
-        const bucket = totalsByMonth.get(key);
-        const amount = Number(item.amount) || 0;
-        const cardId = item.expenses?.credit_card_id;
-        if (!bucket || !cardId) return;
-
-        bucket[cardId] = (bucket[cardId] || 0) + amount;
-      });
-
-      (personalRes.data as any[] ?? []).forEach((item: any) => {
-        const month = Number(item.bill_month);
-        const year = Number(item.bill_year);
-        const key = `${year}-${String(month).padStart(2, "0")}`;
-        const bucket = totalsByMonth.get(key);
-        const amount = Number(item.amount) || 0;
-        const cardId = item.personal_expenses?.credit_card_id;
-        if (!bucket || !cardId) return;
-
-        bucket[cardId] = (bucket[cardId] || 0) + amount;
-      });
-
-      return lastSixMonths.map((date) => {
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        const monthValues = totalsByMonth.get(key) ?? {};
-
-        return {
-          monthLabel: format(date, "MMM/yy", { locale: ptBR }),
-          ...monthValues,
-        };
-      });
+      return {
+        groupInstallments: groupRes.data || [],
+        personalInstallments: personalRes.data || [],
+      };
     },
     enabled: !!user?.id && !!membership?.group_id,
     staleTime: 60_000,
   });
+
+  const lastSixMonthsCardsData = useMemo(() => {
+    if (!rawLastSixMonthsData) return [];
+
+    const monthKeys = new Set(lastSixMonths.map((date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`));
+    const totalsByMonth = new Map<string, Record<string, number>>();
+    const cardIdToKey = new Map(creditCards.map((c, i) => [c.id, `card_${i}`]));
+    
+    // Inicializa o bucket garantindo que todo cartão exista para a linha não quebrar no Recharts
+    monthKeys.forEach((key) => {
+      const initialCardsState: Record<string, number> = {};
+      creditCards.forEach((c, i) => {
+        initialCardsState[`card_${i}`] = 0;
+      });
+      totalsByMonth.set(key, initialCardsState);
+    });
+
+    rawLastSixMonthsData.groupInstallments.forEach((item: any) => {
+      const month = Number(item.bill_month);
+      const year = Number(item.bill_year);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const bucket = totalsByMonth.get(key);
+      const amount = Number(item.amount) || 0;
+      const cardId = item.expenses?.credit_card_id;
+      const dataKey = cardId ? cardIdToKey.get(cardId) : undefined;
+      
+      if (bucket && dataKey && bucket[dataKey] !== undefined) {
+        bucket[dataKey] += amount;
+      }
+    });
+
+    rawLastSixMonthsData.personalInstallments.forEach((item: any) => {
+      const month = Number(item.bill_month);
+      const year = Number(item.bill_year);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const bucket = totalsByMonth.get(key);
+      const amount = Number(item.amount) || 0;
+      const cardId = item.personal_expenses?.credit_card_id;
+      const dataKey = cardId ? cardIdToKey.get(cardId) : undefined;
+      
+      if (bucket && dataKey && bucket[dataKey] !== undefined) {
+        bucket[dataKey] += amount;
+      }
+    });
+
+    return lastSixMonths.map((date) => {
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const monthValues = totalsByMonth.get(key) ?? {};
+
+      // Arredonda valores para evitar erros de ponto flutuante no gráfico
+      const roundedValues: Record<string, number> = {};
+      for (const [k, v] of Object.entries(monthValues)) {
+        roundedValues[k] = Number(v.toFixed(2));
+      }
+
+      return {
+        monthLabel: format(date, "MMM/yy", { locale: ptBR }),
+        ...roundedValues,
+      };
+    });
+  }, [rawLastSixMonthsData, lastSixMonths, creditCards]);
 
   const donutData = cardsChartData.map((entry, index) => ({
     label: entry.name,
@@ -631,7 +656,7 @@ export function CardsTab({
         </CardContent>
       </Card>
 
-      {/* Gráfico de Evolução dos Cartões - Movido para o final */}
+      {/* Gráfico de Evolução dos Cartões */}
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-medium">Evolução de Gastos por Cartão (Últimos 6 meses)</CardTitle>
@@ -680,7 +705,7 @@ export function CardsTab({
                     <Line
                       key={card.id}
                       type="monotone"
-                      dataKey={card.id}
+                      dataKey={`card_${index}`}
                       name={card.label}
                       stroke={CHART_COLORS[index % CHART_COLORS.length]}
                       strokeWidth={2}
