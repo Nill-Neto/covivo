@@ -703,87 +703,6 @@ export function PersonalTab({
         </Card>
       </div>
 
-      <Card className="shadow-sm bg-card sm:col-span-2 lg:col-span-3">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Evolução de Gastos (Últimos 6 meses)
-          </CardTitle>
-          <CardDescription>
-            Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[340px] w-full pt-4">
-          {isLoading ? (
-            <div className="h-full flex items-center justify-center">
-              <CustomLoader className="h-6 w-6 text-primary" />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="label" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  dy={10} 
-                />
-                <YAxis 
-                  width={75}
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  tickFormatter={(val) => `R$ ${val}`} 
-                />
-                <RechartsTooltip
-                  cursor={{ stroke: "hsl(var(--muted))", strokeWidth: 2, strokeDasharray: "3 3" }}
-                  contentStyle={{ 
-                    borderRadius: "8px", 
-                    border: "1px solid hsl(var(--border))", 
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", 
-                    fontSize: "12px", 
-                    backgroundColor: "hsl(var(--background))", 
-                    color: "hsl(var(--foreground))" 
-                  }}
-                  formatter={(val: number) => `R$ ${val.toFixed(2)}`}
-                />
-                <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "20px" }} />
-                
-                <Line 
-                  type="monotone"
-                  dataKey="Coletivo" 
-                  name="Total Casa (Referência)" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line 
-                  type="monotone"
-                  dataKey="MeuRateio" 
-                  name="Meu Rateio" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line 
-                  type="monotone"
-                  dataKey="Individual" 
-                  name="Meus Gastos (Individuais)" 
-                  stroke="#0ea5e9"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
       {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Individual */}
@@ -1061,6 +980,88 @@ export function PersonalTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* --- EVOLUÇÃO DE GASTOS --- */}
+      <Card className="shadow-sm bg-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Evolução de Gastos (Últimos 6 meses)
+          </CardTitle>
+          <CardDescription>
+            Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[340px] w-full pt-4">
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <CustomLoader className="h-6 w-6 text-primary" />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  width={75}
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(val) => `R$ ${val}`} 
+                />
+                <RechartsTooltip
+                  cursor={{ stroke: "hsl(var(--muted))", strokeWidth: 2, strokeDasharray: "3 3" }}
+                  contentStyle={{ 
+                    borderRadius: "8px", 
+                    border: "1px solid hsl(var(--border))", 
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", 
+                    fontSize: "12px", 
+                    backgroundColor: "hsl(var(--background))", 
+                    color: "hsl(var(--foreground))" 
+                  }}
+                  formatter={(val: number) => `R$ ${val.toFixed(2)}`}
+                />
+                <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "20px" }} />
+                
+                <Line 
+                  type="monotone"
+                  dataKey="Coletivo" 
+                  name="Total Casa (Referência)" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="MeuRateio" 
+                  name="Meu Rateio" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="Individual" 
+                  name="Meus Gastos (Individuais)" 
+                  stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
     </div>
   );
