@@ -28,6 +28,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
 } from "recharts";
 import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -82,6 +83,16 @@ const brandOptions = [
   { value: "hipercard", label: "Hipercard" },
   { value: "american_express", label: "American Express" },
   { value: "outros", label: "Outros" },
+];
+
+const CARD_COLORS = [
+  "#2563eb", // blue-600
+  "#16a34a", // green-600
+  "#ea580c", // orange-600
+  "#8b5cf6", // violet-500
+  "#e11d48", // rose-600
+  "#0891b2", // cyan-600
+  "#d946ef", // fuchsia-500
 ];
 
 export function CardsTab({
@@ -673,11 +684,11 @@ export function CardsTab({
               Cadastre cartões para visualizar o gráfico.
             </div>
           ) : (
-            <div className="h-[290px] w-full">
+            <div className="h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={lastSixMonthsCardsData}
-                  margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 24 }}
                 >
                   <CartesianGrid strokeDasharray="4 4" className="stroke-muted" vertical={false} />
                   <XAxis
@@ -701,16 +712,20 @@ export function CardsTab({
                       backgroundColor: "hsl(var(--background))",
                     }}
                   />
+                  <Legend 
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} 
+                    iconType="circle"
+                  />
                   {creditCards.map((card, index) => (
                     <Line
                       key={card.id}
                       type="monotone"
                       dataKey={`card_${index}`}
                       name={card.label}
-                      stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      stroke={CARD_COLORS[index % CARD_COLORS.length]}
+                      strokeWidth={3}
+                      dot={{ r: 4, strokeWidth: 2 }}
+                      activeDot={{ r: 6 }}
                     />
                   ))}
                 </LineChart>
