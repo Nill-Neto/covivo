@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, DollarSign, Users, Wallet, CheckCircle2, List, Receipt, ArrowRight } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertCircle, DollarSign, Users, Wallet, CheckCircle2, List, Receipt, ArrowRight, BarChart3 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { parseLocalDate, cn } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
@@ -18,6 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+import { CustomLoader } from "@/components/ui/custom-loader";
 
 interface PersonalTabProps {
   totalIndividualPending: number;
@@ -36,6 +41,8 @@ interface PersonalTabProps {
   collectiveExpenses: any[];
   totalMonthExpenses: number;
   republicChartData: any[];
+  closingDay: number;
+  currentDate: Date;
   onPayRateio: (scope: "previous" | "current") => void;
 }
 
@@ -56,14 +63,19 @@ export function PersonalTab({
   collectiveExpenses,
   totalMonthExpenses,
   republicChartData,
+  closingDay,
+  currentDate,
   onPayRateio,
 }: PersonalTabProps) {
+  const { activeGroupId, user } = useAuth();
+  
   const totalSpentCompetence = totalUserExpensesCompetence + totalPersonalCash;
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPreviousCollectiveOpen, setIsPreviousCollectiveOpen] = useState(false);
   const [isCurrentCollectiveOpen, setIsCurrentCollectiveOpen] = useState(false);
   const [isCashDetailOpen, setIsCashDetailOpen] = useState(false);
+  const [isTotalDetailOpen, setIsTotalDetailOpen] = useState(false);
 
   const [hoveredPersonalLabel, setHoveredPersonalLabel] = useState<string | null>(null);
   const [hoveredCollectiveLabel, setHoveredCollectiveLabel] = useState<string | null>(null);
@@ -92,6 +104,118 @@ export function PersonalTab({
   const displayCollectiveValue = activeCollective ? activeCollective.value : totalMonthExpenses;
   const displayCollectiveLabel = activeCollective ? activeCollective.label : "Total Casa";
   const displayCollectivePercentage = activeCollective && totalMonthExpenses > 0 ? (activeCollective.value / totalMonthExpenses) * 100 : 100;
+
+  const chartDataTemplate = useMemo(() => {
+    const comps = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(currentDate, i);
+      const key = formatCompetenceKey(d);
+      comps.push({
+        key,
+        label: format(d, "MMM/yy", { locale: ptBR }),
+        Coletivo: 0,
+        MeuRateio: 0,
+        Individual: 0,
+      });
+    }
+    return comps;
+  }, [currentDate]);
+
+  const { data: rawData, isLoading } = useQuery({
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, formatCompetenceKey(currentDate)],
+    queryFn: async () => {
+      if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
+      
+      const compKeys = chartDataTemplate.map(c => c.key);
+      const competenceWindowFilter = chartDataTemplate
+        .map(c => {
+          const [y, m] = c.key.split("-").map(Number);
+          return `and(bill_year.eq.${y},bill_month.eq.${m})`;
+        })
+        .join(",");
+
+      const [expensesRes, installmentsRes, personalInstallmentsRes] = await Promise.all([
+        supabase
+          .from("expenses")
+          .select("id, amount, expense_type, created_by, purchase_date, payment_method, competence_key, expense_splits(user_id, amount)")
+          .eq("group_id", activeGroupId)
+          .in("competence_key", compKeys),
+          
+        supabase
+          .from("expense_installments")
+          .select("amount, bill_month, bill_year, expenses!inner(group_id, expense_type)")
+          .eq("user_id", user.id)
+          .eq("expenses.group_id", activeGroupId)
+          .eq("expenses.expense_type", "individual")
+          .or(competenceWindowFilter),
+          
+        supabase
+          .from("personal_expense_installments")
+          .select("amount, bill_month, bill_year")
+          .eq("user_id", user.id)
+          .or(competenceWindowFilter)
+      ]);
+
+      if (expensesRes.error) throw expensesRes.error;
+      if (installmentsRes.error) throw installmentsRes.error;
+      if (personalInstallmentsRes.error) throw personalInstallmentsRes.error;
+      
+      return { 
+        expenses: expensesRes.data || [], 
+        installments: installmentsRes.data || [], 
+        personalInstallments: personalInstallmentsRes.data || [] 
+      };
+    },
+    enabled: !!activeGroupId && !!user?.id,
+  });
+
+  const populatedData = useMemo(() => {
+    const dataCopy = chartDataTemplate.map((c) => ({ ...c, Coletivo: 0, MeuRateio: 0, Individual: 0 }));
+    if (!rawData) return dataCopy;
+
+    rawData.expenses.forEach((e) => {
+      const key = e.competence_key || (e.purchase_date ? getCompetenceKeyFromDate(new Date(`${e.purchase_date}T12:00:00`), closingDay || 1) : null);
+      if (!key) return;
+      const bucket = dataCopy.find((c) => c.key === key);
+      
+      if (bucket) {
+        if (e.expense_type === "collective") {
+          bucket.Coletivo += Number(e.amount || 0);
+          const mySplit = e.expense_splits?.find((s: { user_id: string; amount: number | string | null }) => s.user_id === user?.id);
+          if (mySplit) {
+            bucket.MeuRateio += Number(mySplit.amount || 0);
+          }
+        }
+        if (e.expense_type === "individual" && e.created_by === user?.id && e.payment_method !== "credit_card") {
+          bucket.Individual += Number(e.amount || 0);
+        }
+      }
+    });
+
+    rawData.installments.forEach((i) => {
+      const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
+      const bucket = dataCopy.find((c) => c.key === key);
+      if (bucket) {
+        bucket.Individual += Number(i.amount || 0);
+      }
+    });
+
+    rawData.personalInstallments.forEach((i) => {
+      const key = `${i.bill_year}-${String(i.bill_month).padStart(2, "0")}`;
+      const bucket = dataCopy.find((c) => c.key === key);
+      if (bucket) {
+        bucket.Individual += Number(i.amount || 0);
+      }
+    });
+
+    return dataCopy.map(b => ({
+      ...b,
+      Coletivo: Number(b.Coletivo.toFixed(2)),
+      MeuRateio: Number(b.MeuRateio.toFixed(2)),
+      Individual: Number(b.Individual.toFixed(2)),
+    }));
+  }, [rawData, chartDataTemplate, user?.id, closingDay]);
+
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -122,13 +246,75 @@ export function PersonalTab({
             <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
               R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="flex items-center">
+            <div className="flex flex-col items-start gap-2">
               <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
                 Saldo atual consolidado (inclui pendências anteriores)
               </span>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-xs text-white/90 hover:text-white" 
+                onClick={() => setIsTotalDetailOpen(true)}
+              >
+                Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Detalhes do Total Comprometido */}
+        <Dialog open={isTotalDetailOpen} onOpenChange={setIsTotalDetailOpen}>
+          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+            <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+              <DialogTitle className="text-lg font-semibold text-foreground">
+                Detalhamento do Saldo
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">Composição do total comprometido</p>
+            </DialogHeader>
+
+            <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Total consolidado</span>
+              <span className="text-lg font-bold text-primary tabular-nums">
+                R$ {totalUserExpensesCurrentBalance.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="border-t">
+              <div className="overflow-y-auto max-h-[50vh]">
+                <div className="divide-y">
+                  <div className="px-5 py-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Sua parte nas despesas da casa</span>
+                      <span className="text-sm font-semibold tabular-nums text-foreground">
+                        R$ {myCollectiveShare.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Sua cota no rateio da competência atual (em aberto ou paga).</p>
+                  </div>
+
+                  <div className="px-5 py-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Pendências individuais</span>
+                      <span className="text-sm font-semibold tabular-nums text-foreground">
+                        R$ {totalIndividualPending.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Valores a pagar de uso próprio (ex: cartões da competência atual).</p>
+                  </div>
+
+                  <div className="px-5 py-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Rateios de meses anteriores</span>
+                      <span className={`text-sm font-semibold tabular-nums ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                        R$ {totalCollectivePendingPrevious.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Dívida acumulada da casa em ciclos passados.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Rateio pendente (competências anteriores) */}
         <Card className={`border-l-4 ${totalCollectivePendingPrevious > 0.01 ? "border-l-destructive" : "border-l-success"} bg-card shadow-sm`}>
@@ -520,14 +706,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Individual */}
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Individual</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
             {personalDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-full shrink-0 mx-auto">
+                <div className="relative h-[200px] w-[200px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -570,7 +756,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
+                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
                   {personalDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -606,7 +792,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Individual */}
-        <Card className="md:col-span-8 lg:col-span-8">
+        <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Individuais
@@ -616,7 +802,7 @@ export function PersonalTab({
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[380px] pr-2 px-2">
+            <ScrollArea className="h-[250px] pr-2 px-2">
               <div className="space-y-1">
                 {myPersonalExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa individual registrada.</p>
@@ -659,14 +845,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS COLETIVAS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Coletivo */}
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Coletiva</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
             {collectiveDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-full shrink-0 mx-auto">
+                <div className="relative h-[200px] w-[200px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -709,7 +895,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
+                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
                   {collectiveDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -745,7 +931,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Coletivo */}
-        <Card className="md:col-span-8 lg:col-span-8">
+        <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Coletivas
@@ -755,7 +941,7 @@ export function PersonalTab({
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[380px] pr-2 px-2">
+            <ScrollArea className="h-[250px] pr-2 px-2">
               <div className="space-y-1">
                 {collectiveExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa coletiva registrada.</p>
@@ -794,6 +980,88 @@ export function PersonalTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* --- EVOLUÇÃO DE GASTOS --- */}
+      <Card className="shadow-sm bg-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Evolução de Gastos (Últimos 6 meses)
+          </CardTitle>
+          <CardDescription>
+            Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[340px] w-full pt-4">
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <CustomLoader className="h-6 w-6 text-primary" />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  width={75}
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(val) => `R$ ${val}`} 
+                />
+                <RechartsTooltip
+                  cursor={{ stroke: "hsl(var(--muted))", strokeWidth: 2, strokeDasharray: "3 3" }}
+                  contentStyle={{ 
+                    borderRadius: "8px", 
+                    border: "1px solid hsl(var(--border))", 
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", 
+                    fontSize: "12px", 
+                    backgroundColor: "hsl(var(--background))", 
+                    color: "hsl(var(--foreground))" 
+                  }}
+                  formatter={(val: number) => `R$ ${val.toFixed(2)}`}
+                />
+                <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "20px" }} />
+                
+                <Line 
+                  type="monotone"
+                  dataKey="Coletivo" 
+                  name="Total Casa (Referência)" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="MeuRateio" 
+                  name="Meu Rateio" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="Individual" 
+                  name="Meus Gastos (Individuais)" 
+                  stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
     </div>
   );

@@ -257,12 +257,12 @@ export function CardsTab({
               </div>
             </div>
           </CardHeader>
-          <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
-            <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
-              R$ {formatCurrency(totalBill)}
-            </div>
-            <div className="flex items-center">
-              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 capitalize">
+          <CardContent className="relative z-10 pt-6 pb-6 px-6 flex flex-col gap-4 mt-auto">
+            <div>
+              <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm mb-2">
+                R$ {formatCurrency(totalBill)}
+              </div>
+              <span className="inline-block text-[10px] font-medium bg-black/20 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 capitalize">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </span>
             </div>
@@ -333,7 +333,7 @@ export function CardsTab({
                   </div>
                 </div>
                 
-                <div className="flex flex-col space-y-2 w-full max-w-full md:max-w-[280px] overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
+                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
                   {donutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -371,9 +371,14 @@ export function CardsTab({
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
-          <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
+            <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
+          </h3>
+          <Button size="sm" onClick={() => setAddCardOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Adicionar
+          </Button>
+        </div>
         
         {isLoading ? (
           <Card className="border-dashed bg-muted/20">
@@ -452,14 +457,14 @@ export function CardsTab({
                       <p className="text-2xl font-bold text-primary">R$ {formatCurrency(billValue)}</p>
                     </div>
 
-                    <div className="mb-3 grid grid-cols-2 gap-2 text-[10px] rounded border border-border/50 bg-muted/25 p-2">
-                      <div>
-                        <span className="text-muted-foreground block">Individuais</span>
-                        <span className="font-semibold text-foreground">R$ {formatCurrency(individualTotal)}</span>
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5">
+                        <span className="block text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
+                        <span className="block text-xs font-extrabold text-foreground mt-0.5">R$ {formatCurrency(individualTotal)}</span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block">Coletivos</span>
-                        <span className="font-semibold text-foreground">R$ {formatCurrency(collectiveTotal)}</span>
+                      <div className="rounded-md border border-blue-500/40 bg-blue-500/15 px-2 py-1.5">
+                        <span className="block text-[10px] font-bold text-blue-800 dark:text-blue-300">Coletivos</span>
+                        <span className="block text-xs font-extrabold text-foreground mt-0.5">R$ {formatCurrency(collectiveTotal)}</span>
                       </div>
                     </div>
 
@@ -477,18 +482,6 @@ export function CardsTab({
                 </Card>
               );
             })}
-            
-            {/* Add Card Button */}
-            <button
-              type="button"
-              onClick={() => setAddCardOpen(true)}
-              className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5"
-            >
-              <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
-                <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Adicionar Cartão</span>
-            </button>
           </div>
         )}
       </div>
@@ -500,7 +493,7 @@ export function CardsTab({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[250px]">
             <div className="divide-y">
               {sortedInstallments.map((i: any, idx: number) => {
                 const totalInstallments = i.expenses?.installments ?? 1;
@@ -516,7 +509,7 @@ export function CardsTab({
                           {getCategoryLabel(i.expenses?.category || "other")}
                         </span>
                         {cardLabel && (
-                          <span className="text-[10px] text-primary/70 bg-primary/10 inline-block w-fit px-1.5 rounded-sm">
+                          <span className="text-[10px] text-primary-foreground bg-primary inline-block w-fit px-1.5 rounded-sm font-medium">
                             {cardLabel}
                           </span>
                         )}
@@ -656,15 +649,15 @@ export function CardsTab({
       </Dialog>
 
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
             <DialogTitle>Fatura - {selectedCard?.label}</DialogTitle>
             <DialogDescription>
               Competência {format(currentDate, "MMMM/yyyy")}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Total da Fatura</p>
               <p className="text-2xl font-bold text-primary">R$ {formatCurrency(selectedCardTotal)}</p>
@@ -692,21 +685,24 @@ export function CardsTab({
               </div>
             </div>
 
-            <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
-              {sortedSelectedCardInstallments.map((item: any, index: number) => (
-                <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
-                  <div className="min-w-0 pr-3">
-                    <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.expenses?.category} • Parcela {item.installment_number}
-                    </p>
-                    <p className="text-xs text-muted-foreground/80">
-                      Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
-                    </p>
+            <div className="border rounded-lg divide-y bg-card">
+              {sortedSelectedCardInstallments.map((item: any, index: number) => {
+                const isAVista = (item.expenses?.installments || 1) <= 1;
+                return (
+                  <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
+                    <div className="min-w-0 pr-3">
+                      <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {getCategoryLabel(item.expenses?.category)} • {isAVista ? "À vista" : `Parcela ${item.installment_number}/${item.expenses?.installments}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground/80">
+                        Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
                   </div>
-                  <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
-                </div>
-              ))}
+                );
+              })}
 
               {sortedSelectedCardInstallments.length === 0 && (
                 <div className="p-6 text-center text-sm text-muted-foreground">

@@ -506,11 +506,13 @@ export default function Dashboard() {
         )}
 
         <TabsContent value="home" className="space-y-6">
-          <HomeTab closingDay={closingDay} currentDate={currentDate} />
+          <HomeTab />
         </TabsContent>
 
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
+            closingDay={closingDay}
+            currentDate={currentDate}
             totalIndividualPending={totalIndividualPending}
             totalCollectivePendingPrevious={totalCollectivePendingPrevious}
             totalCollectivePendingCurrent={totalCollectivePendingCurrent}

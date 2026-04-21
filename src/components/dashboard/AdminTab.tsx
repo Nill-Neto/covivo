@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel, CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
 import { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,18 +37,6 @@ interface AdminTabProps {
   memberPaymentsByCompetence?: Record<string, Record<string, number>>;
   closingDay: number;
 }
-
-// Cores coerentes com as variáveis do sistema (Primary, Warning, Destructive + cores complementares neutras)
-const SYSTEM_COHERENT_COLORS = [
-  "hsl(var(--primary))",         // Teal (Primary)
-  "hsl(215, 90%, 50%)",          // Blue
-  "hsl(var(--warning))",         // Amber (Warning)
-  "hsl(270, 70%, 55%)",          // Violet
-  "hsl(var(--destructive))",     // Red (Destructive)
-  "hsl(190, 85%, 40%)",          // Cyan
-  "hsl(25, 90%, 55%)",           // Orange
-  "hsl(220, 20%, 50%)"           // Slate
-];
 
 export function AdminTab({
   members,
@@ -215,11 +203,10 @@ export function AdminTab({
       .sort((a, b) => b.value - a.value);
   }, [collectiveExpenses]);
 
-  // APLICAÇÃO DA PALETA COERENTE APENAS NESTE GRÁFICO
   const donutData = categoryBreakdown.map((entry, index) => ({
     label: entry.name,
     value: entry.value,
-    color: SYSTEM_COHERENT_COLORS[index % SYSTEM_COHERENT_COLORS.length],
+    color: CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length],
   }));
 
   const activeSegment = donutData.find(d => d.label === hoveredSegmentLabel);
@@ -395,16 +382,16 @@ export function AdminTab({
       {/* Main Content Grid */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Distribuição por Categoria */}
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <BarChart3 className="h-4 w-4" /> Distribuição por Categoria
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
             {donutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-full shrink-0 mx-auto">
+                <div className="relative h-[200px] w-[200px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -448,7 +435,7 @@ export function AdminTab({
                   </div>
                 </div>
                 
-                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
+                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
                   {donutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -484,7 +471,7 @@ export function AdminTab({
         </Card>
 
         {/* Últimas Despesas Coletivas */}
-        <Card className="md:col-span-8 lg:col-span-8">
+        <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas
@@ -494,7 +481,7 @@ export function AdminTab({
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[380px] pr-2 px-2">
+            <ScrollArea className="h-[250px] pr-2 px-2">
               <div className="space-y-1">
                 {recentExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa registrada.</p>
