@@ -331,6 +331,7 @@ export function CardsTab({
     ? billInstallments.filter((i: any) => i.expenses?.credit_card_id === selectedCard.id)
     : [];
 
+  // Invertido para decrescente (do mais recente para o mais antigo)
   const sortedSelectedCardInstallments = [...selectedCardInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
@@ -338,9 +339,9 @@ export function CardsTab({
     if (dateA === dateB) {
       const createdA = a.expenses?.created_at || "";
       const createdB = b.expenses?.created_at || "";
-      return createdA.localeCompare(createdB);
+      return createdB.localeCompare(createdA);
     }
-    return dateA.localeCompare(dateB);
+    return dateB.localeCompare(dateA);
   });
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
@@ -358,6 +359,7 @@ export function CardsTab({
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Invertido para decrescente (do mais recente para o mais antigo)
   const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
@@ -365,9 +367,9 @@ export function CardsTab({
     if (dateA === dateB) {
       const createdA = a.expenses?.created_at || "";
       const createdB = b.expenses?.created_at || "";
-      return createdA.localeCompare(createdB);
+      return createdB.localeCompare(createdA);
     }
-    return dateA.localeCompare(dateB);
+    return dateB.localeCompare(dateA);
   });
 
   const globalIndividualTotal = billInstallments
