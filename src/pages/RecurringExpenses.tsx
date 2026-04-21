@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -39,6 +40,13 @@ const CATEGORIES = [
   { value: "other", label: "Outros" },
 ];
 
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Dinheiro" },
+  { value: "pix", label: "Pix" },
+  { value: "debit", label: "Débito" },
+  { value: "credit_card", label: "Cartão de Crédito" },
+];
+
 export default function RecurringExpenses() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
@@ -58,11 +66,68 @@ export default function RecurringExpenses() {
   const [expenseType, setExpenseType] = useState<"collective" | "individual">(isAdmin ? "collective" : "individual");
   const [saving, setSaving] = useState(false);
 
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [creditCardId, setCreditCardId] = useState<string>("none");
+  const [payerUserId, setPayerUserId] = useState<string>("me");
+  const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+
   useEffect(() => {
     if (category !== "other") {
       setCustomCategory("");
     }
   }, [category]);
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["credit-cards", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("credit_cards").select("*").eq("user_id", user!.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: activeMembers = [] } = useQuery({
+    queryKey: ["expense-active-members", membership?.group_id],
+    queryFn: async () => {
+      const [{ data: members }, { data: profiles }] = await Promise.all([
+        supabase
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", membership!.group_id)
+          .eq("active", true),
+        supabase.rpc("get_group_member_public_profiles", {
+          _group_id: membership!.group_id,
+        }),
+      ]);
+
+      const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+      return (members ?? []).map((member) => {
+        const profile = profileMap.get(member.user_id);
+        const label = profile?.full_name || "Morador";
+        return {
+          user_id: member.user_id,
+          label,
+        };
+      });
+    },
+    enabled: !!membership?.group_id,
+  });
+
+  const activeMemberIds = useMemo(() => activeMembers.map((member) => member.user_id), [activeMembers]);
+  
+  const participantOptions = useMemo(() => {
+    return activeMembers.map((member) => ({
+      id: member.user_id,
+      name: member.label,
+    }));
+  }, [activeMembers]);
+
+  useEffect(() => {
+    if (!editingId && splitMode === "all") {
+      setSelectedParticipantIds(activeMemberIds);
+    }
+  }, [activeMemberIds, editingId, splitMode]);
 
   const { data: recurring, isLoading } = useQuery({
     queryKey: ["recurring", membership?.group_id],
@@ -88,6 +153,11 @@ export default function RecurringExpenses() {
     setDayOfMonth("1");
     setDescription("");
     setExpenseType(isAdmin ? "collective" : "individual");
+    setPaymentMethod("cash");
+    setCreditCardId("none");
+    setPayerUserId("me");
+    setSplitMode("all");
+    setSelectedParticipantIds(activeMemberIds);
   };
 
   const handleOpenEdit = (rec: any) => {
@@ -108,7 +178,25 @@ export default function RecurringExpenses() {
     setDayOfMonth(String(rec.day_of_month || 1));
     setDescription(rec.description || "");
     setExpenseType(rec.expense_type || "collective");
+    
+    setPaymentMethod(rec.payment_method || "cash");
+    setCreditCardId(rec.credit_card_id || "none");
+    
+    if (rec.participant_user_ids && rec.participant_user_ids.length > 0) {
+      setSplitMode("manual");
+      setSelectedParticipantIds(rec.participant_user_ids);
+    } else {
+      setSplitMode("all");
+      setSelectedParticipantIds(activeMemberIds);
+    }
+    
     setOpen(true);
+  };
+
+  const toggleParticipant = (participantId: string) => {
+    setSelectedParticipantIds((prev) =>
+      prev.includes(participantId) ? prev.filter((id) => id !== participantId) : [...prev, participantId],
+    );
   };
 
   const handleSave = async () => {
@@ -117,7 +205,21 @@ export default function RecurringExpenses() {
       return;
     }
 
+    if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId)) {
+      toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
+      return;
+    }
+
+    if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
+      toast({ title: "Erro", description: "Selecione pelo menos um participante.", variant: "destructive" });
+      return;
+    }
+
     const categoryToSend = category === "other" ? customCategory.trim() : category;
+    const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
+    const effectiveParticipantIds = expenseType === "individual" 
+      ? (user?.id ? [user.id] : []) 
+      : (splitMode === "all" ? activeMemberIds : selectedParticipantIds);
 
     setSaving(true);
     try {
@@ -133,6 +235,9 @@ export default function RecurringExpenses() {
         frequency,
         day_of_month: day,
         expense_type: expenseType,
+        payment_method: paymentMethod,
+        credit_card_id: finalCreditCardId,
+        participant_user_ids: expenseType === "collective" && splitMode === "manual" ? effectiveParticipantIds : null,
       } as any;
 
       if (editingId) {
@@ -197,8 +302,13 @@ export default function RecurringExpenses() {
         _expense_type: rec.expense_type || "collective",
         _due_date: rec.next_due_date,
         _recurring_expense_id: rec.id,
-        _participant_user_ids: null as any, // Resolve ambiguity with overloaded RPC function
-      });
+        _payment_method: rec.payment_method || "cash",
+        _credit_card_id: rec.credit_card_id,
+        _installments: 1,
+        _purchase_date: rec.next_due_date,
+        _target_user_id: rec.expense_type === "individual" ? rec.created_by : null,
+        _participant_user_ids: rec.participant_user_ids,
+      } as any);
       if (error) throw error;
 
       // Advance next_due_date
@@ -263,6 +373,79 @@ export default function RecurringExpenses() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                  <Label className="text-base font-medium">2. Pagamento e Participantes</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Forma de pagamento</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {paymentMethod === "credit_card" ? (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Cartão</Label>
+                        <Select value={creditCardId} onValueChange={setCreditCardId}>
+                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                            {cards.map((c: any) => (
+                              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Quem paga?</Label>
+                        <Select value={payerUserId} onValueChange={setPayerUserId}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="me">Você</SelectItem>
+                            {participantOptions.map((participant) => (
+                              <SelectItem key={participant.id} value={participant.id}>
+                                {participant.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {expenseType === "collective" && (
+                    <div className="space-y-3 pt-3 border-t">
+                      <Label className="text-xs text-muted-foreground">Participantes do rateio</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" variant={splitMode === "all" ? "default" : "outline"} onClick={() => setSplitMode("all")} size="sm">
+                          Todos
+                        </Button>
+                        <Button type="button" variant={splitMode === "manual" ? "default" : "outline"} onClick={() => setSplitMode("manual")} size="sm">
+                          Seleção manual
+                        </Button>
+                      </div>
+                      {splitMode === "manual" && (
+                        <div className="space-y-2 border rounded-md p-2 max-h-32 overflow-y-auto">
+                          {participantOptions.map((participant) => (
+                            <label key={participant.id} className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={selectedParticipantIds.includes(participant.id)}
+                                onCheckedChange={() => toggleParticipant(participant.id)}
+                              />
+                              <span>{participant.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
