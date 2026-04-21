@@ -36,7 +36,7 @@ interface PersonalTabProps {
   collectiveExpenses: any[];
   totalMonthExpenses: number;
   republicChartData: any[];
-  onPayRateio: (scope: "previous" | "current") => void;
+  onPayRateio: (scope: "previous" | "current" | "all") => void;
 }
 
 export function PersonalTab({
@@ -122,10 +122,19 @@ export function PersonalTab({
             <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
               R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="flex items-center">
-              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 w-fit">
                 Saldo atual consolidado (inclui pendências anteriores)
               </span>
+              {(totalCollectivePendingPrevious + totalCollectivePendingCurrent) > 0.01 && (
+                <Button
+                  size="sm"
+                  className="bg-white text-primary hover:bg-white/90 font-semibold shadow-md whitespace-nowrap border-0"
+                  onClick={() => onPayRateio("all")}
+                >
+                  Pagar Rateio Total
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

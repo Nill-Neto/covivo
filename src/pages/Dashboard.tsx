@@ -305,6 +305,12 @@ export default function Dashboard() {
     return groupPendingByCompetence(displayCollectivePendingCurrent);
   }, [displayCollectivePendingCurrent, totalCollectivePendingCurrent]);
 
+  const collectivePendingAllByCompetence = useMemo(() => {
+    const allItems = [...displayCollectivePendingPrevious, ...displayCollectivePendingCurrent];
+    if (allItems.length === 0) return [];
+    return groupPendingByCompetence(allItems);
+  }, [displayCollectivePendingPrevious, displayCollectivePendingCurrent]);
+
   const manualIndividualPending = pendingSplits.filter((s: any) => {
     const isIndividual = s.expenses?.expense_type === "individual";
     const isNotCreditCard = s.expenses?.payment_method !== "credit_card";
@@ -403,6 +409,8 @@ export default function Dashboard() {
         competence_month: m,
         notes: scope === "previous"
           ? `Pagamento de Rateio - competências anteriores`
+          : scope === "all"
+          ? `Pagamento de Rateio - saldo total pendente`
           : `Pagamento de Rateio - competência atual (${format(currentDate, "MMMM/yyyy", { locale: ptBR })})`
       });
 
@@ -531,6 +539,8 @@ export default function Dashboard() {
               setRateioScope(scope);
               if (scope === "current") {
                 setRateioCurrentAmount(totalCollectivePendingCurrent.toFixed(2));
+              } else if (scope === "all") {
+                setRateioCurrentAmount((totalCollectivePendingPrevious + totalCollectivePendingCurrent).toFixed(2));
               } else {
                 setRateioCurrentAmount(totalCollectivePendingPrevious.toFixed(2));
               }
@@ -562,10 +572,15 @@ export default function Dashboard() {
         collectivePendingByScope={{
           previous: { total: totalCollectivePendingPrevious, items: displayCollectivePendingPrevious },
           current: { total: totalCollectivePendingCurrent, items: displayCollectivePendingCurrent },
+          all: { 
+            total: totalCollectivePendingPrevious + totalCollectivePendingCurrent, 
+            items: [...displayCollectivePendingPrevious, ...displayCollectivePendingCurrent] 
+          },
         }}
         collectivePendingByScopeGrouped={{
           previous: collectivePendingPreviousByCompetence,
           current: collectivePendingCurrentByCompetence,
+          all: collectivePendingAllByCompetence,
         }}
         rateioScope={rateioScope}
         individualPending={individualPending}

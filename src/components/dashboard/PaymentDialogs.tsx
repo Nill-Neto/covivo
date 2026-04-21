@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
 
-export type RateioScope = "previous" | "current";
+export type RateioScope = "previous" | "current" | "all";
 
 type PendingSplit = {
   id: string;
@@ -29,10 +29,12 @@ interface PaymentDialogsProps {
   collectivePendingByScope: {
     previous: { total: number; items: PendingSplit[] };
     current: { total: number; items: PendingSplit[] };
+    all: { total: number; items: PendingSplit[] };
   };
   collectivePendingByScopeGrouped: {
     previous: PendingByCompetenceGroup[];
     current: PendingByCompetenceGroup[];
+    all: PendingByCompetenceGroup[];
   };
   rateioScope: RateioScope;
   individualPending: any[];
@@ -68,8 +70,11 @@ export function PaymentDialogs({
 }: PaymentDialogsProps) {
   const selectedScopeData = collectivePendingByScope[rateioScope];
   const selectedScopeGroups = collectivePendingByScopeGrouped[rateioScope];
+  
   const selectedScopeLabel = rateioScope === "previous"
     ? "Rateio pendente de competências anteriores"
+    : rateioScope === "all"
+    ? "Rateio Pendente Total"
     : "Rateio da competência atual";
 
   return (
@@ -84,6 +89,8 @@ export function PaymentDialogs({
             <p className="text-sm text-muted-foreground mt-0.5">
               {rateioScope === "previous"
                 ? "Pagamento das competências anteriores"
+                : rateioScope === "all"
+                ? "Pagamento de todas as pendências coletivas"
                 : `Competência atual (${format(currentDate, "MMMM/yy", { locale: ptBR })})`}
             </p>
           </DialogHeader>
