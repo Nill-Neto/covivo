@@ -213,6 +213,7 @@ export function PersonalTab({
       Coletivo: Number(b.Coletivo.toFixed(2)),
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
+      TotalPessoal: Number((b.MeuRateio + b.Individual).toFixed(2)),
     }));
   }, [rawData, chartDataTemplate, user?.id, closingDay]);
 
@@ -1053,6 +1054,15 @@ export function PersonalTab({
                   dataKey="Individual" 
                   name="Meus Gastos (Individuais)" 
                   stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="TotalPessoal" 
+                  name="Total Pessoal (Individual + Rateio)" 
+                  stroke="hsl(var(--destructive))"
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
