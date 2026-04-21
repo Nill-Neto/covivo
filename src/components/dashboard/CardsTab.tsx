@@ -17,7 +17,18 @@ import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -214,9 +225,6 @@ export function CardsTab({
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const formatCurrency = (value: number) =>
-    value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
@@ -233,6 +241,22 @@ export function CardsTab({
     
   const globalUncategorizedTotal = Math.max(0, totalBill - (globalIndividualTotal + globalCollectiveBaseTotal));
   const globalCollectiveTotal = globalCollectiveBaseTotal + globalUncategorizedTotal;
+  const cardsLineChartData = creditCards.map((card: any) => {
+    const cardInstallments = billInstallments.filter((i: any) => i.expenses?.credit_card_id === card.id);
+    const individual = cardInstallments
+      .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+      .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    const collective = cardInstallments
+      .filter((i: any) => i.expenses?.expense_type === "collective")
+      .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
+    return {
+      card: card.label,
+      total: cardsBreakdown[card.id] || 0,
+      individual,
+      collective,
+    };
+  });
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -371,6 +395,77 @@ export function CardsTab({
       </div>
 
       <div className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Visão Geral de Todos os Cartões</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            {cardsLineChartData.length > 0 ? (
+              <div className="h-[290px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={cardsLineChartData}
+                    margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="4 4" className="stroke-muted" vertical={false} />
+                    <XAxis
+                      dataKey="card"
+                      tickLine={false}
+                      axisLine={false}
+                      interval={0}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value) => `R$ ${Number(value).toLocaleString("pt-BR")}`}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => `R$ ${formatCurrency(Number(value))}`}
+                      contentStyle={{
+                        borderRadius: "0.5rem",
+                        borderColor: "hsl(var(--border))",
+                        backgroundColor: "hsl(var(--background))",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      name="Total"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="individual"
+                      name="Individuais"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="collective"
+                      name="Coletivos"
+                      stroke="#7c3aed"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex min-h-[160px] items-center justify-center text-sm text-muted-foreground">
+                Cadastre cartões para visualizar o gráfico.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
             <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
