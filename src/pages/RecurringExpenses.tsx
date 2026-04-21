@@ -176,6 +176,7 @@ export default function RecurringExpenses() {
         _expense_type: rec.expense_type || "collective",
         _due_date: rec.next_due_date,
         _recurring_expense_id: rec.id,
+        _participant_user_ids: null as any, // Resolve ambiguity with overloaded RPC function
       });
       if (error) throw error;
 
