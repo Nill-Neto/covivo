@@ -43,6 +43,7 @@ import {
   Receipt,
   Settings,
   Search,
+  X,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1321,8 +1322,17 @@ export default function Expenses() {
             onChange={(e) => setSearchTerm(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-            className="pl-9 bg-card"
+            className="pl-9 pr-9 bg-card"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         
         {isSearchFocused && debouncedSearch && globalSearchResults.length > 0 && (
