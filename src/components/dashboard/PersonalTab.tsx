@@ -520,14 +520,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Individual */}
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Individual</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
             {personalDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-full shrink-0 mx-auto">
+                <div className="relative h-[200px] w-[200px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -570,7 +570,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full max-w-full lg:max-w-[280px] overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
                   {personalDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -606,7 +606,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Individual */}
-        <Card className="md:col-span-8 lg:col-span-8">
+        <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Individuais
@@ -659,14 +659,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS COLETIVAS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Coletivo */}
-        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
+        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Coletiva</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
             {collectiveDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-full shrink-0 mx-auto">
+                <div className="relative h-[200px] w-[200px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -709,7 +709,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full max-w-full lg:max-w-[280px] overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
                   {collectiveDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -745,7 +745,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Coletivo */}
-        <Card className="md:col-span-8 lg:col-span-8">
+        <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Coletivas
