@@ -14,28 +14,34 @@ export const CATEGORY_LABELS: Record<string, string> = {
   education: "Educação",
 };
 
+// Paleta profissional e sóbria (focada em azuis, teals, índigos e cinzas-azulados)
 export const CHART_COLORS = [
-  "#0f172a", // slate-900
-  "#334155", // slate-700
+  "#2563eb", // blue-600
+  "#0f766e", // teal-700
+  "#6366f1", // indigo-500
+  "#0369a1", // cyan-700
+  "#4338ca", // indigo-700
+  "#1d4ed8", // blue-700
+  "#047857", // emerald-700
   "#64748b", // slate-500
-  "#94a3b8", // slate-400
-  "#cbd5e1", // slate-300
+  "#be185d", // rose-700 (contraste sutil)
+  "#b45309", // amber-700 (contraste sutil)
 ];
 
-// Colors for categories specifically (optional, to keep consistency)
+// Cores fixas para categorias conhecidas (tons mais fechados e corporativos)
 export const CATEGORY_COLORS: Record<string, string> = {
-  "Aluguel": "#0f172a",
-  "Mercado": "#16a34a", // green
-  "Contas (Luz/Água)": "#ea580c", // orange
-  "Internet/TV": "#2563eb", // blue
-  "Limpeza": "#0891b2", // cyan
-  "Outros": "#64748b", // slate
-  "Transporte": "#f59e0b", // amber
-  "Alimentação": "#e11d48", // rose
-  "Saúde": "#14b8a6", // teal
-  "Lazer": "#8b5cf6", // violet
-  "Educação": "#d946ef", // fuchsia
-  "Manutenção": "#84cc16", // lime
+  "Aluguel": "#2563eb", // blue-600
+  "Mercado": "#047857", // emerald-700
+  "Contas (Luz/Água)": "#0f766e", // teal-700
+  "Internet/TV": "#0369a1", // cyan-700
+  "Limpeza": "#6366f1", // indigo-500
+  "Manutenção": "#475569", // slate-600
+  "Transporte": "#4338ca", // indigo-700
+  "Alimentação": "#1d4ed8", // blue-700
+  "Saúde": "#be185d", // rose-700
+  "Lazer": "#b45309", // amber-700
+  "Educação": "#1e3a8a", // blue-900
+  "Outros": "#94a3b8", // slate-400
 };
 
 export const getCategoryLabel = (key: string | undefined | null) => {

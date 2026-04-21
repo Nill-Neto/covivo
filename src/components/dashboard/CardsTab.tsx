@@ -330,7 +330,7 @@ export function CardsTab({
                   </div>
                 </div>
                 
-                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full max-w-full md:max-w-[280px] overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
                   {donutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -368,14 +368,9 @@ export function CardsTab({
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
-            <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
-          </h3>
-          <Button size="sm" onClick={() => setAddCardOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Adicionar
-          </Button>
-        </div>
+        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
+          <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
+        </h3>
         
         {isLoading ? (
           <Card className="border-dashed bg-muted/20">
@@ -479,6 +474,18 @@ export function CardsTab({
                 </Card>
               );
             })}
+            
+            {/* Add Card Button */}
+            <button
+              type="button"
+              onClick={() => setAddCardOpen(true)}
+              className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5"
+            >
+              <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
+                <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Adicionar Cartão</span>
+            </button>
           </div>
         )}
       </div>
@@ -490,7 +497,7 @@ export function CardsTab({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <ScrollArea className="h-[250px]">
+          <ScrollArea className="h-[400px]">
             <div className="divide-y">
               {sortedInstallments.map((i: any, idx: number) => {
                 const totalInstallments = i.expenses?.installments ?? 1;
@@ -506,7 +513,7 @@ export function CardsTab({
                           {getCategoryLabel(i.expenses?.category || "other")}
                         </span>
                         {cardLabel && (
-                          <span className="text-[10px] text-primary-foreground bg-primary inline-block w-fit px-1.5 rounded-sm font-medium">
+                          <span className="text-[10px] text-primary/70 bg-primary/10 inline-block w-fit px-1.5 rounded-sm">
                             {cardLabel}
                           </span>
                         )}
@@ -646,15 +653,15 @@ export function CardsTab({
       </Dialog>
 
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
             <DialogTitle>Fatura - {selectedCard?.label}</DialogTitle>
             <DialogDescription>
               Competência {format(currentDate, "MMMM/yyyy")}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+          <div className="space-y-4">
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Total da Fatura</p>
               <p className="text-2xl font-bold text-primary">R$ {formatCurrency(selectedCardTotal)}</p>
@@ -682,24 +689,21 @@ export function CardsTab({
               </div>
             </div>
 
-            <div className="border rounded-lg divide-y bg-card">
-              {sortedSelectedCardInstallments.map((item: any, index: number) => {
-                const isAVista = (item.expenses?.installments || 1) <= 1;
-                return (
-                  <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
-                    <div className="min-w-0 pr-3">
-                      <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {getCategoryLabel(item.expenses?.category)} • {isAVista ? "À vista" : `Parcela ${item.installment_number}/${item.expenses?.installments}`}
-                      </p>
-                      <p className="text-xs text-muted-foreground/80">
-                        Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
-                      </p>
-                    </div>
-                    <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
+            <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
+              {sortedSelectedCardInstallments.map((item: any, index: number) => (
+                <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
+                  <div className="min-w-0 pr-3">
+                    <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.expenses?.category} • Parcela {item.installment_number}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
+                    </p>
                   </div>
-                );
-              })}
+                  <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
+                </div>
+              ))}
 
               {sortedSelectedCardInstallments.length === 0 && (
                 <div className="p-6 text-center text-sm text-muted-foreground">

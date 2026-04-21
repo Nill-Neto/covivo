@@ -64,7 +64,6 @@ export function PersonalTab({
   const [isPreviousCollectiveOpen, setIsPreviousCollectiveOpen] = useState(false);
   const [isCurrentCollectiveOpen, setIsCurrentCollectiveOpen] = useState(false);
   const [isCashDetailOpen, setIsCashDetailOpen] = useState(false);
-  const [isTotalDetailOpen, setIsTotalDetailOpen] = useState(false);
 
   const [hoveredPersonalLabel, setHoveredPersonalLabel] = useState<string | null>(null);
   const [hoveredCollectiveLabel, setHoveredCollectiveLabel] = useState<string | null>(null);
@@ -123,75 +122,13 @@ export function PersonalTab({
             <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
               R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="flex flex-col items-start gap-2">
+            <div className="flex items-center">
               <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
                 Saldo atual consolidado (inclui pendências anteriores)
               </span>
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-xs text-white/90 hover:text-white" 
-                onClick={() => setIsTotalDetailOpen(true)}
-              >
-                Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
             </div>
           </CardContent>
         </Card>
-
-        {/* Detalhes do Total Comprometido */}
-        <Dialog open={isTotalDetailOpen} onOpenChange={setIsTotalDetailOpen}>
-          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
-            <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
-              <DialogTitle className="text-lg font-semibold text-foreground">
-                Detalhamento do Saldo
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">Composição do total comprometido</p>
-            </DialogHeader>
-
-            <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Total consolidado</span>
-              <span className="text-lg font-bold text-primary tabular-nums">
-                R$ {totalUserExpensesCurrentBalance.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="border-t">
-              <div className="overflow-y-auto max-h-[50vh]">
-                <div className="divide-y">
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Sua parte nas despesas da casa</span>
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        R$ {myCollectiveShare.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Sua cota no rateio da competência atual (em aberto ou paga).</p>
-                  </div>
-
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Pendências individuais</span>
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        R$ {totalIndividualPending.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Valores a pagar de uso próprio (ex: cartões da competência atual).</p>
-                  </div>
-
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Rateios de meses anteriores</span>
-                      <span className={`text-sm font-semibold tabular-nums ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                        R$ {totalCollectivePendingPrevious.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Dívida acumulada da casa em ciclos passados.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Rateio pendente (competências anteriores) */}
         <Card className={`border-l-4 ${totalCollectivePendingPrevious > 0.01 ? "border-l-destructive" : "border-l-success"} bg-card shadow-sm`}>
@@ -583,14 +520,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Individual */}
-        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
+        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Individual</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
             {personalDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-[200px] shrink-0">
+                <div className="relative h-[200px] w-full shrink-0 mx-auto">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -633,7 +570,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
                   {personalDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -669,7 +606,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Individual */}
-        <Card className="md:col-span-6 lg:col-span-6">
+        <Card className="md:col-span-8 lg:col-span-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Individuais
@@ -679,7 +616,7 @@ export function PersonalTab({
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[250px] pr-2 px-2">
+            <ScrollArea className="h-[380px] pr-2 px-2">
               <div className="space-y-1">
                 {myPersonalExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa individual registrada.</p>
@@ -722,14 +659,14 @@ export function PersonalTab({
       {/* --- GRÁFICOS E LISTAS COLETIVAS --- */}
       <div className="grid gap-4 md:grid-cols-12">
         {/* Chart Coletivo */}
-        <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
+        <Card className="md:col-span-4 lg:col-span-4 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Coletiva</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">
+          <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-0">
             {collectiveDonutData.length > 0 ? (
               <>
-                <div className="relative h-[200px] w-[200px] shrink-0">
+                <div className="relative h-[200px] w-full shrink-0 mx-auto">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
@@ -772,7 +709,7 @@ export function PersonalTab({
                     )}
                   </div>
                 </div>
-                <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
+                <div className="flex flex-col space-y-2 w-full overflow-y-auto max-h-[160px] pr-2 scrollbar-thin">
                   {collectiveDonutData.map((segment) => (
                     <div
                       key={segment.label}
@@ -808,7 +745,7 @@ export function PersonalTab({
         </Card>
 
         {/* List Coletivo */}
-        <Card className="md:col-span-6 lg:col-span-6">
+        <Card className="md:col-span-8 lg:col-span-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Últimas Despesas Coletivas
@@ -818,7 +755,7 @@ export function PersonalTab({
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[250px] pr-2 px-2">
+            <ScrollArea className="h-[380px] pr-2 px-2">
               <div className="space-y-1">
                 {collectiveExpenses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa coletiva registrada.</p>
