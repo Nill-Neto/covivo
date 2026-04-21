@@ -94,7 +94,6 @@ const CARD_COLORS = [
   "#e11d48", // rose-600
   "#0891b2", // cyan-600
   "#d946ef", // fuchsia-500
-  "#0f172a", // slate-900
 ];
 
 export function CardsTab({
@@ -368,14 +367,77 @@ export function CardsTab({
   const globalUncategorizedTotal = Math.max(0, totalBill - (globalIndividualTotal + globalCollectiveBaseTotal));
   const globalCollectiveTotal = globalCollectiveBaseTotal + globalUncategorizedTotal;
 
+  const renderColorField = (field: any) => {
+    const isCustomColor = field.value && !CARD_COLORS.some(c => c.toLowerCase() === field.value.toLowerCase());
+    
+    return (
+      <FormItem>
+        <FormLabel>Cor de identificação</FormLabel>
+        <FormControl>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <div className="flex flex-wrap gap-2 items-center">
+              {CARD_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn(
+                    "h-8 w-8 rounded-full border-2 transition-all",
+                    field.value?.toLowerCase() === c.toLowerCase() ? "border-foreground scale-110 shadow-sm" : "border-transparent hover:scale-105"
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => field.onChange(c)}
+                  aria-label={`Cor ${c}`}
+                />
+              ))}
+              
+              <div 
+                className={cn(
+                  "relative overflow-hidden h-8 w-8 rounded-full border-2 transition-all cursor-pointer shrink-0",
+                  isCustomColor ? "border-foreground scale-110 shadow-sm" : "border-dashed border-muted-foreground/50 hover:scale-105"
+                )}
+                style={{ backgroundColor: isCustomColor ? field.value : 'transparent' }}
+                title="Cor personalizada"
+              >
+                <input
+                  type="color"
+                  value={field.value || "#000000"}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className="absolute inset-[-20px] h-20 w-20 cursor-pointer opacity-0"
+                />
+                {!isCustomColor && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <Input
+              type="text"
+              value={field.value || ""}
+              onChange={(e) => field.onChange(e.target.value)}
+              className="w-24 h-8 text-xs uppercase"
+              placeholder="#HEX"
+              maxLength={7}
+            />
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    );
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid gap-4 md:grid-cols-3">
+        {/* Total em Faturas - DESTAQUE PREMIUM */}
         <Card className="relative overflow-hidden border-0 md:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
+          {/* Premium Background Effects */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
           
+          {/* Watermark Icon to fill empty space */}
           <CreditCard className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
 
           <CardHeader className="relative z-10 pb-0 pt-6 px-6">
@@ -856,29 +918,7 @@ export function CardsTab({
               <FormField
                 control={form.control}
                 name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cor de identificação</FormLabel>
-                    <FormControl>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {CARD_COLORS.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={cn(
-                              "h-8 w-8 rounded-full border-2 transition-all",
-                              field.value === c ? "border-foreground scale-110" : "border-transparent hover:scale-105"
-                            )}
-                            style={{ backgroundColor: c }}
-                            onClick={() => field.onChange(c)}
-                            aria-label={`Cor ${c}`}
-                          />
-                        ))}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => renderColorField(field)}
               />
 
               <Button type="submit" className="w-full" disabled={createCard.isPending || !user}>
@@ -985,29 +1025,7 @@ export function CardsTab({
               <FormField
                 control={form.control}
                 name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cor de identificação</FormLabel>
-                    <FormControl>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {CARD_COLORS.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={cn(
-                              "h-8 w-8 rounded-full border-2 transition-all",
-                              field.value === c ? "border-foreground scale-110" : "border-transparent hover:scale-105"
-                            )}
-                            style={{ backgroundColor: c }}
-                            onClick={() => field.onChange(c)}
-                            aria-label={`Cor ${c}`}
-                          />
-                        ))}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => renderColorField(field)}
               />
 
               <Button type="submit" className="w-full" disabled={updateCard.isPending}>{updateCard.isPending && <CustomLoader className="mr-2 h-4 w-4" />}Salvar alterações</Button>
