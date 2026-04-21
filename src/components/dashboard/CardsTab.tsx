@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Settings, Trash2 } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
 import {
@@ -93,7 +93,7 @@ export function CardsTab({
   billInstallments,
   isLoading = false,
 }: CardsTabProps) {
-  const { user } = useAuth();
+  const { user, membership } = useAuth();
   const queryClient = useQueryClient();
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<any | null>(null);
@@ -186,6 +186,94 @@ export function CardsTab({
       toast({ title: "Cartão excluído" });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const lastSixMonths = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => subMonths(currentDate, 5 - index)),
+    [currentDate],
+  );
+
+  const { data: lastSixMonthsCardsData = [], isLoading: isLoadingLastSixMonthsCardsData } = useQuery({
+    queryKey: [
+      "cards-last-six-months",
+      user?.id,
+      membership?.group_id,
+      currentDate.getMonth(),
+      currentDate.getFullYear(),
+    ],
+    queryFn: async () => {
+      const months = lastSixMonths.map((date) => date.getMonth() + 1);
+      const years = Array.from(new Set(lastSixMonths.map((date) => date.getFullYear())));
+      const monthKeys = new Set(lastSixMonths.map((date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`));
+
+      const [groupRes, personalRes] = await Promise.all([
+        supabase
+          .from("expense_installments" as any)
+          .select("amount, bill_month, bill_year, expenses!inner(expense_type, group_id, credit_card_id)")
+          .eq("user_id", user!.id)
+          .eq("expenses.group_id", membership!.group_id)
+          .in("bill_month", months)
+          .in("bill_year", years)
+          .limit(5000),
+        supabase
+          .from("personal_expense_installments")
+          .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
+          .eq("user_id", user!.id)
+          .in("bill_month", months)
+          .in("bill_year", years)
+          .limit(5000),
+      ]);
+
+      if (groupRes.error) throw groupRes.error;
+      if (personalRes.error) throw personalRes.error;
+
+      const totalsByMonth = new Map<string, { total: number; individual: number; collective: number }>();
+      monthKeys.forEach((key) => {
+        totalsByMonth.set(key, { total: 0, individual: 0, collective: 0 });
+      });
+
+      (groupRes.data as any[] ?? []).forEach((item: any) => {
+        const month = Number(item.bill_month);
+        const year = Number(item.bill_year);
+        const key = `${year}-${String(month).padStart(2, "0")}`;
+        const bucket = totalsByMonth.get(key);
+        const amount = Number(item.amount) || 0;
+        const hasCreditCard = !!item.expenses?.credit_card_id;
+        if (!bucket || !hasCreditCard) return;
+
+        bucket.total += amount;
+        if (item.expenses?.expense_type === "collective") {
+          bucket.collective += amount;
+        } else {
+          bucket.individual += amount;
+        }
+      });
+
+      (personalRes.data as any[] ?? []).forEach((item: any) => {
+        const month = Number(item.bill_month);
+        const year = Number(item.bill_year);
+        const key = `${year}-${String(month).padStart(2, "0")}`;
+        const bucket = totalsByMonth.get(key);
+        const amount = Number(item.amount) || 0;
+        const hasCreditCard = !!item.personal_expenses?.credit_card_id;
+        if (!bucket || !hasCreditCard) return;
+
+        bucket.total += amount;
+        bucket.individual += amount;
+      });
+
+      return lastSixMonths.map((date) => {
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const monthValues = totalsByMonth.get(key) ?? { total: 0, individual: 0, collective: 0 };
+
+        return {
+          monthLabel: format(date, "MMM/yy", { locale: ptBR }),
+          ...monthValues,
+        };
+      });
+    },
+    enabled: !!user?.id && !!membership?.group_id,
+    staleTime: 60_000,
   });
 
   const donutData = cardsChartData.map((entry, index) => ({
@@ -632,6 +720,78 @@ export function CardsTab({
               )}
             </div>
           </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium">Evolução de Gastos (Últimos 6 meses)</CardTitle>
+          <Wallet className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent className="pt-2">
+          {isLoadingLastSixMonthsCardsData ? (
+            <div className="flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
+              <CustomLoader className="h-5 w-5 mr-2" />
+              Carregando evolução dos cartões...
+            </div>
+          ) : (
+            <div className="h-[290px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={lastSixMonthsCardsData}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="4 4" className="stroke-muted" vertical={false} />
+                  <XAxis
+                    dataKey="monthLabel"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `R$ ${Number(value).toLocaleString("pt-BR")}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => `R$ ${formatCurrency(Number(value))}`}
+                    contentStyle={{
+                      borderRadius: "0.5rem",
+                      borderColor: "hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    name="Total"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="individual"
+                    name="Individuais"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="collective"
+                    name="Coletivos"
+                    stroke="#7c3aed"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 
