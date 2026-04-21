@@ -69,8 +69,8 @@ export function HomeTab() {
                     key={m.group_id}
                     onClick={() => setActiveGroupId(m.group_id)}
                     className={cn(
-                      "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors",
-                      isActive ? "bg-primary/5 border-primary/30" : "hover:bg-muted/50"
+                      "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all hover:shadow-sm",
+                      isActive ? "bg-primary/5 border-primary/30" : "hover:bg-muted/50 hover:border-primary/30"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ export function HomeTab() {
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {/* Mural */}
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-sky-500 bg-card" onClick={() => navigate('/bulletin')}>
+          <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-sky-500 bg-card" onClick={() => navigate('/bulletin')}>
             <CardContent className="p-4 flex flex-col h-full justify-between">
               <div>
                 <div className="flex justify-between items-start mb-2">
@@ -167,7 +167,7 @@ export function HomeTab() {
           </Card>
 
           {/* Regras */}
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-emerald-500 bg-card" onClick={() => navigate('/rules')}>
+          <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-emerald-500 bg-card" onClick={() => navigate('/rules')}>
             <CardContent className="p-4 flex flex-col h-full justify-between">
               <div>
                 <div className="flex justify-between items-start mb-2">
@@ -191,7 +191,7 @@ export function HomeTab() {
           </Card>
 
           {/* Votações */}
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500 bg-card" onClick={() => navigate('/polls')}>
+          <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-violet-500 bg-card" onClick={() => navigate('/polls')}>
             <CardContent className="p-4 flex flex-col h-full justify-between">
               <div>
                 <div className="flex justify-between items-start mb-2">
