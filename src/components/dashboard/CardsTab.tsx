@@ -653,15 +653,15 @@ export function CardsTab({
       </Dialog>
 
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
             <DialogTitle>Fatura - {selectedCard?.label}</DialogTitle>
             <DialogDescription>
               Competência {format(currentDate, "MMMM/yyyy")}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Total da Fatura</p>
               <p className="text-2xl font-bold text-primary">R$ {formatCurrency(selectedCardTotal)}</p>
@@ -689,7 +689,7 @@ export function CardsTab({
               </div>
             </div>
 
-            <div className="max-h-[360px] overflow-y-auto border rounded-lg divide-y">
+            <div className="border rounded-lg divide-y bg-card">
               {sortedSelectedCardInstallments.map((item: any, index: number) => (
                 <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
                   <div className="min-w-0 pr-3">
