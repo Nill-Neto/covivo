@@ -506,7 +506,7 @@ export function CardsTab({
                           {getCategoryLabel(i.expenses?.category || "other")}
                         </span>
                         {cardLabel && (
-                          <span className="text-[10px] text-primary bg-primary/10 inline-block w-fit px-1.5 rounded-sm font-medium">
+                          <span className="text-[10px] text-primary-foreground bg-primary inline-block w-fit px-1.5 rounded-sm font-medium">
                             {cardLabel}
                           </span>
                         )}
