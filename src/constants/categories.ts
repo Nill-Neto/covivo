@@ -14,34 +14,34 @@ export const CATEGORY_LABELS: Record<string, string> = {
   education: "Educação",
 };
 
-// Paleta colorida e vibrante para categorias dinâmicas (fallback)
+// Paleta profissional e sóbria (focada em azuis, teals, índigos e cinzas-azulados)
 export const CHART_COLORS = [
-  "#0ea5e9", // sky-500 (Azul claro)
-  "#8b5cf6", // violet-500 (Roxo)
-  "#f59e0b", // amber-500 (Amarelo/Laranja)
-  "#10b981", // emerald-500 (Verde)
-  "#f43f5e", // rose-500 (Rosa/Vermelho)
-  "#6366f1", // indigo-500 (Anil)
-  "#14b8a6", // teal-500 (Verde-azulado)
-  "#f97316", // orange-500 (Laranja)
-  "#84cc16", // lime-500 (Verde limão)
-  "#d946ef", // pink-500 (Rosa choque)
+  "#2563eb", // blue-600
+  "#0f766e", // teal-700
+  "#6366f1", // indigo-500
+  "#0369a1", // cyan-700
+  "#4338ca", // indigo-700
+  "#1d4ed8", // blue-700
+  "#047857", // emerald-700
+  "#64748b", // slate-500
+  "#be185d", // rose-700 (contraste sutil)
+  "#b45309", // amber-700 (contraste sutil)
 ];
 
-// Cores fixas para categorias conhecidas para manter a consistência em diferentes telas
+// Cores fixas para categorias conhecidas (tons mais fechados e corporativos)
 export const CATEGORY_COLORS: Record<string, string> = {
-  "Aluguel": "#6366f1", // indigo
-  "Mercado": "#10b981", // emerald (comida/fresco)
-  "Contas (Luz/Água)": "#f59e0b", // amber (energia/atenção)
-  "Internet/TV": "#0ea5e9", // sky (conectividade)
-  "Limpeza": "#06b6d4", // cyan (água/limpo)
-  "Manutenção": "#8b5cf6", // violet
-  "Transporte": "#f43f5e", // rose
-  "Alimentação": "#f97316", // orange
-  "Saúde": "#ec4899", // pink
-  "Lazer": "#84cc16", // lime
-  "Educação": "#3b82f6", // blue
-  "Outros": "#94a3b8", // slate-400 (neutro)
+  "Aluguel": "#2563eb", // blue-600
+  "Mercado": "#047857", // emerald-700
+  "Contas (Luz/Água)": "#0f766e", // teal-700
+  "Internet/TV": "#0369a1", // cyan-700
+  "Limpeza": "#6366f1", // indigo-500
+  "Manutenção": "#475569", // slate-600
+  "Transporte": "#4338ca", // indigo-700
+  "Alimentação": "#1d4ed8", // blue-700
+  "Saúde": "#be185d", // rose-700
+  "Lazer": "#b45309", // amber-700
+  "Educação": "#1e3a8a", // blue-900
+  "Outros": "#94a3b8", // slate-400
 };
 
 export const getCategoryLabel = (key: string | undefined | null) => {
