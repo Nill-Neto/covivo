@@ -368,9 +368,14 @@ export function CardsTab({
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
-          <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
+            <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
+          </h3>
+          <Button size="sm" onClick={() => setAddCardOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Adicionar
+          </Button>
+        </div>
         
         {isLoading ? (
           <Card className="border-dashed bg-muted/20">
@@ -474,18 +479,6 @@ export function CardsTab({
                 </Card>
               );
             })}
-            
-            {/* Add Card Button */}
-            <button
-              type="button"
-              onClick={() => setAddCardOpen(true)}
-              className="flex flex-col items-center justify-center border border-dashed rounded-lg h-full min-h-[180px] hover:bg-muted/30 hover:border-primary/50 transition-all group cursor-pointer bg-muted/5"
-            >
-              <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
-                <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Adicionar Cartão</span>
-            </button>
           </div>
         )}
       </div>
