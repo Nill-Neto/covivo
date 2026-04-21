@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +71,13 @@ export default function RecurringExpenses() {
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+
+  // State for Generate Now dialog
+  const [generateConfig, setGenerateConfig] = useState<{ open: boolean; rec: any | null; amount: string }>({
+    open: false,
+    rec: null,
+    amount: "",
+  });
 
   useEffect(() => {
     if (category !== "other") {
@@ -291,13 +298,22 @@ export default function RecurringExpenses() {
     }
   };
 
-  const generateNow = async (rec: any) => {
+  const generateNow = async () => {
+    const { rec, amount: genAmount } = generateConfig;
+    if (!rec) return;
+
+    const finalAmount = parseFloat(genAmount);
+    if (isNaN(finalAmount) || finalAmount <= 0) {
+      toast({ title: "Erro", description: "Valor inválido.", variant: "destructive" });
+      return;
+    }
+
     try {
       const { error } = await supabase.rpc("create_expense_with_splits", {
         _group_id: rec.group_id,
         _title: rec.title,
         _description: rec.description,
-        _amount: rec.amount,
+        _amount: finalAmount,
         _category: rec.category,
         _expense_type: rec.expense_type || "collective",
         _due_date: rec.next_due_date,
@@ -325,6 +341,7 @@ export default function RecurringExpenses() {
       toast({ title: "Despesa gerada!", description: `"${rec.title}" criada com sucesso.` });
       queryClient.invalidateQueries({ queryKey: ["recurring"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      setGenerateConfig({ open: false, rec: null, amount: "" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
@@ -389,36 +406,36 @@ export default function RecurringExpenses() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Quem paga?</Label>
-                      <Select value={payerUserId} onValueChange={setPayerUserId}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="me">Você</SelectItem>
-                          {participantOptions.map((participant) => (
-                            <SelectItem key={participant.id} value={participant.id}>
-                              {participant.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {paymentMethod === "credit_card" ? (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Cartão</Label>
+                        <Select value={creditCardId} onValueChange={setCreditCardId}>
+                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                            {cards.map((c: any) => (
+                              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Quem paga?</Label>
+                        <Select value={payerUserId} onValueChange={setPayerUserId}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="me">Você</SelectItem>
+                            {participantOptions.map((participant) => (
+                              <SelectItem key={participant.id} value={participant.id}>
+                                {participant.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-
-                  {paymentMethod === "credit_card" && (
-                    <div className="space-y-2 pt-2">
-                      <Label className="text-xs text-muted-foreground">Cartão</Label>
-                      <Select value={creditCardId} onValueChange={setCreditCardId}>
-                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
-                          {cards.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   
                   {expenseType === "collective" && (
                     <div className="space-y-3 pt-3 border-t">
@@ -511,6 +528,37 @@ export default function RecurringExpenses() {
         }
       />
 
+      <Dialog open={generateConfig.open} onOpenChange={(open) => setGenerateConfig(prev => ({ ...prev, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar despesa agora?</DialogTitle>
+            <DialogDescription>
+              Confirme ou edite o valor. Isso criará a despesa "{generateConfig.rec?.title}" imediatamente na aba Despesas e avançará a próxima data de vencimento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Valor a ser gerado (R$)</Label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                min="0.01" 
+                value={generateConfig.amount} 
+                onChange={(e) => setGenerateConfig(prev => ({ ...prev, amount: e.target.value }))} 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGenerateConfig(prev => ({ ...prev, open: false }))}>
+              Cancelar
+            </Button>
+            <Button onClick={generateNow}>
+              Gerar Despesa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {recurring?.length === 0 && (
         <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhuma recorrência configurada.</CardContent></Card>
       )}
@@ -569,27 +617,15 @@ export default function RecurringExpenses() {
                         </AlertDialog>
                         <div className="w-px h-4 bg-border mx-1" />
                         
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8" title="Gerar agora">
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Gerar despesa agora?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Isso criará a despesa "{r.title}" imediatamente na aba Despesas e avançará a próxima data de vencimento.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => generateNow(r)}>
-                                Gerar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-8 w-8" 
+                          title="Gerar agora"
+                          onClick={() => setGenerateConfig({ open: true, rec: r, amount: String(r.amount) })}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
 
                         <Switch checked={r.active} onCheckedChange={() => toggleActive(r.id, r.active)} className="ml-1" />
                       </div>
