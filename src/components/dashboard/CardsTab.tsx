@@ -690,20 +690,23 @@ export function CardsTab({
             </div>
 
             <div className="border rounded-lg divide-y bg-card">
-              {sortedSelectedCardInstallments.map((item: any, index: number) => (
-                <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
-                  <div className="min-w-0 pr-3">
-                    <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.expenses?.category} • Parcela {item.installment_number}
-                    </p>
-                    <p className="text-xs text-muted-foreground/80">
-                      Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
-                    </p>
+              {sortedSelectedCardInstallments.map((item: any, index: number) => {
+                const isAVista = (item.expenses?.installments || 1) <= 1;
+                return (
+                  <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">
+                    <div className="min-w-0 pr-3">
+                      <p className="text-sm font-medium truncate">{item.expenses?.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {getCategoryLabel(item.expenses?.category)} • {isAVista ? "À vista" : `Parcela ${item.installment_number}/${item.expenses?.installments}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground/80">
+                        Compra {item.expenses?.purchase_date ? format(parseLocalDate(item.expenses.purchase_date), "dd/MM/yyyy") : "n/d"}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
                   </div>
-                  <p className="text-sm font-bold">R$ {formatCurrency(Number(item.amount))}</p>
-                </div>
-              ))}
+                );
+              })}
 
               {sortedSelectedCardInstallments.length === 0 && (
                 <div className="p-6 text-center text-sm text-muted-foreground">
