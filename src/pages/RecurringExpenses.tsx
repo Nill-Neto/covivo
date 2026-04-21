@@ -389,36 +389,36 @@ export default function RecurringExpenses() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {paymentMethod === "credit_card" ? (
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Cartão</Label>
-                        <Select value={creditCardId} onValueChange={setCreditCardId}>
-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
-                            {cards.map((c: any) => (
-                              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Quem paga?</Label>
-                        <Select value={payerUserId} onValueChange={setPayerUserId}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="me">Você</SelectItem>
-                            {participantOptions.map((participant) => (
-                              <SelectItem key={participant.id} value={participant.id}>
-                                {participant.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Quem paga?</Label>
+                      <Select value={payerUserId} onValueChange={setPayerUserId}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="me">Você</SelectItem>
+                          {participantOptions.map((participant) => (
+                            <SelectItem key={participant.id} value={participant.id}>
+                              {participant.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
+
+                  {paymentMethod === "credit_card" && (
+                    <div className="space-y-2 pt-2">
+                      <Label className="text-xs text-muted-foreground">Cartão</Label>
+                      <Select value={creditCardId} onValueChange={setCreditCardId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                          {cards.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   
                   {expenseType === "collective" && (
                     <div className="space-y-3 pt-3 border-t">
