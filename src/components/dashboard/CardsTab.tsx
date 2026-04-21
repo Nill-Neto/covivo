@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -312,16 +312,6 @@ export function CardsTab({
                           />
                         ))}
                       </Pie>
-                      <RechartsTooltip 
-                        formatter={(v: number) => `R$ ${v.toFixed(2)}`} 
-                        contentStyle={{ 
-                          borderRadius: "8px", 
-                          border: "none", 
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          fontSize: "12px"
-                        }}
-                        itemStyle={{ color: "#1e293b" }}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
                   
