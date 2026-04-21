@@ -114,6 +114,7 @@ export function CardsTab({
   const [deletingCard, setDeletingCard] = useState<any | null>(null);
 
   const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const form = useForm<CardFormValues>({
     resolver: zodResolver(cardSchema),
@@ -331,12 +332,19 @@ export function CardsTab({
     ? billInstallments.filter((i: any) => i.expenses?.credit_card_id === selectedCard.id)
     : [];
 
-  const sortedSelectedCardInstallments = [...selectedCardInstallments].sort((a: any, b: any) => {
+  const sortInstallments = (a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
 
-    return dateB.localeCompare(dateA);
-  });
+    if (dateA === dateB) {
+      const createdA = a.expenses?.created_at || "";
+      const createdB = b.expenses?.created_at || "";
+      return sortOrder === "desc" ? createdB.localeCompare(createdA) : createdA.localeCompare(createdB);
+    }
+    return sortOrder === "desc" ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
+  };
+
+  const sortedSelectedCardInstallments = [...selectedCardInstallments].sort(sortInstallments);
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
   const selectedCardIndividualTotal = selectedCardInstallments
@@ -353,11 +361,7 @@ export function CardsTab({
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
-    const dateA = a.expenses?.purchase_date || "";
-    const dateB = b.expenses?.purchase_date || "";
-    return dateB.localeCompare(dateA);
-  });
+  const sortedInstallments = [...billInstallments].sort(sortInstallments);
 
   const globalIndividualTotal = billInstallments
     .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
@@ -687,10 +691,19 @@ export function CardsTab({
       </div>
 
       <Card>
-        <CardHeader className="pb-3 border-b bg-muted/5">
+        <CardHeader className="pb-3 border-b bg-muted/5 flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
             Lançamentos da Competência ({billInstallments.length})
           </CardTitle>
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+            <SelectTrigger className="w-[130px] h-8 text-xs font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Mais recentes</SelectItem>
+              <SelectItem value="asc">Mais antigos</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent className="pt-0">
           <ScrollArea className="h-[250px]">
@@ -980,6 +993,19 @@ export function CardsTab({
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium">Lançamentos</p>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-[130px] h-7 text-xs font-normal">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recentes</SelectItem>
+                  <SelectItem value="asc">Mais antigos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="border rounded-lg divide-y bg-card">

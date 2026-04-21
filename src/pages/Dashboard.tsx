@@ -121,7 +121,7 @@ export default function Dashboard() {
       const [groupRes, personalRes] = await Promise.all([
         supabase
           .from("expense_installments" as any)
-          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id)")
+          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id, created_at)")
           .eq("user_id", user!.id)
           .eq("expenses.group_id", membership!.group_id)
           .eq("bill_month", targetMonth)
@@ -129,7 +129,7 @@ export default function Dashboard() {
           .limit(1000),
         supabase
           .from("personal_expense_installments")
-          .select("id, amount, installment_number, personal_expenses(title, credit_card_id, purchase_date, installments)")
+          .select("id, amount, installment_number, personal_expenses(title, credit_card_id, purchase_date, installments, created_at)")
           .eq("user_id", user!.id)
           .eq("bill_month", targetMonth)
           .eq("bill_year", targetYear)
@@ -149,6 +149,7 @@ export default function Dashboard() {
           expense_type: "personal",
           purchase_date: p.personal_expenses?.purchase_date,
           installments: p.personal_expenses?.installments ?? 1,
+          created_at: p.personal_expenses?.created_at,
         },
       }));
 

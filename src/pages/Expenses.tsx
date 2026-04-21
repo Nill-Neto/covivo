@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { parseLocalDate, cn } from "@/lib/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Receipt,
+  Settings,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1329,6 +1331,19 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="recurring" className="space-y-3 mt-4">
+        <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border border-border/50 mb-4">
+          <div>
+            <h3 className="text-sm font-medium">Despesas Recorrentes</h3>
+            <p className="text-xs text-muted-foreground">Contas mensais fixas e assinaturas</p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/recurring">
+              <Settings className="mr-2 h-3.5 w-3.5" />
+              Gerenciar
+            </Link>
+          </Button>
+        </div>
+
         {!recurringExpenses?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
         {recurringExpenses?.map((r: any) => (
           <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />

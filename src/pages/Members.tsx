@@ -330,7 +330,7 @@ export default function Members() {
           return (
             <Card 
               key={m.user_id} 
-              className="cursor-pointer hover:border-primary/50 transition-colors group"
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
               onClick={() => setViewingMember(m)}
             >
               <CardContent className="p-4">
