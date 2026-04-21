@@ -769,6 +769,7 @@ export function CardsTab({
                     tick={{ fontSize: 11 }}
                   />
                   <YAxis
+                    width={80}
                     tickLine={false}
                     axisLine={false}
                     tick={{ fontSize: 11 }}
