@@ -27,12 +27,13 @@ import {
   MessageSquare,
   BookOpen,
   Vote,
-  Shield
+  Shield,
+  ArrowUp
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/config/brand";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 import { BRANDING } from "@/config/branding";
 
@@ -71,16 +72,24 @@ export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const previousMobileViewport = useRef<boolean | null>(null);
 
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-    const handleScroll = () => setIsScrolled(el.scrollTop > 20);
+    const handleScroll = () => {
+      setIsScrolled(el.scrollTop > 20);
+      setShowScrollTop(el.scrollTop > 300);
+    };
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const sidebarItems = isAdmin
     ? [{ to: "/admin", icon: Shield, label: "Administração" }, ...sidebarCoreItems, ...adminItems]
@@ -277,7 +286,7 @@ export function AppLayout() {
           </Sidebar>
         </div>
 
-        <main ref={mainRef} className="relative flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 pt-1 md:px-8 md:pt-2">
+        <main ref={mainRef} className="relative flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 pt-1 md:px-8 md:pt-2 scroll-smooth">
           {/* Decorative background — clipped to prevent scroll overflow */}
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute inset-0 [background:radial-gradient(125%_125%_at_50%_0%,transparent_40%,hsl(var(--primary)/0.08)_100%)]" />
@@ -289,6 +298,22 @@ export function AppLayout() {
           <div className="max-w-7xl mx-auto w-full pb-32">
             <Outlet />
           </div>
+
+          {/* Botão de Voltar ao Topo */}
+          <AnimatePresence>
+            {showScrollTop && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                onClick={scrollToTop}
+                className="fixed bottom-6 right-6 z-50 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                aria-label="Voltar ao topo"
+              >
+                <ArrowUp className="h-5 w-5 md:h-6 md:w-6" />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </main>
       </div>
     </div>
