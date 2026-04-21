@@ -57,6 +57,7 @@ type CreditCardTable = {
     limit_amount: number | null;
     closing_day: number;
     due_day: number;
+    color: string | null;
     created_at: string;
   };
   Insert: {
@@ -67,6 +68,7 @@ type CreditCardTable = {
     limit_amount?: number | null;
     closing_day: number;
     due_day: number;
+    color?: string | null;
     created_at?: string;
   };
   Update: {
@@ -77,6 +79,7 @@ type CreditCardTable = {
     limit_amount?: number | null;
     closing_day?: number;
     due_day?: number;
+    color?: string | null;
     created_at?: string;
   };
   Relationships: [];
