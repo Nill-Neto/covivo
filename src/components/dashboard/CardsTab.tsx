@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -14,10 +14,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Settings, Trash2 } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { cn, parseLocalDate } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -60,6 +72,7 @@ const cardSchema = z.object({
       (value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0),
       "Informe um limite válido",
     ),
+  color: z.string().optional(),
 });
 
 type CardFormValues = z.infer<typeof cardSchema>;
@@ -73,6 +86,16 @@ const brandOptions = [
   { value: "outros", label: "Outros" },
 ];
 
+const CARD_COLORS = [
+  "#2563eb", // blue-600
+  "#16a34a", // green-600
+  "#ea580c", // orange-600
+  "#8b5cf6", // violet-500
+  "#e11d48", // rose-600
+  "#0891b2", // cyan-600
+  "#d946ef", // fuchsia-500
+];
+
 export function CardsTab({
   totalBill,
   currentDate,
@@ -82,13 +105,16 @@ export function CardsTab({
   billInstallments,
   isLoading = false,
 }: CardsTabProps) {
-  const { user } = useAuth();
+  const { user, membership } = useAuth();
   const queryClient = useQueryClient();
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<any | null>(null);
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [editCardOpen, setEditCardOpen] = useState(false);
   const [deletingCard, setDeletingCard] = useState<any | null>(null);
+
+  const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const form = useForm<CardFormValues>({
     resolver: zodResolver(cardSchema),
@@ -98,6 +124,7 @@ export function CardsTab({
       closing_day: 5,
       due_day: 10,
       limit_amount: "",
+      color: CARD_COLORS[0],
     },
   });
 
@@ -111,13 +138,14 @@ export function CardsTab({
         closing_day: values.closing_day,
         due_day: values.due_day,
         limit_amount: limitAmount,
+        color: values.color || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-credit-cards"] });
       queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
-      form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+      form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "", color: CARD_COLORS[0] });
       setAddCardOpen(false);
       toast({ title: "Cartão salvo", description: "Cartão adicionado com sucesso." });
     },
@@ -135,6 +163,7 @@ export function CardsTab({
       closing_day: card.closing_day,
       due_day: card.due_day,
       limit_amount: card.limit_amount ? String(card.limit_amount) : "",
+      color: card.color || CARD_COLORS[0],
     });
     setSelectedCard(card);
     setEditCardOpen(true);
@@ -149,6 +178,7 @@ export function CardsTab({
         closing_day: values.closing_day,
         due_day: values.due_day,
         limit_amount: limitAmount,
+        color: values.color || null,
       }).eq("id", selectedCard!.id);
       if (error) throw error;
     },
@@ -157,7 +187,7 @@ export function CardsTab({
       queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
       setEditCardOpen(false);
       setSelectedCard(null);
-      form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+      form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "", color: CARD_COLORS[0] });
       toast({ title: "Cartão atualizado", description: "Alterações salvas." });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
@@ -177,6 +207,116 @@ export function CardsTab({
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
+  const lastMonths = useMemo(
+    () => Array.from({ length: monthsCount }, (_, index) => subMonths(currentDate, (monthsCount - 1) - index)),
+    [currentDate, monthsCount],
+  );
+
+  const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery({
+    queryKey: [
+      "cards-last-months-raw",
+      user?.id,
+      membership?.group_id,
+      currentDate.getMonth(),
+      currentDate.getFullYear(),
+      monthsCount,
+    ],
+    queryFn: async () => {
+      const months = lastMonths.map((date) => date.getMonth() + 1);
+      const years = Array.from(new Set(lastMonths.map((date) => date.getFullYear())));
+
+      const [groupRes, personalRes] = await Promise.all([
+        supabase
+          .from("expense_installments" as any)
+          .select("amount, bill_month, bill_year, expenses!inner(expense_type, group_id, credit_card_id)")
+          .eq("user_id", user!.id)
+          .eq("expenses.group_id", membership!.group_id)
+          .in("bill_month", months)
+          .in("bill_year", years)
+          .limit(5000),
+        supabase
+          .from("personal_expense_installments")
+          .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
+          .eq("user_id", user!.id)
+          .in("bill_month", months)
+          .in("bill_year", years)
+          .limit(5000),
+      ]);
+
+      if (groupRes.error) throw groupRes.error;
+      if (personalRes.error) throw personalRes.error;
+
+      return {
+        groupInstallments: groupRes.data || [],
+        personalInstallments: personalRes.data || [],
+      };
+    },
+    enabled: !!user?.id && !!membership?.group_id,
+    staleTime: 60_000,
+  });
+
+  const lastMonthsCardsData = useMemo(() => {
+    if (!rawLastMonthsData) return [];
+
+    const monthKeys = new Set(lastMonths.map((date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`));
+    const totalsByMonth = new Map<string, Record<string, number>>();
+    const cardIdToKey = new Map(creditCards.map((c, i) => [c.id, `card_${i}`]));
+    
+    monthKeys.forEach((key) => {
+      const initialCardsState: Record<string, number> = {};
+      creditCards.forEach((c, i) => {
+        initialCardsState[`card_${i}`] = 0;
+      });
+      totalsByMonth.set(key, initialCardsState);
+    });
+
+    rawLastMonthsData.groupInstallments.forEach((item: any) => {
+      const month = Number(item.bill_month);
+      const year = Number(item.bill_year);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const bucket = totalsByMonth.get(key);
+      const amount = Number(item.amount) || 0;
+      const cardId = item.expenses?.credit_card_id;
+      const dataKey = cardId ? cardIdToKey.get(cardId) : undefined;
+      
+      if (bucket && dataKey && bucket[dataKey] !== undefined) {
+        bucket[dataKey] += amount;
+      }
+    });
+
+    rawLastMonthsData.personalInstallments.forEach((item: any) => {
+      const month = Number(item.bill_month);
+      const year = Number(item.bill_year);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const bucket = totalsByMonth.get(key);
+      const amount = Number(item.amount) || 0;
+      const cardId = item.personal_expenses?.credit_card_id;
+      const dataKey = cardId ? cardIdToKey.get(cardId) : undefined;
+      
+      if (bucket && dataKey && bucket[dataKey] !== undefined) {
+        bucket[dataKey] += amount;
+      }
+    });
+
+    return lastMonths.map((date) => {
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const monthValues = totalsByMonth.get(key) ?? {};
+
+      let totalMonth = 0;
+      const roundedValues: Record<string, number> = {};
+      for (const [k, v] of Object.entries(monthValues)) {
+        roundedValues[k] = Number(v.toFixed(2));
+        totalMonth += v;
+      }
+
+      return {
+        monthLabel: format(date, "MMM/yy", { locale: ptBR }),
+        total: Number(totalMonth.toFixed(2)),
+        ...roundedValues,
+      };
+    });
+  }, [rawLastMonthsData, lastMonths, creditCards]);
+
   const donutData = cardsChartData.map((entry, index) => ({
     label: entry.name,
     value: entry.value,
@@ -192,12 +332,19 @@ export function CardsTab({
     ? billInstallments.filter((i: any) => i.expenses?.credit_card_id === selectedCard.id)
     : [];
 
-  const sortedSelectedCardInstallments = [...selectedCardInstallments].sort((a: any, b: any) => {
+  const sortInstallments = (a: any, b: any) => {
     const dateA = a.expenses?.purchase_date || "";
     const dateB = b.expenses?.purchase_date || "";
 
-    return dateB.localeCompare(dateA);
-  });
+    if (dateA === dateB) {
+      const createdA = a.expenses?.created_at || "";
+      const createdB = b.expenses?.created_at || "";
+      return sortOrder === "desc" ? createdB.localeCompare(createdA) : createdA.localeCompare(createdB);
+    }
+    return sortOrder === "desc" ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
+  };
+
+  const sortedSelectedCardInstallments = [...selectedCardInstallments].sort(sortInstallments);
 
   const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
   const selectedCardIndividualTotal = selectedCardInstallments
@@ -214,11 +361,7 @@ export function CardsTab({
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const sortedInstallments = [...billInstallments].sort((a: any, b: any) => {
-    const dateA = a.expenses?.purchase_date || "";
-    const dateB = b.expenses?.purchase_date || "";
-    return dateB.localeCompare(dateA);
-  });
+  const sortedInstallments = [...billInstallments].sort(sortInstallments);
 
   const globalIndividualTotal = billInstallments
     .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
@@ -230,6 +373,66 @@ export function CardsTab({
     
   const globalUncategorizedTotal = Math.max(0, totalBill - (globalIndividualTotal + globalCollectiveBaseTotal));
   const globalCollectiveTotal = globalCollectiveBaseTotal + globalUncategorizedTotal;
+
+  const renderColorField = (field: any) => {
+    const isCustomColor = field.value && !CARD_COLORS.some(c => c.toLowerCase() === field.value.toLowerCase());
+    
+    return (
+      <FormItem>
+        <FormLabel>Cor de identificação</FormLabel>
+        <FormControl>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <div className="flex flex-wrap gap-2 items-center">
+              {CARD_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn(
+                    "h-8 w-8 rounded-full border-2 transition-all",
+                    field.value?.toLowerCase() === c.toLowerCase() ? "border-foreground scale-110 shadow-sm" : "border-transparent hover:scale-105"
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => field.onChange(c)}
+                  aria-label={`Cor ${c}`}
+                />
+              ))}
+              
+              <div 
+                className={cn(
+                  "relative overflow-hidden h-8 w-8 rounded-full border-2 transition-all cursor-pointer shrink-0",
+                  isCustomColor ? "border-foreground scale-110 shadow-sm" : "border-dashed border-muted-foreground/50 hover:scale-105"
+                )}
+                style={{ backgroundColor: isCustomColor ? field.value : 'transparent' }}
+                title="Cor personalizada"
+              >
+                <input
+                  type="color"
+                  value={field.value || "#000000"}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className="absolute inset-[-20px] h-20 w-20 cursor-pointer opacity-0"
+                />
+                {!isCustomColor && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <Input
+              type="text"
+              value={field.value || ""}
+              onChange={(e) => field.onChange(e.target.value)}
+              className="w-24 h-8 text-xs uppercase"
+              placeholder="#HEX"
+              maxLength={7}
+            />
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    );
+  };
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -410,7 +613,11 @@ export function CardsTab({
               return (
                 <Card
                   key={card.id}
-                  className="flex flex-col justify-between hover:shadow-md transition-all border-l-4 border-l-primary/80 cursor-pointer"
+                  className={cn(
+                    "flex flex-col justify-between hover:shadow-md transition-all border-l-4 cursor-pointer",
+                    !card.color && "border-l-primary/80"
+                  )}
+                  style={card.color ? { borderLeftColor: card.color } : undefined}
                   onClick={() => {
                     if (editCardOpen || !!deletingCard) return;
                     setSelectedCard(card);
@@ -484,10 +691,19 @@ export function CardsTab({
       </div>
 
       <Card>
-        <CardHeader className="pb-3 border-b bg-muted/5">
+        <CardHeader className="pb-3 border-b bg-muted/5 flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
             Lançamentos da Competência ({billInstallments.length})
           </CardTitle>
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+            <SelectTrigger className="w-[130px] h-8 text-xs font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Mais recentes</SelectItem>
+              <SelectItem value="asc">Mais antigos</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent className="pt-0">
           <ScrollArea className="h-[250px]">
@@ -537,12 +753,103 @@ export function CardsTab({
         </CardContent>
       </Card>
 
+      {/* Gráfico de Evolução dos Cartões */}
+      <Card>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-sm font-medium">Evolução de Gastos por Cartão</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground hidden sm:block" />
+          </div>
+          <Select value={String(monthsCount)} onValueChange={(v) => setMonthsCount(Number(v) as 6 | 12)}>
+            <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="6">Últimos 6 meses</SelectItem>
+              <SelectItem value="12">Últimos 12 meses</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="pt-2">
+          {isLoadingLastMonthsCardsData ? (
+            <div className="flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
+              <CustomLoader className="h-5 w-5 mr-2" />
+              Carregando evolução dos cartões...
+            </div>
+          ) : creditCards.length === 0 ? (
+            <div className="flex min-h-[160px] items-center justify-center text-sm text-muted-foreground">
+              Cadastre cartões para visualizar o gráfico.
+            </div>
+          ) : (
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={lastMonthsCardsData}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 24 }}
+                >
+                  <CartesianGrid strokeDasharray="4 4" className="stroke-muted" vertical={false} />
+                  <XAxis
+                    dataKey="monthLabel"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    width={80}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `R$ ${Number(value).toLocaleString("pt-BR")}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => `R$ ${formatCurrency(Number(value))}`}
+                    contentStyle={{
+                      borderRadius: "0.5rem",
+                      borderColor: "hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} 
+                    iconType="circle"
+                  />
+                  {/* Linha Total Destacada */}
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    name="Total (Todos os Cartões)"
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  {creditCards.map((card, index) => (
+                    <Line
+                      key={card.id}
+                      type="monotone"
+                      dataKey={`card_${index}`}
+                      name={card.label}
+                      stroke={card.color || CARD_COLORS[index % CARD_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Dialog
         open={addCardOpen}
         onOpenChange={(open) => {
           setAddCardOpen(open);
           if (!open) {
-            form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+            form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "", color: CARD_COLORS[0] });
           }
         }}
       >
@@ -636,6 +943,12 @@ export function CardsTab({
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => renderColorField(field)}
+              />
+
               <Button type="submit" className="w-full" disabled={createCard.isPending || !user}>
                 {createCard.isPending && <CustomLoader className="mr-2 h-4 w-4" />}
                 Salvar cartão
@@ -682,6 +995,19 @@ export function CardsTab({
               </div>
             </div>
 
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium">Lançamentos</p>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-[130px] h-7 text-xs font-normal">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recentes</SelectItem>
+                  <SelectItem value="asc">Mais antigos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="border rounded-lg divide-y bg-card">
               {sortedSelectedCardInstallments.map((item: any, index: number) => {
                 const isAVista = (item.expenses?.installments || 1) <= 1;
@@ -717,7 +1043,7 @@ export function CardsTab({
         onOpenChange={(open) => {
           setEditCardOpen(open);
           if (!open) {
-            form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "" });
+            form.reset({ label: "", brand: "", closing_day: 5, due_day: 10, limit_amount: "", color: CARD_COLORS[0] });
             setSelectedCard(null);
           }
         }}
@@ -736,6 +1062,13 @@ export function CardsTab({
                 <FormField control={form.control} name="due_day" render={({ field }) => (<FormItem><FormLabel>Dia de vencimento</FormLabel><FormControl><Input type="number" min={1} max={31} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <FormField control={form.control} name="limit_amount" render={({ field }) => (<FormItem><FormLabel>Limite (opcional)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="R$" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => renderColorField(field)}
+              />
+
               <Button type="submit" className="w-full" disabled={updateCard.isPending}>{updateCard.isPending && <CustomLoader className="mr-2 h-4 w-4" />}Salvar alterações</Button>
             </form>
           </Form>

@@ -15,6 +15,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
@@ -79,6 +80,8 @@ export function PersonalTab({
 
   const [hoveredPersonalLabel, setHoveredPersonalLabel] = useState<string | null>(null);
   const [hoveredCollectiveLabel, setHoveredCollectiveLabel] = useState<string | null>(null);
+  
+  const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
 
   const cashExpenses = myPersonalExpenses
     .filter((e: any) => e.payment_method !== 'credit_card')
@@ -107,7 +110,7 @@ export function PersonalTab({
 
   const chartDataTemplate = useMemo(() => {
     const comps = [];
-    for (let i = 5; i >= 0; i--) {
+    for (let i = monthsCount - 1; i >= 0; i--) {
       const d = subMonths(currentDate, i);
       const key = formatCompetenceKey(d);
       comps.push({
@@ -119,10 +122,10 @@ export function PersonalTab({
       });
     }
     return comps;
-  }, [currentDate]);
+  }, [currentDate, monthsCount]);
 
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, formatCompetenceKey(currentDate)],
+    queryKey: ["home-expenses-evolution", activeGroupId, user?.id, formatCompetenceKey(currentDate), monthsCount],
     queryFn: async () => {
       if (!activeGroupId || !user?.id) return { expenses: [], installments: [], personalInstallments: [] };
       
@@ -213,6 +216,7 @@ export function PersonalTab({
       Coletivo: Number(b.Coletivo.toFixed(2)),
       MeuRateio: Number(b.MeuRateio.toFixed(2)),
       Individual: Number(b.Individual.toFixed(2)),
+      TotalPessoal: Number((b.MeuRateio + b.Individual).toFixed(2)),
     }));
   }, [rawData, chartDataTemplate, user?.id, closingDay]);
 
@@ -984,13 +988,26 @@ export function PersonalTab({
       {/* --- EVOLUÇÃO DE GASTOS --- */}
       <Card className="shadow-sm bg-card">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Evolução de Gastos (Últimos 6 meses)
-          </CardTitle>
-          <CardDescription>
-            Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Evolução de Gastos
+              </CardTitle>
+              <CardDescription>
+                Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
+              </CardDescription>
+            </div>
+            <Select value={String(monthsCount)} onValueChange={(v) => setMonthsCount(Number(v) as 6 | 12)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">Últimos 6 meses</SelectItem>
+                <SelectItem value="12">Últimos 12 meses</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="h-[340px] w-full pt-4">
           {isLoading ? (
@@ -1053,6 +1070,15 @@ export function PersonalTab({
                   dataKey="Individual" 
                   name="Meus Gastos (Individuais)" 
                   stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  type="monotone"
+                  dataKey="TotalPessoal" 
+                  name="Total Pessoal (Individual + Rateio)" 
+                  stroke="hsl(var(--destructive))"
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}

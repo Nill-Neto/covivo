@@ -36,6 +36,7 @@ export function useCycleDates(groupId: string | undefined) {
 
   return {
     currentDate,
+    setCurrentDate,
     cycleStart,
     cycleEnd,
     cycleLimitDate,

@@ -285,7 +285,7 @@ export default function ShoppingLists() {
             {activeLists.length === 0 ? (
               <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma lista ativa.</CardContent></Card>
             ) : activeLists.map((list) => (
-              <Card key={list.id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedList(list.id)}>
+              <Card key={list.id} className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" onClick={() => setSelectedList(list.id)}>
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -304,7 +304,7 @@ export default function ShoppingLists() {
             {completedLists.length === 0 ? (
               <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma lista concluída.</CardContent></Card>
             ) : completedLists.map((list) => (
-              <Card key={list.id} className="opacity-70 cursor-pointer" onClick={() => setSelectedList(list.id)}>
+              <Card key={list.id} className="opacity-70 cursor-pointer hover:opacity-100 hover:shadow-md transition-all" onClick={() => setSelectedList(list.id)}>
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base">{list.name}</CardTitle>
                   <Badge variant="outline">Concluída</Badge>
