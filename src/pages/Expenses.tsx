@@ -1300,6 +1300,9 @@ export default function Expenses() {
                         )}
                         {splitMode === 'exact' && (
                           <div className="space-y-3 pt-3">
+                            <p className="text-xs text-muted-foreground px-1">
+                              Informe o valor exato que cada participante deve pagar.
+                            </p>
                             <div className="space-y-2 border rounded-md p-2 max-h-40 overflow-y-auto">
                               {participantOptions.map((participant) => (
                                 <div key={participant.id} className="flex items-center gap-3">
