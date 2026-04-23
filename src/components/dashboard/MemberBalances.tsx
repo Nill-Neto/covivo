@@ -30,7 +30,7 @@ export function MemberBalances() {
         throw new Error(error.message);
       }
       // Filter out the current user from the list
-      return data.filter((b: MemberBalance) => b.user_id !== user?.id);
+      return (data as MemberBalance[]).filter((b) => b.user_id !== user?.id);
     },
     enabled: !!activeGroupId && !!user?.id,
   });
