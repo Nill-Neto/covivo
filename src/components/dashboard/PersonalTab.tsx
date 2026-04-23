@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+'''import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertCircle, DollarSign, Users, Wallet, CheckCircle2, List, Receipt, ArrowRight, BarChart3 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from "recharts";
@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { CustomLoader } from "@/components/ui/custom-loader";
+import { MemberBalances } from "./MemberBalances";
 
 interface PersonalTabProps {
   totalIndividualPending: number;
@@ -1089,6 +1090,7 @@ export function PersonalTab({
         </CardContent>
       </Card>
 
+      <MemberBalances />
     </div>
   );
-}
+}'''

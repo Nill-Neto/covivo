@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+'''import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { parseLocalDate, cn } from "@/lib/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -140,8 +140,9 @@ export default function Expenses() {
 
   const [isPaid, setIsPaid] = useState(false);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
-  const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
+  const [splitMode, setSplitMode] = useState<"all" | "manual" | "exact">("all");
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [exactSplitAmounts, setExactSplitAmounts] = useState<Record<string, string>>({});
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -369,15 +370,26 @@ export default function Expenses() {
     if (editingType !== "expense") return [];
     if (expenseType === "individual") return user?.id ? [user.id] : [];
     if (splitMode === "all") return participantOptions.map((p) => p.id);
-    return selectedParticipantIds;
-  }, [editingType, expenseType, user?.id, splitMode, participantOptions, selectedParticipantIds]);
+    if (splitMode === "manual") return selectedParticipantIds;
+    if (splitMode === "exact") return Object.keys(exactSplitAmounts).filter(id => Number(exactSplitAmounts[id]) > 0);
+    return [];
+  }, [editingType, expenseType, user?.id, splitMode, participantOptions, selectedParticipantIds, exactSplitAmounts]);
 
   const perPersonQuota = useMemo(() => {
     const total = Number(amount) || 0;
     const count = effectiveParticipantIds.length;
-    if (!count || total <= 0) return 0;
+    if (!count || total <= 0 || splitMode === 'exact') return 0;
     return total / count;
-  }, [amount, effectiveParticipantIds.length]);
+  }, [amount, effectiveParticipantIds.length, splitMode]);
+
+  const exactSplitSum = useMemo(() => {
+    return Object.values(exactSplitAmounts).reduce((sum, current) => sum + (Number(current) || 0), 0);
+  }, [exactSplitAmounts]);
+
+  const exactSplitRemaining = useMemo(() => {
+    const total = Number(amount) || 0;
+    return total - exactSplitSum;
+  }, [amount, exactSplitSum]);
 
   const payerLabel = useMemo(() => {
     if (payerUserId === "me") return "Você";
@@ -579,6 +591,11 @@ export default function Expenses() {
 
     if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
       toast({ title: "Erro", description: "Selecione pelo menos um participante.", variant: "destructive" });
+      return;
+    }
+
+    if (expenseType === "collective" && splitMode === "exact" && Math.abs(exactSplitRemaining) > 0.001) {
+      toast({ title: "Erro na divisão", description: `A soma dos valores (R$ ${exactSplitSum.toFixed(2)}) não bate com o total da despesa (R$ ${Number(amount).toFixed(2)}).`, variant: "destructive" });
       return;
     }
 
@@ -805,6 +822,7 @@ export default function Expenses() {
     setDescription("");
     setSplitBetweenAll(true);
     setSelectedParticipantIds(activeMemberIds);
+    setExactSplitAmounts({});
     setPaymentMethod("cash");
     setCreditCardId("none");
     setInstallments("1");
@@ -1256,12 +1274,15 @@ export default function Expenses() {
                       </p>
                     ) : (
                       <>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <Button type="button" variant={splitMode === "all" ? "default" : "outline"} onClick={() => setSplitMode("all")}>
                             Todos
                           </Button>
                           <Button type="button" variant={splitMode === "manual" ? "default" : "outline"} onClick={() => setSplitMode("manual")}>
-                            Seleção manual
+                            Manual
+                          </Button>
+                          <Button type="button" variant={splitMode === "exact" ? "default" : "outline"} onClick={() => setSplitMode("exact")}>
+                            Exato
                           </Button>
                         </div>
                         {splitMode === "manual" && (
@@ -1277,6 +1298,36 @@ export default function Expenses() {
                             ))}
                           </div>
                         )}
+                        {splitMode === 'exact' && (
+                          <div className="space-y-3 pt-3">
+                            <div className="space-y-2 border rounded-md p-2 max-h-40 overflow-y-auto">
+                              {participantOptions.map((participant) => (
+                                <div key={participant.id} className="flex items-center gap-3">
+                                  <Label className="flex-1">{participant.name}</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="0,00"
+                                    className="w-24"
+                                    value={exactSplitAmounts[participant.id] || ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setExactSplitAmounts(prev => ({ ...prev, [participant.id]: value }));
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div className={cn(
+                              "text-xs font-medium text-right",
+                              exactSplitRemaining === 0 ? "text-green-600" : "text-destructive"
+                            )}>
+                              {exactSplitRemaining === 0
+                                ? `Total bate com R$ ${Number(amount).toFixed(2)}`
+                                : `Faltam R$ ${exactSplitRemaining.toFixed(2)} para fechar`
+                              }
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1290,9 +1341,11 @@ export default function Expenses() {
                     <p>
                       <strong>Participantes:</strong> {effectiveParticipantIds.length}
                     </p>
-                    <p>
-                      <strong>Cota por pessoa:</strong> R$ {perPersonQuota.toFixed(2)}
-                    </p>
+                    {splitMode !== 'exact' && (
+                      <p>
+                        <strong>Cota por pessoa:</strong> R$ {perPersonQuota.toFixed(2)}
+                      </p>
+                    )}
                     <p>
                       <strong>Quem será reembolsado:</strong> {payerLabel}
                     </p>
@@ -1765,4 +1818,4 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
       </CardContent>
     </Card>
   );
-}
+}'''
