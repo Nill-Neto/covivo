@@ -147,4 +147,9 @@ export function MemberBalances() {
     </Card>
   );
 }
+)}
+      </CardContent>
+    </Card>
+  );
+}
 '''

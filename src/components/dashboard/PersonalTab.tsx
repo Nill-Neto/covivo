@@ -1093,4 +1093,4 @@ export function PersonalTab({
       <MemberBalances />
     </div>
   );
-}'''
+}

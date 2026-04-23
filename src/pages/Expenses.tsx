@@ -1818,4 +1818,4 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
       </CardContent>
     </Card>
   );
-}'''
+}
