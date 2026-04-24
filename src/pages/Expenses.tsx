@@ -384,6 +384,134 @@ export default function Expenses() {
     return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
   }, [payerUserId, participantOptions]);
 
+  const instantSummary = useMemo(() => {
+    if (expenseType !== "collective" || perPersonQuota <= 0) {
+      return null;
+    }
+
+    const payerName = participantOptions.find((p) => p.id === payerUserId)?.name || "um participante";
+    const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
+
+    // Scenario 1: Current user is the payer
+    if (actualPayerId === user?.id) {
+      if (!editingId) {
+        // New expense
+        const otherParticipantsCount = effectiveParticipantIds.length - 1;
+        if (otherParticipantsCount <= 0) {
+          return <p>Você está pagando a despesa inteira.</p>;
+        }
+        if (isPaid) {
+          return <p>Você já recebeu o reembolso de todos os participantes.</p>;
+        }
+        return (
+          <p>
+            Você receberá{" "}
+            <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> de cada um dos{" "}
+            {otherParticipantsCount} outros participantes.
+          </p>
+        );
+      } else {
+        // Editing an existing expense
+        const expense = allExpenses.find((e) => e.id === editingId);
+        if (!expense || !expense.expense_splits) return null;
+
+        const otherSplits = expense.expense_splits.filter((s) => s.user_id !== user?.id);
+        if (otherSplits.length === 0) {
+          return <p>Você está pagando a despesa inteira.</p>;
+        }
+
+        const paid = otherSplits.filter((s) => s.status === "paid");
+        const pending = otherSplits.filter((s) => s.status === "pending");
+
+        if (pending.length === 0) {
+          return <p>Todos os participantes já te reembolsaram.</p>;
+        }
+
+        const summaryElements = [];
+        if (paid.length > 0) {
+          const names = paid
+            .map((s) => participantOptions.find((p) => p.id === s.user_id)?.name)
+            .filter(Boolean);
+          if (names.length > 0) {
+            summaryElements.push(<p key="paid">{names.join(", ")} te pagou.</p>);
+          }
+        }
+        if (pending.length > 0) {
+          const names = pending
+            .map((s) => participantOptions.find((p) => p.id === s.user_id)?.name)
+            .filter(Boolean);
+          if (names.length > 0) {
+            const verb = names.length > 1 ? "devem" : "deve";
+            summaryElements.push(
+              <p key="pending">
+                {names.join(", ")} te {verb}{" "}
+                <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong>
+                {names.length > 1 ? " cada" : ""}.
+              </p>
+            );
+          }
+        }
+        return <div className="space-y-1">{summaryElements}</div>;
+      }
+    } else {
+      // Scenario 2: Another member is the payer
+      if (!editingId) {
+        // New expense
+        if (!effectiveParticipantIds.includes(user?.id ?? "")) {
+          return <p>Você não participa do rateio desta despesa.</p>;
+        }
+        if (isPaid) {
+          return (
+            <p>
+              Você será marcado como tendo pago{" "}
+              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+            </p>
+          );
+        }
+        return (
+          <p>
+            Você deve <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+          </p>
+        );
+      } else {
+        // Editing an existing expense
+        const expense = allExpenses.find((e) => e.id === editingId);
+        if (!expense || !expense.expense_splits) return null;
+
+        const mySplit = expense.expense_splits.find((s) => s.user_id === user?.id);
+        if (!mySplit) {
+          return <p>Você não participa desta despesa.</p>;
+        }
+
+        if (mySplit.status === "paid") {
+          return (
+            <p>
+              Você pagou <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        } else {
+          return (
+            <p>
+              Você deve <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        }
+      }
+    }
+  }, [
+    expenseType,
+    perPersonQuota,
+    payerUserId,
+    user?.id,
+    editingId,
+    isPaid,
+    effectiveParticipantIds,
+    allExpenses,
+    participantOptions,
+  ]);
+
   const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[]) => {
     const uniqueParticipantIds = Array.from(new Set(participantIds));
     if (uniqueParticipantIds.length === 0) {
@@ -1165,15 +1293,11 @@ export default function Expenses() {
                 <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
                   <Label className="text-sm font-semibold">Resumo instantâneo</Label>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>
-                      <strong>Participantes:</strong> {effectiveParticipantIds.length}
-                    </p>
-                    <p>
-                      <strong>Cota por pessoa:</strong> R$ {perPersonQuota.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong>Quem será reembolsado:</strong> {payerLabel}
-                    </p>
+                    {instantSummary || (
+                      <p>
+                        <strong>Participantes:</strong> {effectiveParticipantIds.length}, <strong>Cota:</strong> R$ {perPersonQuota.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
