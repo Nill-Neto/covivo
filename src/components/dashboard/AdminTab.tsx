@@ -2,14 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { parseLocalDate, cn } from "@/lib/utils";
 import {
-  Users, ArrowRight, RefreshCw, DollarSign, AlertTriangle,
+  Users, ArrowRight, RefreshCw, DollarSign,
   Receipt, Settings, ClipboardList, BarChart3,
-  Clock, UserPlus, Scale, UserMinus, Package,
+  UserPlus, Shield,
   type LucideIcon
 } from "lucide-react";
 import { format } from "date-fns";
@@ -19,6 +18,7 @@ import { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AdminFinancialSummary } from "./AdminFinancialSummary";
 
 interface AdminTabProps {
   members: any[];
@@ -180,11 +180,6 @@ export function AdminTab({
     (acc, m) => acc + ((m.accumulated_balance ?? m.balance) < -0.01 ? Math.abs(m.accumulated_balance ?? m.balance) : 0), 0
   );
 
-  const membersInDebt = sortedMembers.filter(m => (m.accumulated_balance ?? m.balance) < -0.05);
-  const collectRate = members.length > 0
-    ? Math.round(((members.length - membersInDebt.length) / members.length) * 100)
-    : 100;
-
   const recentExpenses = useMemo(() =>
     [...collectiveExpenses]
       .sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime())
@@ -217,6 +212,13 @@ export function AdminTab({
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
+      <AdminFinancialSummary
+        totalExpenses={totalMonthExpenses}
+        totalReceivable={totalReceivable}
+        pendingPaymentsCount={pendingPaymentsCount}
+        exMembersDebt={exMembersDebt}
+      />
+
       {/* Quick Actions */}
       <Card>
         <CardContent className="p-0">
@@ -230,154 +232,6 @@ export function AdminTab({
           </div>
         </CardContent>
       </Card>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Despesas do Ciclo */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Despesas do Ciclo
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">
-              R$ {totalMonthExpenses.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {collectiveExpenses.length} lançamento{collectiveExpenses.length !== 1 ? "s" : ""}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Total a Receber */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total a Receber
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold tabular-nums ${totalReceivable > 0 ? "text-destructive" : "text-foreground"}`}>
-              R$ {totalReceivable.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {membersInDebt.length} pendência{membersInDebt.length !== 1 ? "s" : ""}
-            </p>
-            <Button 
-              variant="link" 
-              className={`p-0 h-auto text-xs mt-1 ${totalReceivable > 0 ? "text-destructive" : "text-primary"}`} 
-              onClick={() => setIsReceivablesOpen(true)}
-            >
-              Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Pagamentos Pendentes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              A Confirmar
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{pendingPaymentsCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingPaymentsCount > 0 ? "Aguardando sua ação" : "Nenhum pendente"}
-            </p>
-            {pendingPaymentsCount > 0 && (
-              <Button variant="link" className="p-0 h-auto text-xs mt-1 text-warning" asChild>
-                <Link to="/payments?filter=pending">Confirmar <ArrowRight className="h-3 w-3 ml-1" /></Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Taxa de Adimplência */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Adimplência (Ciclo)
-            </CardTitle>
-            <Scale className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{collectRate}%</div>
-            <Progress value={collectRate} className="h-1.5 mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {members.length - membersInDebt.length}/{members.length} em dia
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Movimentações de Moradores */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Ex-moradores (débito)
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold tabular-nums ${exMembersDebt > 0 ? "text-destructive" : "text-foreground"}`}>
-              R$ {exMembersDebt.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Pendências abertas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Redistribuições
-            </CardTitle>
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{redistributedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Splits após saídas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Saídas
-            </CardTitle>
-            <UserMinus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{departuresCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Neste período</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Estoque Crítico
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold tabular-nums ${lowStockCount > 0 ? "text-warning" : "text-foreground"}`}>
-              {lowStockCount}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Abaixo do mínimo</p>
-            {lowStockCount > 0 && (
-              <Button variant="link" className="p-0 h-auto text-xs mt-1 text-warning" asChild>
-                <Link to="/inventory">Repor estoque <ArrowRight className="h-3 w-3 ml-1" /></Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-4 md:grid-cols-12">
