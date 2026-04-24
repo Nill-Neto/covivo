@@ -24,7 +24,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { CustomLoader } from "@/components/ui/custom-loader";
-import { MemberBalances } from "./MemberBalances";
 
 interface PersonalTabProps {
   totalIndividualPending: number;
@@ -1090,7 +1089,6 @@ export function PersonalTab({
         </CardContent>
       </Card>
 
-      <MemberBalances />
     </div>
   );
 }
