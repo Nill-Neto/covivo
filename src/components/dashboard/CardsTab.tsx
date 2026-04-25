@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { CardsTabProps, CreditCard as CreditCardType, GroupInstallmentItem, PersonalInstallmentItem } from "@/types/dashboard";
+import type { Tables } from "@/integrations/supabase/types";
 
 const cardSchema = z.object({
   label: z.string().min(3, "Informe o apelido do cartão"),
@@ -206,7 +207,7 @@ export function CardsTab({
   const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery<{
     groupInstallments: GroupInstallmentItem[];
     personalInstallments: PersonalInstallmentItem[];
-  }>({
+  } | null>({
     queryKey: [
       "cards-last-months-raw",
       user?.id,
@@ -223,7 +224,7 @@ export function CardsTab({
         supabase
           .from("expense_installments")
           .select(
-            "*, expenses!inner(expense_type, group_id, credit_card_id)"
+            "*, expenses(expense_type, group_id, credit_card_id)"
           )
           .eq("user_id", user!.id)
           .eq("expenses.group_id", membership!.group_id)
@@ -233,7 +234,7 @@ export function CardsTab({
         supabase
           .from("personal_expense_installments")
           .select(
-            "*, personal_expenses!inner(credit_card_id)"
+            "*, personal_expenses(credit_card_id)"
           )
           .eq("user_id", user!.id)
           .in("bill_month", months)
@@ -976,7 +977,7 @@ export function CardsTab({
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2">
-                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
+                  <span className="block text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
                   <div className="text-right">
                     <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(selectedCardIndividualTotal)}</p>
                     <p className="text-[10px] font-semibold text-emerald-800/80 dark:text-emerald-200">{selectedCardIndividualPercentage.toFixed(1)}% da fatura</p>
@@ -984,7 +985,7 @@ export function CardsTab({
                 </div>
 
                 <div className="flex items-center justify-between rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-2">
-                  <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Coletivos</span>
+                  <span className="block text-[10px] font-bold text-blue-800 dark:text-blue-300">Coletivos</span>
                   <div className="text-right">
                     <p className="text-sm font-extrabold text-foreground">R$ {formatCurrency(selectedCardCollectiveTotal)}</p>
                     <p className="text-[10px] font-semibold text-blue-800/80 dark:text-blue-200">{selectedCardCollectivePercentage.toFixed(1)}% da fatura</p>
