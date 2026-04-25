@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS public.claim_expense_payment(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION public.claim_expense_payment(
   _expense_id uuid
 )
