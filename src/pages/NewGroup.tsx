@@ -15,6 +15,7 @@ import type { GroupAddress } from "@/components/onboarding/GroupSettingsStep";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type SplittingRule = "equal" | "percentage";
+type ModoGestao = "centralized" | "p2p";
 
 export default function NewGroup() {
   const { user, refreshMembership, setActiveGroupId } = useAuth();
@@ -25,7 +26,7 @@ export default function NewGroup() {
   const [splittingRule, setSplittingRule] = useState<SplittingRule>("equal");
   const [closingDay, setClosingDay] = useState(1);
   const [dueDay, setDueDay] = useState(10);
-  const [modoGestao, setModoGestao] = useState("centralized");
+  const [modoGestao, setModoGestao] = useState<ModoGestao>("centralized");
   const [address, setAddress] = useState<GroupAddress>({
     street: "",
     number: "",
@@ -198,7 +199,7 @@ export default function NewGroup() {
 
           <div className="space-y-3">
             <Label>Modo de Gestão Financeira</Label>
-            <RadioGroup value={modoGestao} onValueChange={setModoGestao} className="grid grid-cols-2 gap-4">
+            <RadioGroup value={modoGestao} onValueChange={(v) => setModoGestao(v as ModoGestao)} className="grid grid-cols-2 gap-4">
                 <div>
                     <RadioGroupItem value="centralized" id="centralized" className="peer sr-only" />
                     <Label htmlFor="centralized" className="flex flex-col items-center h-full justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
