@@ -81,11 +81,16 @@ export default function Admin() {
         if (p2pMatrixRes.error) throw p2pMatrixRes.error;
   
         const rawP2PMatrix = (p2pMatrixRes.data || []) as RpcReturns<"get_group_p2p_matrix">;
-        const p2pMatrix = rawP2PMatrix.map((row) => ({
-          from_user_id: row.person_a_id,
-          to_user_id: row.person_b_id,
-          amount: Number(row.net_balance_a_to_b || 0),
-        }));
+        const p2pMatrix = rawP2PMatrix.map((row) => {
+          const netBalance = Number(row.net_balance_a_to_b || 0);
+          const isNegativeBalance = netBalance < 0;
+
+          return {
+            from_user_id: isNegativeBalance ? row.person_b_id : row.person_a_id,
+            to_user_id: isNegativeBalance ? row.person_a_id : row.person_b_id,
+            amount: Math.abs(netBalance),
+          };
+        });
   
         return {
           members: (membersRes.data || []).map(m => ({ ...m, user_id: m.id, balance: 0, accrued_debt: 0, current_cycle_owed: 0, current_cycle_paid: 0, previous_debt: 0, total_owed: 0, total_paid: 0, active: true, profile: m, role: 'morador' })),
