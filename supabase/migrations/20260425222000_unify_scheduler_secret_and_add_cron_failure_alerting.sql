@@ -79,10 +79,7 @@ BEGIN
       r.status_code,
       coalesce(r.timed_out, false) AS timed_out,
       r.error_msg,
-      CASE
-        WHEN r.content IS NULL THEN NULL
-        ELSE convert_from(r.content, 'UTF8')
-      END AS response_body
+      r.content AS response_body
     FROM net._http_response r
     WHERE r.created > now() - interval '2 hours'
       AND (
