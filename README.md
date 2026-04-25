@@ -71,6 +71,13 @@ Uma visão "onisciente" para o gestor do grupo, garantindo total controle e tran
 - **Backend & Autenticação**: Supabase (PostgreSQL com RLS, Storage, Edge Functions)
 - **Formulários e Validação**: React Hook Form com Zod
 
+
+## 🗂️ Convenção de Migrations
+
+- As migrations SQL em `supabase/migrations` devem seguir o padrão `YYYYMMDDHHMMSS_descricao.sql` com timestamp UTC único e estritamente crescente.
+- Regras detalhadas e exemplos: `docs/migration-versioning.md`.
+- Validação local da sequência: `node supabase/scripts/validate-migration-sequence.mjs`.
+
 ## 🚀 Como Executar o Projeto
 
 1.  **Clone o repositório.**

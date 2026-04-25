@@ -3,16 +3,16 @@
 Este diretório concentra scripts SQL de inspeção/debug que **não devem** rodar no fluxo de migração de schema.
 
 ## Origem auditada
-Arquivos `supabase/migrations/0000_*.sql` até `0029_*.sql`.
+Arquivos históricos da faixa inicial de migrations, hoje renomeados para prefixo de timestamp (`20260101000019` até `20260101000129`).
 
 ## Classificação
 
 ### 1) Migrations estruturais (permanecem em `supabase/migrations/`)
-- `0019_make_receipts_and_documents_buckets_public.sql`
-- `0024_add_missing_columns_to_various_tables_to_match_codebase_types.sql`
-- `0025_add_competence_derivation_triggers_and_functions.sql`
-- `0026_add_missing_indexes_for_competence_and_groups.sql`
-- `0027_backfill_competence_data_for_existing_rows.sql`
+- `20260101000019_make_receipts_and_documents_buckets_public.sql`
+- `20260101000024_add_missing_columns_to_various_tables_to_match_codebase_types.sql`
+- `20260101000025_add_competence_derivation_triggers_and_functions.sql`
+- `20260101000026_add_missing_indexes_for_competence_and_groups.sql`
+- `20260101000027_backfill_competence_data_for_existing_rows.sql`
 
 ### 2) Scripts de diagnóstico/inspeção (movidos para este diretório)
 - `0000_check_existing_expense_installments.sql`
