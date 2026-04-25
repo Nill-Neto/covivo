@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { parseLocalDate, cn } from "@/lib/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,9 @@ import {
   ChevronRight,
   CheckCircle2,
   Receipt,
+  Settings,
+  Search,
+  X,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -150,7 +154,16 @@ export default function Expenses() {
 
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading, closingDay } = useCycleDates(membership?.group_id);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { currentDate, setCurrentDate, cycleStart, cycleEnd, nextMonth, prevMonth, loading, closingDay } = useCycleDates(membership?.group_id);
 
   useEffect(() => {
     if (!editingId && activeTab !== "recurring") {
@@ -165,6 +178,26 @@ export default function Expenses() {
   }, [category]);
 
   const currentCompetenceKey = formatCompetenceKey(currentDate);
+
+  const { data: globalSearchResults = [] } = useQuery({
+    queryKey: ["global-expenses-search", membership?.group_id, debouncedSearch, currentCompetenceKey],
+    queryFn: async () => {
+      if (!debouncedSearch.trim() || !membership?.group_id) return [];
+      
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("id, title, purchase_date, competence_key, amount, category, expense_type")
+        .eq("group_id", membership.group_id)
+        .ilike("title", `%${debouncedSearch}%`)
+        .neq("competence_key", currentCompetenceKey)
+        .order("purchase_date", { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!debouncedSearch.trim() && !!membership?.group_id,
+  });
 
   const { data: cycleExpenses = [], isLoading: loadingExpenses } = useQuery({
     queryKey: ["expenses", membership?.group_id, currentCompetenceKey],
@@ -351,6 +384,134 @@ export default function Expenses() {
     return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
   }, [payerUserId, participantOptions]);
 
+  const instantSummary = useMemo(() => {
+    if (expenseType !== "collective" || perPersonQuota <= 0) {
+      return null;
+    }
+
+    const payerName = participantOptions.find((p) => p.id === payerUserId)?.name || "um participante";
+    const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
+
+    // Scenario 1: Current user is the payer
+    if (actualPayerId === user?.id) {
+      if (!editingId) {
+        // New expense
+        const otherParticipantsCount = effectiveParticipantIds.length - 1;
+        if (otherParticipantsCount <= 0) {
+          return <p>Você está pagando a despesa inteira.</p>;
+        }
+        if (isPaid) {
+          return <p>Você já recebeu o reembolso de todos os participantes.</p>;
+        }
+        return (
+          <p>
+            Você receberá{" "}
+            <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> de cada um dos{" "}
+            {otherParticipantsCount} outros participantes.
+          </p>
+        );
+      } else {
+        // Editing an existing expense
+        const expense = allExpenses.find((e) => e.id === editingId);
+        if (!expense || !expense.expense_splits) return null;
+
+        const otherSplits = expense.expense_splits.filter((s) => s.user_id !== user?.id);
+        if (otherSplits.length === 0) {
+          return <p>Você está pagando a despesa inteira.</p>;
+        }
+
+        const paid = otherSplits.filter((s) => s.status === "paid");
+        const pending = otherSplits.filter((s) => s.status === "pending");
+
+        if (pending.length === 0) {
+          return <p>Todos os participantes já te reembolsaram.</p>;
+        }
+
+        const summaryElements = [];
+        if (paid.length > 0) {
+          const names = paid
+            .map((s) => participantOptions.find((p) => p.id === s.user_id)?.name)
+            .filter(Boolean);
+          if (names.length > 0) {
+            summaryElements.push(<p key="paid">{names.join(", ")} te pagou.</p>);
+          }
+        }
+        if (pending.length > 0) {
+          const names = pending
+            .map((s) => participantOptions.find((p) => p.id === s.user_id)?.name)
+            .filter(Boolean);
+          if (names.length > 0) {
+            const verb = names.length > 1 ? "devem" : "deve";
+            summaryElements.push(
+              <p key="pending">
+                {names.join(", ")} te {verb}{" "}
+                <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong>
+                {names.length > 1 ? " cada" : ""}.
+              </p>
+            );
+          }
+        }
+        return <div className="space-y-1">{summaryElements}</div>;
+      }
+    } else {
+      // Scenario 2: Another member is the payer
+      if (!editingId) {
+        // New expense
+        if (!effectiveParticipantIds.includes(user?.id ?? "")) {
+          return <p>Você não participa do rateio desta despesa.</p>;
+        }
+        if (isPaid) {
+          return (
+            <p>
+              Você será marcado como tendo pago{" "}
+              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+            </p>
+          );
+        }
+        return (
+          <p>
+            Você deve <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+          </p>
+        );
+      } else {
+        // Editing an existing expense
+        const expense = allExpenses.find((e) => e.id === editingId);
+        if (!expense || !expense.expense_splits) return null;
+
+        const mySplit = expense.expense_splits.find((s) => s.user_id === user?.id);
+        if (!mySplit) {
+          return <p>Você não participa desta despesa.</p>;
+        }
+
+        if (mySplit.status === "paid") {
+          return (
+            <p>
+              Você pagou <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        } else {
+          return (
+            <p>
+              Você deve <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        }
+      }
+    }
+  }, [
+    expenseType,
+    perPersonQuota,
+    payerUserId,
+    user?.id,
+    editingId,
+    isPaid,
+    effectiveParticipantIds,
+    allExpenses,
+    participantOptions,
+  ]);
+
   const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[]) => {
     const uniqueParticipantIds = Array.from(new Set(participantIds));
     if (uniqueParticipantIds.length === 0) {
@@ -419,6 +580,11 @@ export default function Expenses() {
 
     if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId) && editingType === "expense") {
       toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
+      return;
+    }
+
+    if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
+      toast({ title: "Erro", description: "Selecione pelo menos um participante.", variant: "destructive" });
       return;
     }
 
@@ -744,6 +910,21 @@ export default function Expenses() {
 
   const filteredCollective = (decoratedExpenses ?? []).filter((e: any) => e.expense_type === "collective");
 
+  const lowerSearchTerm = searchTerm.toLowerCase().trim();
+  const filterBySearch = (e: any) => {
+    if (!lowerSearchTerm) return true;
+    const catLabel = CATEGORIES.find((c) => c.value === e.category)?.label ?? e.category;
+    return (
+      e.title?.toLowerCase().includes(lowerSearchTerm) ||
+      catLabel.toLowerCase().includes(lowerSearchTerm)
+    );
+  };
+
+  const finalFilteredAll = filteredAll.filter(filterBySearch);
+  const finalFilteredMine = filteredMine.filter(filterBySearch);
+  const finalFilteredCollective = filteredCollective.filter(filterBySearch);
+  const finalRecurring = recurringExpenses?.filter(filterBySearch);
+
   const handleEditClick = (expense: any) => {
     if (expense._is_installment && expense.installments > 1) {
       setEditConfirmExpense(expense);
@@ -895,6 +1076,34 @@ export default function Expenses() {
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-2">
+                <Label>Título</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Mercado Mensal" maxLength={200} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Valor Total (R$)</Label>
+                  <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (<SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {category === "other" && (
+                <div className="space-y-2">
+                  <Label>Nome da Categoria</Label>
+                  <Input placeholder="Ex: Farmácia" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} />
+                </div>
+              )}
+
               {editingType === "expense" && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
@@ -915,7 +1124,12 @@ export default function Expenses() {
                   </div>
 
                   <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-                    <Label className="text-base font-medium">2. Status com fornecedor</Label>
+                    <div>
+                      <Label className="text-base font-medium">2. Status com fornecedor</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Indica se a conta principal (ex: boleto de luz) já foi paga à empresa.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
@@ -932,10 +1146,16 @@ export default function Expenses() {
                         Paga
                       </Button>
                     </div>
+                    
                     {paymentMethod !== "credit_card" && !editingId && (
-                      <div className="flex items-center gap-2 pt-2 border-t border-dashed">
-                        <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
-                        <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago no lançamento</Label>
+                      <div className="pt-3 border-t space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
+                          <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago</Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-11">
+                          Ative se os participantes já te reembolsaram. Isso marcará a parte de todos como 'paga' no sistema.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1051,7 +1271,7 @@ export default function Expenses() {
                           </Button>
                         </div>
                         {splitMode === "manual" && (
-                          <div className="space-y-2 border rounded-md p-2">
+                          <div className="space-y-2 border rounded-md p-2 max-h-32 overflow-y-auto">
                             {participantOptions.map((participant) => (
                               <label key={participant.id} className="flex items-center gap-2 text-sm">
                                 <Checkbox
@@ -1069,49 +1289,15 @@ export default function Expenses() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label>Título</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Mercado Mensal" maxLength={200} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Valor Total (R$)</Label>
-                  <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {category === "other" && (
-                <div className="space-y-2">
-                  <Label>Nome da Categoria</Label>
-                  <Input placeholder="Ex: Farmácia" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} />
-                </div>
-              )}
-
               {editingType === "expense" && (
                 <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
                   <Label className="text-sm font-semibold">Resumo instantâneo</Label>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>
-                      <strong>Participantes:</strong> {effectiveParticipantIds.length}
-                    </p>
-                    <p>
-                      <strong>Cota por pessoa:</strong> R$ {perPersonQuota.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong>Quem será reembolsado:</strong> {payerLabel}
-                    </p>
+                    {instantSummary || (
+                      <p>
+                        <strong>Participantes:</strong> {effectiveParticipantIds.length}, <strong>Cota:</strong> R$ {perPersonQuota.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1265,9 +1451,70 @@ export default function Expenses() {
         </TabsList>
       )}
 
+      <div className="relative z-20">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar despesas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+            className="pl-9 pr-9 bg-card"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        
+        {isSearchFocused && debouncedSearch && globalSearchResults.length > 0 && (
+          <Card className="absolute top-full left-0 right-0 mt-1 shadow-lg border-border overflow-hidden">
+            <div className="p-2 bg-muted/30 border-b">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Em outras competências
+              </p>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {globalSearchResults.map((res: any) => {
+                const d = parseLocalDate(res.purchase_date);
+                const [y, m] = res.competence_key ? res.competence_key.split('-') : [d.getFullYear(), d.getMonth() + 1];
+                return (
+                  <button
+                    key={res.id}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/50 border-b last:border-0 transition-colors flex items-center justify-between"
+                    onClick={() => {
+                      setCurrentDate(new Date(Number(y), Number(m) - 1, 15));
+                      setIsSearchFocused(false);
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{res.title}</p>
+                      <p className="text-xs text-muted-foreground flex gap-2">
+                        <span>{format(d, "dd/MM/yyyy", { locale: ptBR })}</span>
+                        <span>•</span>
+                        <span className="font-medium text-primary">Comp. {res.competence_key}</span>
+                      </p>
+                    </div>
+                    <div className="text-sm font-semibold whitespace-nowrap ml-4">
+                      R$ {Number(res.amount).toFixed(2)}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+      </div>
+
       <TabsContent value="all" className="space-y-3 mt-4">
-        {filteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
-        {filteredAll.map((e: any) => (
+        {finalFilteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
+        {finalFilteredAll.map((e: any) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1287,8 +1534,8 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="mine" className="space-y-3 mt-4">
-        {filteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
-        {filteredMine.map((e: any) => (
+        {finalFilteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
+        {finalFilteredMine.map((e: any) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1308,8 +1555,8 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="collective" className="space-y-3 mt-4">
-        {filteredCollective.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa coletiva encontrada nesta competência.</p>}
-        {filteredCollective.map((e: any) => (
+        {finalFilteredCollective.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa coletiva encontrada nesta competência.</p>}
+        {finalFilteredCollective.map((e: any) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1329,8 +1576,21 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="recurring" className="space-y-3 mt-4">
-        {!recurringExpenses?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
-        {recurringExpenses?.map((r: any) => (
+        <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border border-border/50 mb-4">
+          <div>
+            <h3 className="text-sm font-medium">Despesas Recorrentes</h3>
+            <p className="text-xs text-muted-foreground">Contas mensais fixas e assinaturas</p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/recurring">
+              <Settings className="mr-2 h-3.5 w-3.5" />
+              Gerenciar
+            </Link>
+          </Button>
+        </div>
+
+        {!finalRecurring?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
+        {finalRecurring?.map((r: any) => (
           <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />
         ))}
       </TabsContent>

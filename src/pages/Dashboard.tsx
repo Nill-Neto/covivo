@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, CreditCard, Home } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -15,7 +15,7 @@ import { HomeTab } from "@/components/dashboard/HomeTab";
 import { PersonalTab } from "@/components/dashboard/PersonalTab";
 import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel } from "@/constants/categories.tsx";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import {
@@ -23,6 +23,7 @@ import {
   resolvePendingCompetenceKey,
   sortPendingItemsByDateDesc,
 } from "@/lib/collectivePending";
+import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -51,7 +52,7 @@ export default function Dashboard() {
   const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryKey: ["dashboard-expenses", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
@@ -121,7 +122,7 @@ export default function Dashboard() {
       const [groupRes, personalRes] = await Promise.all([
         supabase
           .from("expense_installments" as any)
-          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id)")
+          .select("id, amount, installment_number, expenses!inner(title, category, credit_card_id, expense_type, purchase_date, installments, group_id, created_at)")
           .eq("user_id", user!.id)
           .eq("expenses.group_id", membership!.group_id)
           .eq("bill_month", targetMonth)
@@ -129,7 +130,7 @@ export default function Dashboard() {
           .limit(1000),
         supabase
           .from("personal_expense_installments")
-          .select("id, amount, installment_number, personal_expenses(title, credit_card_id, purchase_date, installments)")
+          .select("id, amount, installment_number, personal_expenses(title, credit_card_id, purchase_date, installments, created_at)")
           .eq("user_id", user!.id)
           .eq("bill_month", targetMonth)
           .eq("bill_year", targetYear)
@@ -149,6 +150,7 @@ export default function Dashboard() {
           expense_type: "personal",
           purchase_date: p.personal_expenses?.purchase_date,
           installments: p.personal_expenses?.installments ?? 1,
+          created_at: p.personal_expenses?.created_at,
         },
       }));
 
@@ -156,6 +158,19 @@ export default function Dashboard() {
     },
     enabled: !!user && !!membership?.group_id,
     staleTime: 60_000,
+  });
+
+  const { data: p2pBalances = [] } = useQuery({
+    queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase.rpc("get_my_p2p_balances" as any, {
+        _user_id: user.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!membership && (membership as any).group_modo_gestao === 'p2p',
   });
 
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
@@ -490,7 +505,9 @@ export default function Dashboard() {
         onCompactChange={setHeroCompact}
       />
 
-      <div className="space-y-4">
+      <div className="px-4 space-y-4 md:px-6">
+        {(membership as any)?.group_modo_gestao === 'p2p' && <UnpaidBills />}
+
         {!heroCompact && (
           <TabsList className={tabListClass}>
             <TabsTrigger value="home" className={tabTriggerClass}>
@@ -511,6 +528,8 @@ export default function Dashboard() {
 
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
+            modoGestao={(membership as any)?.group_modo_gestao}
+            p2pBalances={p2pBalances}
             closingDay={closingDay}
             currentDate={currentDate}
             totalIndividualPending={totalIndividualPending}
@@ -526,7 +545,6 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
-            collectiveExpenses={collectiveExpenses}
             republicChartData={republicChartData}
             totalMonthExpenses={totalMonthExpenses}
             onPayRateio={(scope) => {

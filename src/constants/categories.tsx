@@ -1,3 +1,6 @@
+import { Home, Lightbulb, Wifi, Sparkles, Wrench, ShoppingCart, HelpCircle, Car, Utensils, HeartPulse, Film, GraduationCap } from 'lucide-react';
+import React from 'react';
+
 export const CATEGORY_LABELS: Record<string, string> = {
   rent: "Aluguel",
   utilities: "Contas (Luz/Água)",
@@ -12,6 +15,25 @@ export const CATEGORY_LABELS: Record<string, string> = {
   health: "Saúde",
   leisure: "Lazer",
   education: "Educação",
+};
+
+export const getCategoryIcon = (key: string | undefined | null, props?: any) => {
+  if (!key) return <HelpCircle {...props} />;
+  const categoryIcons: Record<string, React.ReactNode> = {
+    rent: <Home {...props} />,
+    utilities: <Lightbulb {...props} />,
+    internet: <Wifi {...props} />,
+    cleaning: <Sparkles {...props} />,
+    maintenance: <Wrench {...props} />,
+    groceries: <ShoppingCart {...props} />,
+    transport: <Car {...props} />,
+    food: <Utensils {...props} />,
+    health: <HeartPulse {...props} />,
+    leisure: <Film {...props} />,
+    education: <GraduationCap {...props} />,
+    other: <HelpCircle {...props} />,
+  };
+  return categoryIcons[key] || <HelpCircle {...props} />;
 };
 
 export const CHART_COLORS = [
