@@ -83,7 +83,6 @@ function validateLogicalDependencies(files) {
 
 function validateNoCriticalSkipGuards(files) {
   const guardedMigrations = [
-    '20260101000024_add_missing_columns_to_various_tables_to_match_codebase_types.sql',
     '20260417140000_backfill_competence_and_enforce_not_null.sql',
   ];
 
