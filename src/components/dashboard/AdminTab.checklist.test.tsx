@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AdminTab } from "./AdminTab";
+import type { AdminMember } from "@/types/admin";
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -16,21 +17,39 @@ vi.mock("recharts", () => ({
 const baseDate = new Date("2026-04-10T12:00:00.000Z");
 
 function renderAdminTab() {
+  const mockMembers: AdminMember[] = [
+    {
+      user_id: "u-1",
+      active: true,
+      previous_debt: 100,
+      current_cycle_owed: 100,
+      current_cycle_paid: 0,
+      accrued_debt: 200,
+      total_owed: 200,
+      total_paid: 0,
+      balance: -200,
+      profile: { id: "u-1", full_name: "Ana Silva", avatar_url: null },
+      role: 'morador',
+    },
+    {
+      user_id: "u-2",
+      active: true,
+      previous_debt: 20,
+      current_cycle_owed: 20,
+      current_cycle_paid: 0,
+      accrued_debt: 40,
+      total_owed: 40,
+      total_paid: 0,
+      balance: -40,
+      profile: { id: "u-2", full_name: "Bruno Costa", avatar_url: null },
+      role: 'morador',
+    },
+  ];
+
   return render(
     <MemoryRouter>
       <AdminTab
-        members={[
-          {
-            id: "u-1",
-            full_name: "Ana Silva",
-            avatar_url: null,
-          },
-          {
-            id: "u-2",
-            full_name: "Bruno Costa",
-            avatar_url: null,
-          },
-        ]}
+        members={mockMembers}
         modoGestao="p2p"
         p2pMatrix={[]}
         collectiveExpenses={[
@@ -56,6 +75,7 @@ function renderAdminTab() {
         cycleSplits={[]}
         pendingSplits={[]}
         memberPaymentsByCompetence={{}}
+        nonCriticalWarnings={[]}
       />
     </MemoryRouter>
   );

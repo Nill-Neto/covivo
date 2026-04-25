@@ -223,7 +223,7 @@ export function CardsTab({
         supabase
           .from("expense_installments")
           .select(
-            "*, expenses!expense_installments_expense_id_fkey(expense_type, group_id, credit_card_id)"
+            "*, expenses(expense_type, group_id, credit_card_id)"
           )
           .eq("user_id", user!.id)
           .in("bill_month", months)
@@ -232,7 +232,7 @@ export function CardsTab({
         supabase
           .from("personal_expense_installments")
           .select(
-            "*, personal_expenses!personal_expense_installments_personal_expense_id_fkey(credit_card_id)"
+            "*, personal_expenses(credit_card_id)"
           )
           .eq("user_id", user!.id)
           .in("bill_month", months)
@@ -663,7 +663,7 @@ export function CardsTab({
                     </div>
 
                     <div className="mb-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5">
+                      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2">
                         <span className="block text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
                         <span className="block text-xs font-extrabold text-foreground mt-0.5">R$ {formatCurrency(individualTotal)}</span>
                       </div>

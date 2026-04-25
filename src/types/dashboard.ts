@@ -62,6 +62,7 @@ export interface CardsTabProps {
 
 export interface PendingSplit {
   id: string;
+  user_id: string;
   amount: number;
   status: string;
   expense_id: string;

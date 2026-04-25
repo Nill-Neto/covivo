@@ -20,27 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AdminFinancialSummary } from "./AdminFinancialSummary";
 import { DebtSimplificationModal } from "./DebtSimplificationModal";
-
-interface AdminTabProps {
-  modoGestao: 'centralized' | 'p2p';
-  groupId: string;
-  members: any[];
-  p2pMatrix: { from_user_id: string, to_user_id: string, amount: number }[];
-  collectiveExpenses: any[];
-  totalMonthExpenses: number;
-  cycleStart: Date;
-  cycleEnd: Date;
-  currentDate: Date;
-  closingDay: number;
-  pendingPaymentsCount: number;
-  exMembersDebt: number;
-  departuresCount: number;
-  redistributedCount: number;
-  lowStockCount: number;
-  cycleSplits: any[];
-  pendingSplits: any[];
-  memberPaymentsByCompetence: Record<string, Record<string, number>>;
-}
+import type { AdminTabProps } from "@/types/admin";
 
 export function AdminTab(props: AdminTabProps) {
   const { modoGestao } = props;
@@ -64,22 +44,22 @@ function P2PAdminTab({
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
 
   const processedMembers = useMemo(() => {
-    const memberMap = new Map(members.map(m => [m.id, { ...m, debts: [], credits: [], netBalance: 0 }]));
+    const memberMap = new Map(members.map(m => [m.user_id, { ...m, debts: [], credits: [], netBalance: 0 }]));
     p2pMatrix.forEach(entry => {
       const fromMember = memberMap.get(entry.from_user_id);
       const toMember = memberMap.get(entry.to_user_id);
       if (!fromMember || !toMember) return;
       fromMember.netBalance -= entry.amount;
       toMember.netBalance += entry.amount;
-      const cleanToMember = { id: toMember.id, full_name: toMember.full_name, avatar_url: toMember.avatar_url };
-      const cleanFromMember = { id: fromMember.id, full_name: fromMember.full_name, avatar_url: fromMember.avatar_url };
+      const cleanToMember = { id: toMember.user_id, full_name: toMember.profile?.full_name, avatar_url: toMember.profile?.avatar_url };
+      const cleanFromMember = { id: fromMember.user_id, full_name: fromMember.profile?.full_name, avatar_url: fromMember.profile?.avatar_url };
       fromMember.debts.push({ user: cleanToMember, amount: entry.amount });
       toMember.credits.push({ user: cleanFromMember, amount: entry.amount });
     });
     return Array.from(memberMap.values()).sort((a, b) => a.netBalance - b.netBalance);
   }, [members, p2pMatrix]);
 
-  const selectedMember = useMemo(() => processedMembers.find(m => m.id === selectedMemberId), [processedMembers, selectedMemberId]);
+  const selectedMember = useMemo(() => processedMembers.find(m => m.user_id === selectedMemberId), [processedMembers, selectedMemberId]);
   const totalReceivable = processedMembers.reduce((acc, m) => acc + (m.netBalance > 0 ? m.netBalance : 0), 0);
   const recentExpenses = useMemo(() => [...collectiveExpenses].sort((a, b) => parseLocalDate(b.purchase_date).getTime() - parseLocalDate(a.purchase_date).getTime()).slice(0, 10), [collectiveExpenses]);
   const categoryBreakdown = useMemo(() => {
@@ -111,8 +91,8 @@ function P2PAdminTab({
         <Card className="md:col-span-6 lg:col-span-6 flex flex-col"><CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Distribuição por Categoria</CardTitle></CardHeader><CardContent className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-4 pt-0">{donutData.length > 0 ? (<><div className="relative h-[200px] w-[200px] shrink-0"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donutData} dataKey="value" nameKey="label" cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={5} stroke="none" cornerRadius={5} onMouseEnter={(_, index) => setHoveredSegmentLabel(donutData[index].label)} onMouseLeave={() => setHoveredSegmentLabel(null)}>{donutData.map((entry, i) => (<Cell key={i} fill={entry.color} opacity={hoveredSegmentLabel === null || hoveredSegmentLabel === entry.label ? 1 : 0.3} className="transition-opacity duration-200" style={{ outline: "none" }} />))}</Pie></PieChart></ResponsiveContainer><div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none flex flex-col items-center justify-center w-full px-4"><p className="text-muted-foreground text-[10px] font-medium truncate max-w-[120px] uppercase tracking-wider leading-tight">{displayLabel}</p><p className="text-lg font-bold text-foreground tabular-nums whitespace-nowrap">R$ {displayValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>{activeSegment && (<p className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full mt-1">{displayPercentage.toFixed(1)}%</p>)}</div></div><div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">{donutData.map((segment) => (<div key={segment.label} className={cn("flex items-center justify-between p-2 rounded-md transition-colors cursor-default text-sm gap-3", hoveredSegmentLabel === segment.label ? "bg-muted" : "hover:bg-muted/50")} onMouseEnter={() => setHoveredSegmentLabel(segment.label)} onMouseLeave={() => setHoveredSegmentLabel(null)}><div className="flex items-center gap-2.5 min-w-0 flex-1"><span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: segment.color }} /><span className="font-medium truncate text-muted-foreground" title={segment.label}>{segment.label}</span></div><span className="font-semibold tabular-nums shrink-0 whitespace-nowrap text-right text-foreground">R$ {segment.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>))}</div></>) : (<div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm"><span className="opacity-50">Sem dados no período</span></div>)}</CardContent></Card>
         <Card className="md:col-span-6 lg:col-span-6"><CardHeader className="flex flex-row items-center justify-between pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4" /> Últimas Despesas</CardTitle><Button variant="ghost" size="sm" className="h-7 text-xs" asChild><Link to="/expenses">Ver todas</Link></Button></CardHeader><CardContent className="p-0"><ScrollArea className="h-[250px] pr-2 px-2"><div className="space-y-1">{recentExpenses.length === 0 ? (<p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa registrada.</p>) : (recentExpenses.map(expense => (<div key={expense.id} className="flex items-center justify-between py-2.5 px-3 group hover:bg-muted/50 rounded-md transition-colors"><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0"><Receipt className="h-3.5 w-3.5" /></div><div className="min-w-0"><p className="text-sm font-medium leading-none truncate max-w-[120px]">{expense.title}</p><p className="text-xs text-muted-foreground mt-1 truncate">{getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}</p></div></div><span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">R$ {Number(expense.amount).toFixed(2)}</span></div>)))}</div></ScrollArea></CardContent></Card>
       </div>
-      <Dialog open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)}><DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh]"><DialogHeader className="px-5 pt-5 pb-4 shrink-0 border-b"><DialogTitle className="text-lg font-semibold text-foreground">Auditoria P2P</DialogTitle><p className="text-sm text-muted-foreground mt-0.5 capitalize">{selectedMember?.full_name}</p></DialogHeader><div className="px-5 py-3 bg-muted/10 grid grid-cols-2 gap-4 border-b shrink-0"><div><p className="text-xs text-muted-foreground uppercase tracking-wider">Saldo Líquido</p><p className={`text-lg font-semibold tabular-nums ${getBalanceStyle(selectedMember?.netBalance ?? 0).className}`}>R$ {(selectedMember?.netBalance ?? 0).toFixed(2)}</p></div></div><div className="flex-1 overflow-y-auto bg-muted/5 divide-y divide-border/50"><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-destructive flex items-center gap-2"><ArrowUpRight className="h-4 w-4" />Dívidas com outros membros</h3>{selectedMember?.debts.length === 0 ? (<p className="text-sm text-muted-foreground">Sem dívidas com outros membros.</p>) : (<div className="space-y-2">{selectedMember?.debts.map((debt: any) => (<div key={debt.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={debt.user.avatar_url} /><AvatarFallback>{debt.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{debt.user.full_name}</span></div><span className="text-sm font-semibold text-destructive">R$ {debt.amount.toFixed(2)}</span></div>))}</div>)}</div><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-success flex items-center gap-2"><ArrowDownLeft className="h-4 w-4" />Créditos com outros membros</h3>{selectedMember?.credits.length === 0 ? (<p className="text-sm text-muted-foreground">Nenhum membro te deve.</p>) : (<div className="space-y-2">{selectedMember?.credits.map((credit: any) => (<div key={credit.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={credit.user.avatar_url} /><AvatarFallback>{credit.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{credit.user.full_name}</span></div><span className="text-sm font-semibold text-success">R$ {credit.amount.toFixed(2)}</span></div>))}</div>)}</div></div></DialogContent></Dialog>
-      {isSimplifyModalOpen && (<DebtSimplificationModal open={isSimplifyModalOpen} onOpenChange={setIsSimplifyModalOpen} groupId={groupId} members={members.map(m => ({ profile: m }))}/>)}
+      <Dialog open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)}><DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh]"><DialogHeader className="px-5 pt-5 pb-4 shrink-0 border-b"><DialogTitle className="text-lg font-semibold text-foreground">Auditoria P2P</DialogTitle><p className="text-sm text-muted-foreground mt-0.5 capitalize">{selectedMember?.profile?.full_name}</p></DialogHeader><div className="px-5 py-3 bg-muted/10 grid grid-cols-2 gap-4 border-b shrink-0"><div><p className="text-xs text-muted-foreground uppercase tracking-wider">Saldo Líquido</p><p className={`text-lg font-semibold tabular-nums ${getBalanceStyle(selectedMember?.netBalance ?? 0).className}`}>R$ {(selectedMember?.netBalance ?? 0).toFixed(2)}</p></div></div><div className="flex-1 overflow-y-auto bg-muted/5 divide-y divide-border/50"><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-destructive flex items-center gap-2"><ArrowUpRight className="h-4 w-4" />Dívidas com outros membros</h3>{selectedMember?.debts.length === 0 ? (<p className="text-sm text-muted-foreground">Sem dívidas com outros membros.</p>) : (<div className="space-y-2">{selectedMember?.debts.map((debt: any) => (<div key={debt.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={debt.user.avatar_url} /><AvatarFallback>{debt.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{debt.user.full_name}</span></div><span className="text-sm font-semibold text-destructive">R$ {debt.amount.toFixed(2)}</span></div>))}</div>)}</div><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-success flex items-center gap-2"><ArrowDownLeft className="h-4 w-4" />Créditos com outros membros</h3>{selectedMember?.credits.length === 0 ? (<p className="text-sm text-muted-foreground">Nenhum membro te deve.</p>) : (<div className="space-y-2">{selectedMember?.credits.map((credit: any) => (<div key={credit.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={credit.user.avatar_url} /><AvatarFallback>{credit.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{credit.user.full_name}</span></div><span className="text-sm font-semibold text-success">R$ {credit.amount.toFixed(2)}</span></div>))}</div>)}</div></div></DialogContent></Dialog>
+      {isSimplifyModalOpen && (<DebtSimplificationModal open={isSimplifyModalOpen} onOpenChange={setIsSimplifyModalOpen} groupId={groupId} members={members.map(m => ({ profile: m.profile }))}/>)}
     </div>
   );
 }
