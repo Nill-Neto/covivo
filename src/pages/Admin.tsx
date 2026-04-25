@@ -8,6 +8,32 @@ import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { formatCompetenceKey } from "@/lib/cycleDates";
+import type { RpcReturns } from "@/integrations/supabase/rpc-types";
+
+type NonCriticalWarning = {
+  source: string;
+  message: string;
+};
+
+type P2PMatrixFrontRow = {
+  from_user_id: string;
+  to_user_id: string;
+  amount: number;
+};
+
+type AdminDashboardData = {
+  members: any[];
+  p2pMatrix: P2PMatrixFrontRow[];
+  pendingPaymentsCount: number;
+  exMembersDebt: number;
+  departuresCount: number;
+  redistributedCount: number;
+  lowStockCount: number;
+  cycleSplits: any[];
+  pendingSplits: any[];
+  memberPaymentsByCompetence: Record<string, Record<string, number>>;
+  nonCriticalWarnings: NonCriticalWarning[];
+};
 
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
@@ -24,7 +50,7 @@ export default function Admin() {
     closingDay,
   } = useCycleDates(membership?.group_id);
 
-  const modoGestao = (membership as any)?.group_modo_gestao || 'centralized';
+  const modoGestao = membership?.group_modo_gestao || 'centralized';
   const currentCompetenceKey = formatCompetenceKey(currentDate);
   const adminDashboardQueryKey = ["admin-dashboard-data", membership?.group_id, currentCompetenceKey, modoGestao] as const;
 
@@ -60,37 +86,79 @@ export default function Admin() {
       if (modoGestao === 'p2p') {
         const [membersRes, p2pMatrixRes] = await Promise.all([
           supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id),
-          supabase.rpc("get_group_p2p_matrix" as any, { _group_id: membership.group_id }),
+          supabase.rpc("get_group_p2p_matrix", { _group_id: membership.group_id }),
         ]);
   
         if (membersRes.error) throw membersRes.error;
         if (p2pMatrixRes.error) throw p2pMatrixRes.error;
+
+        const rawP2PMatrix = (p2pMatrixRes.data || []) as RpcReturns<"get_group_p2p_matrix">;
+        const p2pMatrix = rawP2PMatrix.map((row) => ({
+          from_user_id: row.person_a_id,
+          to_user_id: row.person_b_id,
+          amount: Number(row.net_balance_a_to_b || 0),
+        }));
   
         return {
           members: membersRes.data || [],
-          p2pMatrix: p2pMatrixRes.data || [],
+          p2pMatrix,
           pendingPaymentsCount: 0, exMembersDebt: 0, departuresCount: 0, redistributedCount: 0, lowStockCount: 0, cycleSplits: [], pendingSplits: [], memberPaymentsByCompetence: {}, nonCriticalWarnings: [],
-        };
+        } satisfies AdminDashboardData;
       }
 
-      // --- Centralized Mode Logic ---
-      const [membersRes, rolesRes, cycleSplitsRes, balancesRes, profilesRes, pendingSplitsRes, departuresRes, inventoryRes, allPaymentsRes] = await Promise.all([
-        supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true),
-        supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id),
-        supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective").eq("expenses.competence_key", currentCompetenceKey),
-        supabase.rpc("get_admin_member_competence_balances", { _group_id: membership.group_id, _competence_key: currentCompetenceKey }),
-        supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id),
-        supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective"),
-        supabase.from("audit_log").select("created_at, details").eq("group_id", membership.group_id).eq("action", "remove_member").gte("created_at", cycleStart.toISOString()).lt("created_at", cycleEnd.toISOString()),
-        supabase.from("inventory_items").select("quantity, min_quantity").eq("group_id", membership.group_id),
-        supabase.from("payments").select("*, expense_splits(expenses(expense_type))").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]),
-      ]);
+      type AdminFetchTask = {
+        key: string;
+        source: string;
+        critical: boolean;
+        run: () => Promise<{ data: any; error: unknown }>;
+      };
 
-      const errors = [membersRes, rolesRes, cycleSplitsRes, balancesRes, profilesRes, pendingSplitsRes, departuresRes, inventoryRes, allPaymentsRes].filter(res => res.error);
-      if (errors.length > 0) {
-        console.error("Admin data fetch errors", errors.map(e => e.error));
-        throw new Error("Falha ao carregar dados administrativos para o modo centralizado.");
+      const tasks: AdminFetchTask[] = [
+        { key: "members", source: "group_members", critical: true, run: () => supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true) },
+        { key: "roles", source: "user_roles", critical: true, run: () => supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id) },
+        { key: "cycleSplits", source: "expense_splits_cycle", critical: true, run: () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective").eq("expenses.competence_key", currentCompetenceKey) },
+        { key: "balances", source: "get_admin_member_competence_balances", critical: true, run: () => supabase.rpc("get_admin_member_competence_balances", { _group_id: membership.group_id, _competence_key: currentCompetenceKey }) },
+        { key: "profiles", source: "group_member_profiles", critical: true, run: () => supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id) },
+        { key: "pendingSplits", source: "expense_splits_pending", critical: true, run: () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective") },
+        { key: "departures", source: "audit_log", critical: false, run: () => supabase.from("audit_log").select("created_at, details").eq("group_id", membership.group_id).eq("action", "remove_member").gte("created_at", cycleStart.toISOString()).lt("created_at", cycleEnd.toISOString()) },
+        { key: "inventory", source: "inventory_items", critical: false, run: () => supabase.from("inventory_items").select("quantity, min_quantity").eq("group_id", membership.group_id) },
+        { key: "payments", source: "payments", critical: true, run: () => supabase.from("payments").select("*, expense_splits(expenses(expense_type))").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]) },
+      ];
+
+      const settled = await Promise.allSettled(tasks.map((task) => task.run()));
+      const resultByKey = new Map<string, { data: any; error: unknown }>();
+      const nonCriticalWarnings: NonCriticalWarning[] = [];
+      const criticalErrors: Array<{ source: string; error: unknown }> = [];
+
+      settled.forEach((result, index) => {
+        const task = tasks[index];
+        if (result.status === "rejected") {
+          if (task.critical) criticalErrors.push({ source: task.source, error: result.reason });
+          else nonCriticalWarnings.push({ source: task.source, message: String(result.reason) });
+          resultByKey.set(task.key, { data: [], error: result.reason });
+          return;
+        }
+        if (result.value.error) {
+          if (task.critical) criticalErrors.push({ source: task.source, error: result.value.error });
+          else nonCriticalWarnings.push({ source: task.source, message: String(result.value.error) });
+        }
+        resultByKey.set(task.key, result.value);
+      });
+
+      if (criticalErrors.length > 0) {
+        console.error("Admin critical data fetch errors", criticalErrors);
+        throw new Error("Falha ao carregar dados administrativos críticos para o modo centralizado.");
       }
+
+      const membersRes = resultByKey.get("members");
+      const rolesRes = resultByKey.get("roles");
+      const cycleSplitsRes = resultByKey.get("cycleSplits");
+      const balancesRes = resultByKey.get("balances");
+      const profilesRes = resultByKey.get("profiles");
+      const pendingSplitsRes = resultByKey.get("pendingSplits");
+      const departuresRes = resultByKey.get("departures");
+      const inventoryRes = resultByKey.get("inventory");
+      const allPaymentsRes = resultByKey.get("payments");
 
       const cycleSplits = cycleSplitsRes.data || [];
       const pendingSplits = pendingSplitsRes.data || [];
@@ -145,8 +213,8 @@ export default function Admin() {
         cycleSplits,
         pendingSplits,
         memberPaymentsByCompetence,
-        nonCriticalWarnings: [],
-      };
+        nonCriticalWarnings,
+      } satisfies AdminDashboardData;
     },
     enabled: !!membership?.group_id && isAdmin
   });
