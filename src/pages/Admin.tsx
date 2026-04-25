@@ -93,11 +93,16 @@ export default function Admin() {
         if (p2pMatrixRes.error) throw p2pMatrixRes.error;
 
         const rawP2PMatrix = (p2pMatrixRes.data || []) as RpcReturns<"get_group_p2p_matrix">;
-        const p2pMatrix = rawP2PMatrix.map((row) => ({
-          from_user_id: row.person_a_id,
-          to_user_id: row.person_b_id,
-          amount: Number(row.net_balance_a_to_b || 0),
-        }));
+        const p2pMatrix = rawP2PMatrix.map((row) => {
+          const netBalance = Number(row.net_balance_a_to_b || 0);
+          const isNegativeBalance = netBalance < 0;
+
+          return {
+            from_user_id: isNegativeBalance ? row.person_b_id : row.person_a_id,
+            to_user_id: isNegativeBalance ? row.person_a_id : row.person_b_id,
+            amount: Math.abs(netBalance),
+          };
+        });
   
         return {
           members: membersRes.data || [],
