@@ -207,7 +207,7 @@ export function CardsTab({
   const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery<{
     groupInstallments: GroupInstallmentItem[];
     personalInstallments: PersonalInstallmentItem[];
-  } | null>({
+  }>({
     queryKey: [
       "cards-last-months-raw",
       user?.id,
