@@ -1,20 +1,20 @@
-# Co-Vivo
+# Covivo
 
-![Logo do Co-Vivo](./public/logo.png)
+![Logo do Covivo](./public/logo.png)
 
 *A plataforma definitiva para gestão financeira e de convivência em moradias compartilhadas.*
 
 ---
 
-Co-Vivo é um sistema de gestão 360º para vida compartilhada, projetado para eliminar o caos financeiro e organizacional de repúblicas, apartamentos divididos e qualquer lar com múltiplos moradores. A plataforma vai além de simples divisores de contas, oferecendo um ecossistema flexível que se adapta à forma como cada casa realmente funciona, trazendo transparência, justiça e simplicidade para o dia a dia.
+Covivo é um sistema de gestão 360º para vida compartilhada, projetado para eliminar o caos financeiro e organizacional de repúblicas, apartamentos divididos e qualquer lar com múltiplos moradores. A plataforma vai além de simples divisores de contas, oferecendo um ecossistema flexível que se adapta à forma como cada casa realmente funciona, trazendo transparência, justiça e simplicidade para o dia a dia.
 
 ## ✨ Principais Funcionalidades (As "Riquezas" do Produto)
 
-O Co-Vivo é construído sobre uma arquitetura robusta que permite funcionalidades únicas e poderosas.
+O Covivo é construído sobre uma arquitetura robusta que permite funcionalidades únicas e poderosas.
 
 ### 1. Gestão Financeira Flexível (Modelo P2P)
 
-O coração do Co-Vivo é um sistema de ledger "Pessoa-para-Pessoa" (P2P).
+O coração do Covivo é um sistema de ledger "Pessoa-para-Pessoa" (P2P).
 
 - **Rastreamento Real:** Em vez de uma dívida genérica "com a casa", o sistema rastreia exatamente **quem deve para quem**, refletindo a realidade de um ambiente com múltiplos pagadores.
 - **Balanço Líquido:** Calcula automaticamente o saldo líquido entre cada par de membros (ex: se você deve R$50 para o João e ele te deve R$20, o sistema mostra que sua dívida final com ele é de R$30).
@@ -22,7 +22,7 @@ O coração do Co-Vivo é um sistema de ledger "Pessoa-para-Pessoa" (P2P).
 
 ### 2. Múltiplos Modelos de Gestão
 
-O Co-Vivo entende que cada casa funciona de um jeito. Por isso, o grupo pode escolher seu modo de operação:
+O Covivo entende que cada casa funciona de um jeito. Por isso, o grupo pode escolher seu modo de operação:
 
 - **Tesoureiro Central:** Ideal para grupos com uma conta central ou um único "tesoureiro". A interface é simplificada para mostrar um saldo único "com a casa", mas a lógica P2P continua por baixo dos panos.
 - **Responsabilidades Compartilhadas:** Perfeito para a maioria das casas, onde qualquer um pode pagar as contas. A interface mostra a matriz P2P completa, e cada membro pode confirmar os pagamentos que recebe diretamente.
