@@ -2,9 +2,61 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 import { encodeBase64 } from "https://deno.land/std@0.207.0/encoding/base64.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+const DEFAULT_LOCAL_PUBLIC_URL = "http://localhost:8080";
+const APP_PUBLIC_URL_ALIAS_SEPARATOR = ",";
+const CORS_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version";
+
+const normalizeUrl = (url: string) => url.trim().replace(/\/$/, "");
+
+const parseAliases = (aliases: string | undefined) =>
+  aliases
+    ?.split(APP_PUBLIC_URL_ALIAS_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(normalizeUrl) ?? [];
+
+const resolveAppPublicUrl = () => {
+  const configuredUrl = Deno.env.get("APP_PUBLIC_URL")?.trim().replace(/\/$/, "");
+  if (configuredUrl) return configuredUrl;
+
+  const stage = Deno.env.get("ENVIRONMENT") ?? Deno.env.get("SUPABASE_ENV") ?? "unknown";
+  const isLocal = Deno.env.get("SUPABASE_URL")?.includes("127.0.0.1") || stage === "local" || stage === "development";
+
+  if (isLocal) {
+    console.warn(`[generate-report] APP_PUBLIC_URL is not configured for ${stage}. Falling back to ${DEFAULT_LOCAL_PUBLIC_URL}.`);
+    return DEFAULT_LOCAL_PUBLIC_URL;
+  }
+
+  throw new Error(`[generate-report] APP_PUBLIC_URL is not configured for ${stage}.`);
+};
+
+const getOrigin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+};
+
+const APP_PUBLIC_URL = resolveAppPublicUrl();
+const APP_PUBLIC_URL_ALIASES = parseAliases(Deno.env.get("APP_PUBLIC_URL_ALIASES"));
+const ALLOWED_ORIGINS = new Set([
+  getOrigin(APP_PUBLIC_URL),
+  ...APP_PUBLIC_URL_ALIASES.map(getOrigin),
+].filter(Boolean));
+
+const resolveCorsHeaders = (req: Request) => {
+  const requestOrigin = req.headers.get("origin");
+  const allowedOrigin = requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)
+    ? requestOrigin
+    : getOrigin(APP_PUBLIC_URL);
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
 };
 
 const escapeCsv = (str: any) => {
@@ -18,6 +70,8 @@ const escapeCsv = (str: any) => {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 365;
+const MAX_DENIED_ATTEMPTS = 5;
+const DENIED_ATTEMPTS_WINDOW_MINUTES = 15;
 
 const parseIsoDate = (value: unknown, field: string) => {
   if (typeof value !== "string" || !DATE_RE.test(value)) {
@@ -33,6 +87,16 @@ const parseIsoDate = (value: unknown, field: string) => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = resolveCorsHeaders(req);
+  const requestOrigin = req.headers.get("origin");
+
+  if (requestOrigin && !ALLOWED_ORIGINS.has(requestOrigin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -65,9 +129,6 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Service client for direct data queries
-    const supabase = serviceClient;
-
     const body = await req.json();
     const { group_id, format = 'pdf', start_date, end_date } = body;
 
@@ -75,6 +136,67 @@ Deno.serve(async (req) => {
 
     if (!group_id) {
       return new Response(JSON.stringify({ error: "group_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() ?? null;
+    const userAgent = req.headers.get("user-agent");
+
+    const { data: deniedAttempts, error: deniedAttemptsError } = await userClient.rpc(
+      "get_recent_report_denied_attempts",
+      {
+        _user_id: user.id,
+        _window_minutes: DENIED_ATTEMPTS_WINDOW_MINUTES,
+      },
+    );
+
+    if (deniedAttemptsError) {
+      console.error("[generate-report] Failed to fetch denied attempts rate:", deniedAttemptsError);
+    }
+
+    if ((deniedAttempts ?? 0) >= MAX_DENIED_ATTEMPTS) {
+      await userClient.rpc("log_report_access_attempt", {
+        _user_id: user.id,
+        _group_id: group_id,
+        _allowed: false,
+        _reason: "rate_limited_denied_attempts",
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+      });
+
+      return new Response(JSON.stringify({ error: "Too many denied report attempts. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: isMember, error: membershipError } = await userClient.rpc(
+      "is_current_user_member_of_group",
+      { _group_id: group_id },
+    );
+
+    if (membershipError) {
+      console.error("[generate-report] Membership check failed:", membershipError);
+      return new Response(JSON.stringify({ error: "Could not validate group membership" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isMember) {
+      await userClient.rpc("log_report_access_attempt", {
+        _user_id: user.id,
+        _group_id: group_id,
+        _allowed: false,
+        _reason: "user_not_member_of_group",
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+      });
+
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const startDate = parseIsoDate(start_date, "start_date");
@@ -102,17 +224,16 @@ Deno.serve(async (req) => {
     console.log("[generate-report] Fetching data for cycle:", { startDateTime, endDateTime, rangeDays });
 
     const [groupRes, expensesRes, balancesRes, paymentsRes] = await Promise.all([
-      supabase.from("groups").select("name").eq("id", group_id).maybeSingle(),
-      supabase
+      userClient.from("groups").select("name").eq("id", group_id).maybeSingle(),
+      userClient
         .from("expenses")
         .select("title, amount, category, expense_type, created_at, purchase_date, created_by")
         .eq("group_id", group_id)
         .gte("purchase_date", startDateTime)
         .lte("purchase_date", endDateTime)
         .order("purchase_date"),
-      // Use user-scoped client because get_member_balances checks auth.uid()
       userClient.rpc("get_member_balances", { _group_id: group_id }),
-      supabase
+      userClient
         .from("payments")
         .select("amount, status, created_at")
         .eq("group_id", group_id)
@@ -142,9 +263,18 @@ Deno.serve(async (req) => {
 
     const nameMap: Record<string, string> = {};
     if (userIds.size > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", Array.from(userIds));
+      const { data: profiles } = await userClient.from("profiles").select("id, full_name").in("id", Array.from(userIds));
       (profiles ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
     }
+
+    await userClient.rpc("log_report_access_attempt", {
+      _user_id: user.id,
+      _group_id: group_id,
+      _allowed: true,
+      _reason: null,
+      _ip_address: ipAddress,
+      _user_agent: userAgent,
+    });
 
     let fileData = "";
     let contentType = "";

@@ -23,13 +23,13 @@ export function DebtSimplificationModal({ open, onOpenChange, groupId, members }
   const { data: simplifiedPayments, isLoading, error } = useQuery({
     queryKey: ["simplify-debts", groupId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("simplify_group_debts" as any, {
+      const { data, error } = await supabase.rpc("simplify_group_debts", {
         _group_id: groupId,
       });
       if (error) throw error;
-      // Filter out null placeholder results
-      const validData = data as SimplifiedPayment[];
-      return validData.filter(p => p.payer_id && p.receiver_id && p.amount > 0.01);
+      return (data ?? []).filter((payment): payment is SimplifiedPayment =>
+        !!payment.payer_id && !!payment.receiver_id && payment.amount > 0.01
+      );
     },
     enabled: open, // Only run query when modal is open
   });

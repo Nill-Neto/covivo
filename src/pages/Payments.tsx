@@ -290,7 +290,7 @@ export default function Payments() {
           native_runtime: isNativeRuntime,
           ...details,
         },
-      } as any);
+      });
     } catch { /* ignore */ }
   };
 

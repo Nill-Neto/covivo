@@ -32,7 +32,7 @@ function AdminDashboard() {
   const { data, isLoading, error } = useQuery<AdminDashboardData | null>({
     queryKey: ["admin-dashboard-data", membership?.group_id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_admin_dashboard_data" as any, {
+      const { data, error } = await supabase.rpc("get_admin_dashboard_data", {
         _group_id: membership!.group_id,
       });
       if (error) throw error;
@@ -63,7 +63,7 @@ function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground bg-destructive/10 p-2 rounded">
-            Detalhes técnicos (dev): {(error as any).message}
+            Detalhes técnicos (dev): {error instanceof Error ? error.message : "Erro desconhecido"}
           </p>
         </CardContent>
       </Card>
