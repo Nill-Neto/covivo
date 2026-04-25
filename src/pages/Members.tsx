@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Shield, User, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Shield, User, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -131,6 +131,11 @@ export default function Members() {
     },
     enabled: !!membership?.group_id,
   });
+
+  const totalPercentage = useMemo(() => {
+    if (group?.splitting_rule !== 'percentage' || !members) return 100;
+    return members.reduce((sum, m) => sum + (m.participates_in_splits ? Number(m.split_percentage || 0) : 0), 0);
+  }, [members, group]);
 
   // Fetch CPF when viewing member details
   useEffect(() => {
@@ -316,6 +321,20 @@ export default function Members() {
         badge={<Badge variant="secondary">Grupo ativo</Badge>}
       />
 
+      {isAdmin && group?.splitting_rule === 'percentage' && (
+        <Card className={totalPercentage !== 100 ? "border-destructive" : ""}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertCircle className={`h-5 w-5 ${totalPercentage !== 100 ? "text-destructive" : "text-muted-foreground"}`} />
+            <div>
+              <p className="font-medium">Soma das porcentagens: {totalPercentage.toFixed(2)}%</p>
+              {totalPercentage !== 100 && (
+                <p className="text-xs text-destructive">A soma das porcentagens dos membros que participam do rateio deve ser 100% para que a divisão funcione corretamente.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <ScrollRevealGroup preset="blur-slide" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {members?.map((m) => {
           const displayName = m.profile?.full_name?.trim() || "Integrante sem nome";
@@ -353,7 +372,7 @@ export default function Members() {
                           <User className="h-3 w-3" /> Integrante
                         </span>
                       )}
-                      {group?.splitting_rule === "percentage" && (
+                      {group?.splitting_rule === "percentage" && m.participates_in_splits && (
                         <span>• {m.split_percentage}%</span>
                       )}
                       {!m.participates_in_splits && <span>• Fora do rateio</span>}
