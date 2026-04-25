@@ -20,7 +20,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export const getCategoryIcon = (key: string | undefined | null, props?: any) => {
   if (!key) return <HelpCircle {...props} />;
   const categoryIcons: Record<string, React.ReactNode> = {
-    rent: <Rent {...props} />,
+    rent: <Home {...props} />,
     utilities: <Lightbulb {...props} />,
     internet: <Wifi {...props} />,
     cleaning: <Sparkles {...props} />,

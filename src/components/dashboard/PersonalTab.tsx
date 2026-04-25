@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { getCategoryIcon } from "@/constants/categories";
+import { getCategoryIcon } from "@/constants/categories.tsx";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";

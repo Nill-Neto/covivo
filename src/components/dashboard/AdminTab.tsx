@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryLabel, CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
+import { getCategoryLabel, CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories.tsx";
 import { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";

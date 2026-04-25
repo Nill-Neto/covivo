@@ -16,7 +16,7 @@ import { CustomLoader } from "@/components/ui/custom-loader";
 import { Link } from "react-router-dom";
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
+import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories.tsx";
 import {
   PieChart,
   Pie,

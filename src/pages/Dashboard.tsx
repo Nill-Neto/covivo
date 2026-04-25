@@ -15,7 +15,7 @@ import { HomeTab } from "@/components/dashboard/HomeTab";
 import { PersonalTab } from "@/components/dashboard/PersonalTab";
 import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel } from "@/constants/categories.tsx";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import {
