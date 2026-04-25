@@ -166,6 +166,7 @@ Transformar os principais pontos de fragilidade identificados em melhorias com i
 1. Definir secret dedicado para scheduler (não reutilizar service role como token externo).
 2. Validar assinatura/secret de chamada de cron.
 3. Manter service role apenas para cliente interno da função.
+4. Documentar runbook de rotação e monitoramento (passo a passo operacional).
 
 ### Critério de aceite
 - Chamada automatizada segura e passível de rotação sem impacto amplo.

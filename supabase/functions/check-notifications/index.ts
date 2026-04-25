@@ -5,24 +5,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function loadSchedulerSecret(supabaseUrl: string, serviceRoleKey: string): Promise<string> {
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await adminClient.rpc("get_check_notifications_scheduler_secret");
+
+  if (error) {
+    throw new Error(`Unable to load scheduler secret: ${error.message}`);
+  }
+
+  if (!data || typeof data !== "string") {
+    throw new Error("Scheduler secret RPC returned an invalid payload");
+  }
+
+  return data;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Authenticate scheduler calls using a dedicated, rotatable secret
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Authenticate scheduler calls using a single source of truth (Vault via RPC)
     const authHeader = req.headers.get("Authorization");
-    const expectedSchedulerSecret = Deno.env.get("CHECK_NOTIFICATIONS_SCHEDULER_SECRET");
     const token = authHeader?.replace("Bearer ", "");
 
-    if (!expectedSchedulerSecret) {
-      console.error("[check-notifications] Missing CHECK_NOTIFICATIONS_SCHEDULER_SECRET env var");
-      return new Response(JSON.stringify({ error: "Internal error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const expectedSchedulerSecret = await loadSchedulerSecret(supabaseUrl, supabaseKey);
 
     if (!token || token !== expectedSchedulerSecret) {
       console.warn("[check-notifications] Unauthorized scheduler request");
@@ -32,8 +46,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date();
@@ -113,7 +125,7 @@ Deno.serve(async (req) => {
       .select("id, name, quantity, min_quantity, group_id");
 
     const lowItems = (lowStock ?? []).filter((i: any) => Number(i.quantity) <= Number(i.min_quantity));
-    
+
     const byGroup: Record<string, any[]> = {};
     lowItems.forEach((item: any) => {
       if (!byGroup[item.group_id]) byGroup[item.group_id] = [];
@@ -159,7 +171,7 @@ Deno.serve(async (req) => {
 
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     const stalePending = (pendingPayments ?? []).filter((p: any) => p.created_at < oneDayAgo);
-    
+
     const staleByGroup: Record<string, any[]> = {};
     stalePending.forEach((p: any) => {
       if (!staleByGroup[p.group_id]) staleByGroup[p.group_id] = [];
