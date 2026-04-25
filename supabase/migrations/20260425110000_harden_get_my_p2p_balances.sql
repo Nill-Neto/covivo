@@ -33,6 +33,7 @@ BEGIN
     JOIN public.expenses e
       ON e.id = es.expense_id
     JOIN public.group_members gm_caller
+      -- expense_splits has no group_id; use expenses.group_id for membership checks
       ON gm_caller.group_id = e.group_id
      AND gm_caller.user_id = _caller_id
      AND gm_caller.active = true
