@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wallet, CreditCard, Plus, PieChart as PieChartIcon, Settings, Trash2 } from "lucide-react";
+import { Wallet, CreditCard as CreditCardIcon, Plus, PieChart as PieChartIcon, Settings, Trash2 } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { Link } from "react-router-dom";
 import { format, subMonths } from "date-fns";
@@ -49,16 +49,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-interface CardsTabProps {
-  totalBill: number;
-  currentDate: Date;
-  cardsChartData: any[];
-  creditCards: any[];
-  cardsBreakdown: Record<string, number>;
-  billInstallments: any[];
-  isLoading?: boolean;
-}
+import type { CardsTabProps, CreditCard as CreditCardType, GroupInstallmentItem, PersonalInstallmentItem } from "@/types/dashboard";
 
 const cardSchema = z.object({
   label: z.string().min(3, "Informe o apelido do cartão"),
@@ -108,10 +99,10 @@ export function CardsTab({
   const { user, membership } = useAuth();
   const queryClient = useQueryClient();
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
-  const [selectedCard, setSelectedCard] = useState<any | null>(null);
+  const [selectedCard, setSelectedCard] = useState<CreditCardType | null>(null);
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [editCardOpen, setEditCardOpen] = useState(false);
-  const [deletingCard, setDeletingCard] = useState<any | null>(null);
+  const [deletingCard, setDeletingCard] = useState<CreditCardType | null>(null);
 
   const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -156,7 +147,7 @@ export function CardsTab({
     createCard.mutate(values);
   };
 
-  const handleOpenEdit = (card: any) => {
+  const handleOpenEdit = (card: CreditCardType) => {
     form.reset({
       label: card.label,
       brand: card.brand,
@@ -212,7 +203,10 @@ export function CardsTab({
     [currentDate, monthsCount],
   );
 
-  const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery({
+  const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery<{
+    groupInstallments: GroupInstallmentItem[];
+    personalInstallments: PersonalInstallmentItem[];
+  }>({
     queryKey: [
       "cards-last-months-raw",
       user?.id,
@@ -227,16 +221,19 @@ export function CardsTab({
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
-          .from("expense_installments" as any)
-          .select("amount, bill_month, bill_year, expenses!inner(expense_type, group_id, credit_card_id)")
+          .from("expense_installments")
+          .select(
+            "*, expenses!expense_installments_expense_id_fkey(expense_type, group_id, credit_card_id)"
+          )
           .eq("user_id", user!.id)
-          .eq("expenses.group_id", membership!.group_id)
           .in("bill_month", months)
           .in("bill_year", years)
           .limit(5000),
         supabase
           .from("personal_expense_installments")
-          .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
+          .select(
+            "*, personal_expenses!personal_expense_installments_personal_expense_id_fkey(credit_card_id)"
+          )
           .eq("user_id", user!.id)
           .in("bill_month", months)
           .in("bill_year", years)
@@ -246,9 +243,13 @@ export function CardsTab({
       if (groupRes.error) throw groupRes.error;
       if (personalRes.error) throw personalRes.error;
 
+      const filteredGroupData = (groupRes.data || []).filter(
+        item => item.expenses?.group_id === membership!.group_id
+      );
+
       return {
-        groupInstallments: groupRes.data || [],
-        personalInstallments: personalRes.data || [],
+        groupInstallments: (filteredGroupData as GroupInstallmentItem[]) || [],
+        personalInstallments: (personalRes.data as PersonalInstallmentItem[]) || [],
       };
     },
     enabled: !!user?.id && !!membership?.group_id,
@@ -270,7 +271,7 @@ export function CardsTab({
       totalsByMonth.set(key, initialCardsState);
     });
 
-    rawLastMonthsData.groupInstallments.forEach((item: any) => {
+    rawLastMonthsData.groupInstallments.forEach((item) => {
       const month = Number(item.bill_month);
       const year = Number(item.bill_year);
       const key = `${year}-${String(month).padStart(2, "0")}`;
@@ -284,7 +285,7 @@ export function CardsTab({
       }
     });
 
-    rawLastMonthsData.personalInstallments.forEach((item: any) => {
+    rawLastMonthsData.personalInstallments.forEach((item) => {
       const month = Number(item.bill_month);
       const year = Number(item.bill_year);
       const key = `${year}-${String(month).padStart(2, "0")}`;
@@ -329,7 +330,7 @@ export function CardsTab({
   const displayPercentage = activeSegment && totalBill > 0 ? (activeSegment.value / totalBill) * 100 : 100;
 
   const selectedCardInstallments = selectedCard
-    ? billInstallments.filter((i: any) => i.expenses?.credit_card_id === selectedCard.id)
+    ? billInstallments.filter((i) => i.expenses?.credit_card_id === selectedCard.id)
     : [];
 
   const sortInstallments = (a: any, b: any) => {
@@ -346,13 +347,13 @@ export function CardsTab({
 
   const sortedSelectedCardInstallments = [...selectedCardInstallments].sort(sortInstallments);
 
-  const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const selectedCardTotal = selectedCardInstallments.reduce((sum: number, i) => sum + Number(i.amount), 0);
   const selectedCardIndividualTotal = selectedCardInstallments
-    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
-    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    .filter((i) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .reduce((sum: number, i) => sum + Number(i.amount), 0);
   const selectedCardCollectiveBaseTotal = selectedCardInstallments
-    .filter((i: any) => i.expenses?.expense_type === "collective")
-    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    .filter((i) => i.expenses?.expense_type === "collective")
+    .reduce((sum: number, i) => sum + Number(i.amount), 0);
   const selectedCardUncategorizedTotal = Math.max(0, selectedCardTotal - (selectedCardIndividualTotal + selectedCardCollectiveBaseTotal));
   const selectedCardCollectiveTotal = selectedCardCollectiveBaseTotal + selectedCardUncategorizedTotal;
   const selectedCardIndividualPercentage = selectedCardTotal > 0 ? (selectedCardIndividualTotal / selectedCardTotal) * 100 : 0;
@@ -364,12 +365,12 @@ export function CardsTab({
   const sortedInstallments = [...billInstallments].sort(sortInstallments);
 
   const globalIndividualTotal = billInstallments
-    .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
-    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    .filter((i) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+    .reduce((sum: number, i) => sum + Number(i.amount), 0);
 
   const globalCollectiveBaseTotal = billInstallments
-    .filter((i: any) => i.expenses?.expense_type === "collective")
-    .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+    .filter((i) => i.expenses?.expense_type === "collective")
+    .reduce((sum: number, i) => sum + Number(i.amount), 0);
     
   const globalUncategorizedTotal = Math.max(0, totalBill - (globalIndividualTotal + globalCollectiveBaseTotal));
   const globalCollectiveTotal = globalCollectiveBaseTotal + globalUncategorizedTotal;
@@ -445,7 +446,7 @@ export function CardsTab({
           <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
           
           {/* Watermark Icon to fill empty space */}
-          <CreditCard className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
+          <CreditCardIcon className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
 
           <CardHeader className="relative z-10 pb-0 pt-6 px-6">
             <div className="flex items-center justify-between">
@@ -453,7 +454,7 @@ export function CardsTab({
                 Total em Faturas
               </CardTitle>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-inner border border-white/20">
-                <CreditCard className="h-5 w-5 text-white" />
+                <CreditCardIcon className="h-5 w-5 text-white" />
               </div>
             </div>
           </CardHeader>
@@ -562,7 +563,7 @@ export function CardsTab({
               </>
             ) : (
               <div className="flex flex-col items-center justify-center text-muted-foreground text-sm opacity-60 h-full w-full">
-                <CreditCard className="h-8 w-8 mb-2 opacity-20" />
+                <CreditCardIcon className="h-8 w-8 mb-2 opacity-20" />
                 <p>Fatura zerada neste mês</p>
               </div>
             )}
@@ -573,7 +574,7 @@ export function CardsTab({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold flex items-center gap-2 text-foreground/90">
-            <CreditCard className="h-5 w-5 text-primary" /> Meus Cartões
+            <CreditCardIcon className="h-5 w-5 text-primary" /> Meus Cartões
           </h3>
           <Button size="sm" onClick={() => setAddCardOpen(true)} className="gap-1.5">
             <Plus className="h-4 w-4" /> Adicionar
@@ -591,7 +592,7 @@ export function CardsTab({
           <Card className="border-dashed bg-muted/20">
             <CardContent className="py-10 flex flex-col items-center justify-center text-center">
               <div className="bg-muted p-3 rounded-full mb-3">
-                <CreditCard className="h-6 w-6 text-muted-foreground" />
+                <CreditCardIcon className="h-6 w-6 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground font-medium mb-1">Nenhum cartão cadastrado</p>
               <p className="text-xs text-muted-foreground/70 mb-4 max-w-[200px]">Cadastre seus cartões para controlar as faturas automaticamente.</p>
@@ -602,13 +603,13 @@ export function CardsTab({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {creditCards.map(card => {
               const billValue = cardsBreakdown[card.id] || 0;
-              const cardInstallments = billInstallments.filter((i: any) => i.expenses?.credit_card_id === card.id);
+              const cardInstallments = billInstallments.filter((i) => i.expenses?.credit_card_id === card.id);
               const individualTotal = cardInstallments
-                .filter((i: any) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
-                .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+                .filter((i) => i.expenses?.expense_type === "individual" || i.expenses?.expense_type === "personal")
+                .reduce((sum: number, i) => sum + Number(i.amount), 0);
               const collectiveTotal = cardInstallments
-                .filter((i: any) => i.expenses?.expense_type === "collective")
-                .reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+                .filter((i) => i.expenses?.expense_type === "collective")
+                .reduce((sum: number, i) => sum + Number(i.amount), 0);
 
               return (
                 <Card
@@ -708,13 +709,13 @@ export function CardsTab({
         <CardContent className="pt-0">
           <ScrollArea className="h-[250px]">
             <div className="divide-y">
-              {sortedInstallments.map((i: any, idx: number) => {
+              {sortedInstallments.map((i, idx) => {
                 const totalInstallments = i.expenses?.installments ?? 1;
                 const isAVista = totalInstallments <= 1;
                 const purchaseDate = i.expenses?.purchase_date;
-                const cardLabel = creditCards.find((c: any) => c.id === i.expenses?.credit_card_id)?.label;
+                const cardLabel = creditCards.find((c) => c.id === i.expenses?.credit_card_id)?.label;
                 return (
-                  <div key={idx} className="flex justify-between items-center py-3 hover:bg-muted/10 px-2 -mx-2 transition-colors rounded-sm">
+                  <div key={`${i.id}-${idx}`} className="flex justify-between items-center py-3 hover:bg-muted/10 px-2 -mx-2 transition-colors rounded-sm">
                     <div className="min-w-0 pr-4 flex flex-col gap-0.5">
                       <span className="text-sm font-medium truncate text-foreground/90">{i.expenses?.title}</span>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1009,7 +1010,7 @@ export function CardsTab({
             </div>
 
             <div className="border rounded-lg divide-y bg-card">
-              {sortedSelectedCardInstallments.map((item: any, index: number) => {
+              {sortedSelectedCardInstallments.map((item, index) => {
                 const isAVista = (item.expenses?.installments || 1) <= 1;
                 return (
                   <div key={`${item.id}-${index}`} className="flex items-center justify-between p-3">

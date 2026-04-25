@@ -8,6 +8,7 @@ import { AdminTab } from "@/components/dashboard/AdminTab";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { formatCompetenceKey } from "@/lib/cycleDates";
+import type { AdminDashboardData } from "@/types/admin";
 import type { RpcReturns } from "@/integrations/supabase/rpc-types";
 
 type NonCriticalWarning = {
@@ -15,24 +16,11 @@ type NonCriticalWarning = {
   message: string;
 };
 
-type P2PMatrixFrontRow = {
-  from_user_id: string;
-  to_user_id: string;
-  amount: number;
-};
-
-type AdminDashboardData = {
-  members: any[];
-  p2pMatrix: P2PMatrixFrontRow[];
-  pendingPaymentsCount: number;
-  exMembersDebt: number;
-  departuresCount: number;
-  redistributedCount: number;
-  lowStockCount: number;
-  cycleSplits: any[];
-  pendingSplits: any[];
-  memberPaymentsByCompetence: Record<string, Record<string, number>>;
-  nonCriticalWarnings: NonCriticalWarning[];
+type AdminFetchTask = {
+  key: string;
+  source: string;
+  critical: boolean;
+  run: () => PromiseLike<{ data: any; error: unknown }>;
 };
 
 export default function Admin() {
@@ -78,7 +66,7 @@ export default function Admin() {
     isLoading,
     error,
     refetch,
-  } = useQuery({
+  } = useQuery<AdminDashboardData | null>({
     queryKey: adminDashboardQueryKey,
     queryFn: async () => {
       if (!isAdmin || !membership?.group_id) return null;
@@ -91,7 +79,7 @@ export default function Admin() {
   
         if (membersRes.error) throw membersRes.error;
         if (p2pMatrixRes.error) throw p2pMatrixRes.error;
-
+  
         const rawP2PMatrix = (p2pMatrixRes.data || []) as RpcReturns<"get_group_p2p_matrix">;
         const p2pMatrix = rawP2PMatrix.map((row) => ({
           from_user_id: row.person_a_id,
@@ -100,29 +88,23 @@ export default function Admin() {
         }));
   
         return {
-          members: membersRes.data || [],
+          members: (membersRes.data || []).map(m => ({ ...m, user_id: m.id, balance: 0, accrued_debt: 0, current_cycle_owed: 0, current_cycle_paid: 0, previous_debt: 0, total_owed: 0, total_paid: 0, active: true, profile: m, role: 'morador' })),
           p2pMatrix,
           pendingPaymentsCount: 0, exMembersDebt: 0, departuresCount: 0, redistributedCount: 0, lowStockCount: 0, cycleSplits: [], pendingSplits: [], memberPaymentsByCompetence: {}, nonCriticalWarnings: [],
-        } satisfies AdminDashboardData;
+        };
       }
 
-      type AdminFetchTask = {
-        key: string;
-        source: string;
-        critical: boolean;
-        run: () => Promise<{ data: any; error: unknown }>;
-      };
-
+      // --- Centralized Mode Logic ---
       const tasks: AdminFetchTask[] = [
         { key: "members", source: "group_members", critical: true, run: async () => supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true) },
         { key: "roles", source: "user_roles", critical: true, run: async () => supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id) },
         { key: "cycleSplits", source: "expense_splits_cycle", critical: true, run: async () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective").eq("expenses.competence_key", currentCompetenceKey) },
         { key: "balances", source: "get_admin_member_competence_balances", critical: true, run: async () => supabase.rpc("get_admin_member_competence_balances", { _group_id: membership.group_id, _competence_key: currentCompetenceKey }) },
-        { key: "profiles", source: "get_group_member_public_profiles", critical: true, run: async () => supabase.rpc("get_group_member_public_profiles", { _group_id: membership.group_id }) },
+        { key: "profiles", source: "group_member_profiles", critical: true, run: async () => supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id) },
         { key: "pendingSplits", source: "expense_splits_pending", critical: true, run: async () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective") },
         { key: "departures", source: "audit_log", critical: false, run: async () => supabase.from("audit_log").select("created_at, details").eq("group_id", membership.group_id).eq("action", "remove_member").gte("created_at", cycleStart.toISOString()).lt("created_at", cycleEnd.toISOString()) },
         { key: "inventory", source: "inventory_items", critical: false, run: async () => supabase.from("inventory_items").select("quantity, min_quantity").eq("group_id", membership.group_id) },
-        { key: "payments", source: "payments", critical: true, run: async () => supabase.from("payments").select("*, expense_splits(expenses(expense_type))").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]) },
+        { key: "payments", source: "payments", critical: true, run: async () => supabase.from("payments").select("*").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]) },
       ];
 
       const settled = await Promise.allSettled(tasks.map((task) => task.run()));
@@ -167,20 +149,20 @@ export default function Admin() {
       const memberPaymentsByCompetence = payments
         .filter((p: any) => p.status === "confirmed" && p.paid_by && p.competence_key)
         .reduce((acc: Record<string, Record<string, number>>, payment: any) => {
-          const userId = payment.paid_by;
-          const competenceKey = payment.competence_key;
+          const userId = payment.paid_by!;
+          const competenceKey = payment.competence_key!;
           const amount = Number(payment.amount || 0);
           if (!acc[userId]) acc[userId] = {};
           acc[userId][competenceKey] = (acc[userId][competenceKey] || 0) + amount;
           return acc;
         }, {});
 
-      const balancesByUser = new Map(((balancesRes.data as RpcReturns<"get_admin_member_competence_balances">) || []).map((row) => [row.user_id, row]));
-      const cycleBalances = (membersRes.data || []).map((m) => {
-        const userCycleSplits = cycleSplits.filter((s) => s.user_id === m.user_id);
+      const balancesByUser = new Map<string, RpcReturns<"get_admin_member_competence_balances">[number]>((balancesRes.data || []).map((row: any) => [row.user_id, row]));
+      const cycleBalances = (membersRes.data || []).map((m: any) => {
+        const userCycleSplits = cycleSplits.filter((s: any) => s.user_id === m.user_id);
         const rpcBalance = balancesByUser.get(m.user_id);
-        const cycleOwedFallback = userCycleSplits.reduce((acc, s) => acc + Number(s.amount || 0), 0);
-        const paidSplitsTotalCycle = userCycleSplits.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0);
+        const cycleOwedFallback = userCycleSplits.reduce((acc: number, s: any) => acc + Number(s.amount || 0), 0);
+        const paidSplitsTotalCycle = userCycleSplits.reduce((acc: number, s: any) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0);
         const currentCyclePaid = Math.max(Number(rpcBalance?.current_cycle_paid || 0), paidSplitsTotalCycle);
         const currentCycleOwed = Number(rpcBalance?.current_cycle_owed ?? cycleOwedFallback);
         const previousDebt = Number(rpcBalance?.previous_debt || 0);
@@ -190,11 +172,11 @@ export default function Admin() {
 
       const members = cycleBalances.map(m => ({
         ...m,
-        profile: (profilesRes.data || []).find(p => p.id === m.user_id),
-        role: (rolesRes.data || []).find(r => r.user_id === m.user_id)?.role ?? 'morador'
+        profile: (profilesRes.data || []).find((p: any) => p.id === m.user_id) || null,
+        role: (rolesRes.data || []).find((r: any) => r.user_id === m.user_id)?.role ?? 'morador'
       }));
 
-      const pendingPaymentsCount = payments.filter(p => p.status === 'pending').length;
+      const pendingPaymentsCount = payments.filter((p: any) => p.status === 'pending').length;
       const departuresCount = (departuresRes.data || []).length;
       const redistributedCount = (departuresRes.data || []).reduce((sum: number, log: any) => sum + (Number(log?.details?.redistributed_pending_splits || 0)), 0);
       const lowStockCount = (inventoryRes.data || []).filter((i: any) => Number(i.quantity) <= Number(i.min_quantity)).length;
@@ -214,7 +196,7 @@ export default function Admin() {
         pendingSplits,
         memberPaymentsByCompetence,
         nonCriticalWarnings,
-      } satisfies AdminDashboardData;
+      };
     },
     enabled: !!membership?.group_id && isAdmin
   });
@@ -259,6 +241,7 @@ export default function Admin() {
             cycleSplits={adminData.cycleSplits}
             pendingSplits={adminData.pendingSplits}
             memberPaymentsByCompetence={adminData.memberPaymentsByCompetence}
+            nonCriticalWarnings={adminData.nonCriticalWarnings}
           />
         </div>
       ) : (
