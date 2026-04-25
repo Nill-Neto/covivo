@@ -76,7 +76,8 @@ Uma visão "onisciente" para o gestor do grupo, garantindo total controle e tran
 
 - As migrations SQL em `supabase/migrations` devem seguir o padrão `YYYYMMDDHHMMSS_descricao.sql` com timestamp UTC único e estritamente crescente.
 - Regras detalhadas e exemplos: `docs/migration-versioning.md`.
-- Validação local da sequência: `node supabase/scripts/validate-migration-sequence.mjs`.
+- Validação local da sequência: `npm run supabase:migrations:validate`.
+- Reset total + diff automatizado de schema com produção: `PRODUCTION_DB_URL=postgresql://... npm run supabase:db:reset:diff`.
 
 ## 🚀 Como Executar o Projeto
 

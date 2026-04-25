@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "supabase:types:generate": "npx -y supabase@latest gen types typescript --project-id mqorykrxvqfkifjkveqe --schema public > src/integrations/supabase/types.ts",
-    "supabase:types:check": "bash scripts/check-supabase-types.sh"
+    "supabase:types:check": "bash scripts/check-supabase-types.sh",
+    "supabase:migrations:validate": "node supabase/scripts/validate-migration-sequence.mjs",
+    "supabase:db:reset:diff": "bash supabase/scripts/db-reset-and-schema-diff.sh"
   },
   "dependencies": {
     "@capacitor/android": "7.4.4",

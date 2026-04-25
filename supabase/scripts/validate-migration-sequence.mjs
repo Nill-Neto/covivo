@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations');
@@ -49,8 +49,10 @@ function validateLogicalDependencies(files) {
   const dependencyChains = [
     [
       '20260101000024_add_missing_columns_to_various_tables_to_match_codebase_types.sql',
-      '20260101000025_add_competence_derivation_triggers_and_functions.sql',
-      '20260101000027_backfill_competence_data_for_existing_rows.sql',
+      '20260417120000_add_payment_competence_fields.sql',
+      '20260417120001_add_payment_competence_date.sql',
+      '20260417140000_backfill_competence_and_enforce_not_null.sql',
+      '20260417143000_set_competence_triggers_expenses_payments.sql',
     ],
     [
       '20260417120000_add_payment_competence_fields.sql',
@@ -78,6 +80,27 @@ function validateLogicalDependencies(files) {
   }
 }
 
+
+function validateNoCriticalSkipGuards(files) {
+  const guardedMigrations = [
+    '20260101000024_add_missing_columns_to_various_tables_to_match_codebase_types.sql',
+    '20260417140000_backfill_competence_and_enforce_not_null.sql',
+  ];
+
+  for (const name of guardedMigrations) {
+    if (!files.includes(name)) {
+      continue;
+    }
+
+    const content = readFileSync(join(migrationsDir, name), 'utf8');
+    if (/to_regclass\s*\(/i.test(content) || /RAISE NOTICE\s+'Skipping/i.test(content)) {
+      throw new Error(
+        `Guardas de skip detectadas em migration crítica (${name}). Remova lógica condicional de existência.`
+      );
+    }
+  }
+}
+
 function validateSequentialApplication(files) {
   // Simulação 1: banco vazio (aplica tudo na ordem).
   const emptyDbPlan = [...files];
@@ -98,6 +121,7 @@ function main() {
 
   validateNamingAndOrder(files);
   validateLogicalDependencies(files);
+  validateNoCriticalSkipGuards(files);
   validateSequentialApplication(files);
 
   console.log('✅ Migrações validadas: nome, ordem, dependências lógicas e simulação sequencial.');
