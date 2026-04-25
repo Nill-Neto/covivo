@@ -114,15 +114,15 @@ export default function Admin() {
       };
 
       const tasks: AdminFetchTask[] = [
-        { key: "members", source: "group_members", critical: true, run: async () => supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true) },
-        { key: "roles", source: "user_roles", critical: true, run: async () => supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id) },
-        { key: "cycleSplits", source: "expense_splits_cycle", critical: true, run: async () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective").eq("expenses.competence_key", currentCompetenceKey) },
-        { key: "balances", source: "get_admin_member_competence_balances", critical: true, run: async () => supabase.rpc("get_admin_member_competence_balances", { _group_id: membership.group_id, _competence_key: currentCompetenceKey }) },
-        { key: "profiles", source: "group_member_profiles", critical: true, run: async () => supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id) },
-        { key: "pendingSplits", source: "expense_splits_pending", critical: true, run: async () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective") },
-        { key: "departures", source: "audit_log", critical: false, run: async () => supabase.from("audit_log").select("created_at, details").eq("group_id", membership.group_id).eq("action", "remove_member").gte("created_at", cycleStart.toISOString()).lt("created_at", cycleEnd.toISOString()) },
-        { key: "inventory", source: "inventory_items", critical: false, run: async () => supabase.from("inventory_items").select("quantity, min_quantity").eq("group_id", membership.group_id) },
-        { key: "payments", source: "payments", critical: true, run: async () => supabase.from("payments").select("*, expense_splits(expenses(expense_type))").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]) },
+        { key: "members", source: "group_members", critical: true, run: () => supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true) },
+        { key: "roles", source: "user_roles", critical: true, run: () => supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id) },
+        { key: "cycleSplits", source: "expense_splits_cycle", critical: true, run: () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective").eq("expenses.competence_key", currentCompetenceKey) },
+        { key: "balances", source: "get_admin_member_competence_balances", critical: true, run: () => supabase.rpc("get_admin_member_competence_balances", { _group_id: membership.group_id, _competence_key: currentCompetenceKey }) },
+        { key: "profiles", source: "group_member_profiles", critical: true, run: () => supabase.from("group_member_profiles").select("id, full_name, avatar_url").eq("group_id", membership.group_id) },
+        { key: "pendingSplits", source: "expense_splits_pending", critical: true, run: () => supabase.from("expense_splits").select("*, expenses!inner(*)").eq("expenses.group_id", membership.group_id).eq("expenses.expense_type", "collective") },
+        { key: "departures", source: "audit_log", critical: false, run: () => supabase.from("audit_log").select("created_at, details").eq("group_id", membership.group_id).eq("action", "remove_member").gte("created_at", cycleStart.toISOString()).lt("created_at", cycleEnd.toISOString()) },
+        { key: "inventory", source: "inventory_items", critical: false, run: () => supabase.from("inventory_items").select("quantity, min_quantity").eq("group_id", membership.group_id) },
+        { key: "payments", source: "payments", critical: true, run: () => supabase.from("payments").select("*, expense_splits(expenses(expense_type))").eq("group_id", membership.group_id).in("status", ["pending", "confirmed"]) },
       ];
 
       const settled = await Promise.allSettled(tasks.map((task) => task.run()));
@@ -175,7 +175,7 @@ export default function Admin() {
           return acc;
         }, {});
 
-      const balancesByUser = new Map(((balancesRes.data as RpcReturns<"get_admin_member_competence_balances">) || []).map((row) => [row.user_id, row]));
+      const balancesByUser = new Map((balancesRes.data || []).map((row: any) => [row.user_id, row]));
       const cycleBalances = (membersRes.data || []).map((m) => {
         const userCycleSplits = cycleSplits.filter((s) => s.user_id === m.user_id);
         const rpcBalance = balancesByUser.get(m.user_id);
