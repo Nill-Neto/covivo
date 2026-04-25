@@ -49,7 +49,7 @@ SELECT cron.schedule(
     url := 'https://mqorykrxvqfkifjkveqe.supabase.co/functions/v1/check-notifications',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || public.get_check_notifications_scheduler_secret()
+      'x-scheduler-token', public.get_check_notifications_scheduler_secret()
     ),
     body := '{}'::jsonb
   ) AS request_id;
@@ -61,7 +61,7 @@ SELECT cron.schedule(
 Executar chamada manual com novo segredo:
 ```bash
 curl -i \
-  -H "Authorization: Bearer <NOVO_SEGREDO>" \
+  -H "x-scheduler-token: <NOVO_SEGREDO>" \
   -H "Content-Type: application/json" \
   -X POST \
   https://mqorykrxvqfkifjkveqe.supabase.co/functions/v1/check-notifications \

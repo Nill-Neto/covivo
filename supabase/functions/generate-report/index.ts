@@ -2,9 +2,61 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 import { encodeBase64 } from "https://deno.land/std@0.207.0/encoding/base64.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+const DEFAULT_LOCAL_PUBLIC_URL = "http://localhost:8080";
+const APP_PUBLIC_URL_ALIAS_SEPARATOR = ",";
+const CORS_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version";
+
+const normalizeUrl = (url: string) => url.trim().replace(/\/$/, "");
+
+const parseAliases = (aliases: string | undefined) =>
+  aliases
+    ?.split(APP_PUBLIC_URL_ALIAS_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(normalizeUrl) ?? [];
+
+const resolveAppPublicUrl = () => {
+  const configuredUrl = Deno.env.get("APP_PUBLIC_URL")?.trim().replace(/\/$/, "");
+  if (configuredUrl) return configuredUrl;
+
+  const stage = Deno.env.get("ENVIRONMENT") ?? Deno.env.get("SUPABASE_ENV") ?? "unknown";
+  const isLocal = Deno.env.get("SUPABASE_URL")?.includes("127.0.0.1") || stage === "local" || stage === "development";
+
+  if (isLocal) {
+    console.warn(`[generate-report] APP_PUBLIC_URL is not configured for ${stage}. Falling back to ${DEFAULT_LOCAL_PUBLIC_URL}.`);
+    return DEFAULT_LOCAL_PUBLIC_URL;
+  }
+
+  throw new Error(`[generate-report] APP_PUBLIC_URL is not configured for ${stage}.`);
+};
+
+const getOrigin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+};
+
+const APP_PUBLIC_URL = resolveAppPublicUrl();
+const APP_PUBLIC_URL_ALIASES = parseAliases(Deno.env.get("APP_PUBLIC_URL_ALIASES"));
+const ALLOWED_ORIGINS = new Set([
+  getOrigin(APP_PUBLIC_URL),
+  ...APP_PUBLIC_URL_ALIASES.map(getOrigin),
+].filter(Boolean));
+
+const resolveCorsHeaders = (req: Request) => {
+  const requestOrigin = req.headers.get("origin");
+  const allowedOrigin = requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)
+    ? requestOrigin
+    : getOrigin(APP_PUBLIC_URL);
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
 };
 
 const escapeCsv = (str: any) => {
@@ -33,6 +85,16 @@ const parseIsoDate = (value: unknown, field: string) => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = resolveCorsHeaders(req);
+  const requestOrigin = req.headers.get("origin");
+
+  if (requestOrigin && !ALLOWED_ORIGINS.has(requestOrigin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
