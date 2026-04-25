@@ -24,6 +24,9 @@ import {
   sortPendingItemsByDateDesc,
 } from "@/lib/collectivePending";
 import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
+import type { Database } from "@/integrations/supabase/types";
+
+type MyP2PBalance = Database["public"]["Functions"]["get_my_p2p_balances"]["Returns"][number];
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -160,15 +163,12 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const { data: p2pBalances = [] } = useQuery({
+  const { data: p2pBalances = [] } = useQuery<MyP2PBalance[]>({
     queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase.rpc("get_my_p2p_balances" as any, {
-        _user_id: user.id,
-      });
+      const { data, error } = await supabase.rpc("get_my_p2p_balances");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!user && !!membership && (membership as any).group_modo_gestao === 'p2p',
   });

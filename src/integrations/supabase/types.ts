@@ -1303,13 +1303,12 @@ export type Database = {
         }[]
       }
       get_my_p2p_balances: {
-        Args: { _user_id: string }
+        Args: Record<PropertyKey, never>
         Returns: {
-          amount: number
-          counterparty_avatar_url: string | null
-          counterparty_id: string
-          counterparty_name: string
-          direction: string
+          net_balance: number
+          other_user_avatar_url: string | null
+          other_user_full_name: string | null
+          other_user_id: string
         }[]
       }
       get_member_balances: {
