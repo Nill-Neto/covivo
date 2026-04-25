@@ -18,6 +18,8 @@ const escapeCsv = (str: any) => {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 365;
+const MAX_DENIED_ATTEMPTS = 5;
+const DENIED_ATTEMPTS_WINDOW_MINUTES = 15;
 
 const parseIsoDate = (value: unknown, field: string) => {
   if (typeof value !== "string" || !DATE_RE.test(value)) {
@@ -65,9 +67,6 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Service client for direct data queries
-    const supabase = serviceClient;
-
     const body = await req.json();
     const { group_id, format = 'pdf', start_date, end_date } = body;
 
@@ -75,6 +74,67 @@ Deno.serve(async (req) => {
 
     if (!group_id) {
       return new Response(JSON.stringify({ error: "group_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() ?? null;
+    const userAgent = req.headers.get("user-agent");
+
+    const { data: deniedAttempts, error: deniedAttemptsError } = await userClient.rpc(
+      "get_recent_report_denied_attempts",
+      {
+        _user_id: user.id,
+        _window_minutes: DENIED_ATTEMPTS_WINDOW_MINUTES,
+      },
+    );
+
+    if (deniedAttemptsError) {
+      console.error("[generate-report] Failed to fetch denied attempts rate:", deniedAttemptsError);
+    }
+
+    if ((deniedAttempts ?? 0) >= MAX_DENIED_ATTEMPTS) {
+      await userClient.rpc("log_report_access_attempt", {
+        _user_id: user.id,
+        _group_id: group_id,
+        _allowed: false,
+        _reason: "rate_limited_denied_attempts",
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+      });
+
+      return new Response(JSON.stringify({ error: "Too many denied report attempts. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: isMember, error: membershipError } = await userClient.rpc(
+      "is_current_user_member_of_group",
+      { _group_id: group_id },
+    );
+
+    if (membershipError) {
+      console.error("[generate-report] Membership check failed:", membershipError);
+      return new Response(JSON.stringify({ error: "Could not validate group membership" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isMember) {
+      await userClient.rpc("log_report_access_attempt", {
+        _user_id: user.id,
+        _group_id: group_id,
+        _allowed: false,
+        _reason: "user_not_member_of_group",
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+      });
+
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const startDate = parseIsoDate(start_date, "start_date");
@@ -102,17 +162,16 @@ Deno.serve(async (req) => {
     console.log("[generate-report] Fetching data for cycle:", { startDateTime, endDateTime, rangeDays });
 
     const [groupRes, expensesRes, balancesRes, paymentsRes] = await Promise.all([
-      supabase.from("groups").select("name").eq("id", group_id).maybeSingle(),
-      supabase
+      userClient.from("groups").select("name").eq("id", group_id).maybeSingle(),
+      userClient
         .from("expenses")
         .select("title, amount, category, expense_type, created_at, purchase_date, created_by")
         .eq("group_id", group_id)
         .gte("purchase_date", startDateTime)
         .lte("purchase_date", endDateTime)
         .order("purchase_date"),
-      // Use user-scoped client because get_member_balances checks auth.uid()
       userClient.rpc("get_member_balances", { _group_id: group_id }),
-      supabase
+      userClient
         .from("payments")
         .select("amount, status, created_at")
         .eq("group_id", group_id)
@@ -142,9 +201,18 @@ Deno.serve(async (req) => {
 
     const nameMap: Record<string, string> = {};
     if (userIds.size > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", Array.from(userIds));
+      const { data: profiles } = await userClient.from("profiles").select("id, full_name").in("id", Array.from(userIds));
       (profiles ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
     }
+
+    await userClient.rpc("log_report_access_attempt", {
+      _user_id: user.id,
+      _group_id: group_id,
+      _allowed: true,
+      _reason: null,
+      _ip_address: ipAddress,
+      _user_agent: userAgent,
+    });
 
     let fileData = "";
     let contentType = "";
