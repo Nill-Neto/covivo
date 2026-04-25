@@ -43,10 +43,11 @@ export interface AdminDashboardData {
   cycleSplits: PendingSplit[];
   pendingSplits: PendingSplit[];
   memberPaymentsByCompetence: Record<string, Record<string, number>>;
-  nonCriticalWarnings: string[];
+  nonCriticalWarnings: { source: string; message: string; }[];
 }
 
 export interface AdminTabProps extends AdminDashboardData {
+  modoGestao: 'centralized' | 'p2p';
   groupId: string;
   collectiveExpenses: CollectiveExpense[];
   totalMonthExpenses: number;
@@ -54,5 +55,4 @@ export interface AdminTabProps extends AdminDashboardData {
   cycleEnd: Date;
   currentDate: Date;
   closingDay: number;
-  modoGestao: 'centralized' | 'p2p';
 }

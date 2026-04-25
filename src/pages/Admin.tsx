@@ -16,6 +16,13 @@ type NonCriticalWarning = {
   message: string;
 };
 
+type AdminFetchTask = {
+  key: string;
+  source: string;
+  critical: boolean;
+  run: () => PromiseLike<{ data: any; error: unknown }>;
+};
+
 export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
   const [heroCompact, setHeroCompact] = useState(false);
@@ -88,13 +95,6 @@ export default function Admin() {
       }
 
       // --- Centralized Mode Logic ---
-      type AdminFetchTask = {
-        key: string;
-        source: string;
-        critical: boolean;
-        run: () => Promise<{ data: any; error: unknown }>;
-      };
-
       const tasks: AdminFetchTask[] = [
         { key: "members", source: "group_members", critical: true, run: () => supabase.from("group_members").select("user_id, active").eq("group_id", membership.group_id).eq("active", true) },
         { key: "roles", source: "user_roles", critical: true, run: () => supabase.from("user_roles").select("user_id, role").eq("group_id", membership.group_id) },
@@ -147,8 +147,8 @@ export default function Admin() {
       const payments = allPaymentsRes.data || [];
 
       const memberPaymentsByCompetence = payments
-        .filter((p) => p.status === "confirmed" && p.paid_by && p.competence_key)
-        .reduce((acc: Record<string, Record<string, number>>, payment) => {
+        .filter((p: any) => p.status === "confirmed" && p.paid_by && p.competence_key)
+        .reduce((acc: Record<string, Record<string, number>>, payment: any) => {
           const userId = payment.paid_by!;
           const competenceKey = payment.competence_key!;
           const amount = Number(payment.amount || 0);
@@ -157,7 +157,7 @@ export default function Admin() {
           return acc;
         }, {});
 
-      const balancesByUser = new Map((balancesRes.data || []).map((row: any) => [row.user_id, row]));
+      const balancesByUser = new Map<string, RpcReturns<"get_admin_member_competence_balances">[number]>((balancesRes.data || []).map((row: any) => [row.user_id, row]));
       const cycleBalances = (membersRes.data || []).map((m: any) => {
         const userCycleSplits = cycleSplits.filter((s: any) => s.user_id === m.user_id);
         const rpcBalance = balancesByUser.get(m.user_id);
