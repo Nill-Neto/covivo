@@ -30,7 +30,7 @@ export function UnpaidBills() {
 
   const claimPayment = useMutation({
     mutationFn: async (expenseId: string) => {
-      const { error } = await supabase.rpc("claim_expense_payment", {
+      const { error } = await supabase.rpc("claim_expense_payment" as any, {
         _expense_id: expenseId,
         _user_id: user!.id,
       });
@@ -71,7 +71,7 @@ export function UnpaidBills() {
               <div className="space-y-1">
                 <p className="font-medium">{bill.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  Sua parte: <span className="font-semibold">R$ {myShare.toFixed(2)}</span> de R$ {bill.amount.toFixed(2)}
+                  Sua parte: <span className="font-semibold">R$ {Number(myShare).toFixed(2)}</span> de R$ {Number(bill.amount).toFixed(2)}
                 </p>
                 {bill.due_date && (
                    <p className="text-xs text-muted-foreground">

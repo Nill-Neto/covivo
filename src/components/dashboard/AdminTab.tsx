@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
-import { parseLocalDate, cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import {
   Users, ArrowRight, RefreshCw, DollarSign,
   Receipt, Settings, ClipboardList, BarChart3,
-  UserPlus, Shield,
+  UserPlus, Shield, Scale, ArrowUpRight, ArrowDownLeft,
   type LucideIcon
 } from "lucide-react";
 import { format } from "date-fns";
@@ -17,167 +17,57 @@ import { getCategoryLabel, CHART_COLORS, CATEGORY_COLORS } from "@/constants/cat
 import { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AdminFinancialSummary } from "./AdminFinancialSummary";
+import { DebtSimplificationModal } from "./DebtSimplificationModal";
 
 interface AdminTabProps {
+  modoGestao: 'centralized' | 'p2p';
   members: any[];
-  pendingPaymentsCount: number;
+  p2pMatrix: { from_user_id: string, to_user_id: string, amount: number }[];
   collectiveExpenses: any[];
   totalMonthExpenses: number;
   cycleStart: Date;
   cycleEnd: Date;
   currentDate: Date;
-  exMembersDebt: number;
-  departuresCount: number;
-  redistributedCount: number;
-  lowStockCount: number;
-  cycleSplits: any[];
-  pendingSplits: any[];
-  memberPaymentsByCompetence?: Record<string, Record<string, number>>;
   closingDay: number;
 }
 
 export function AdminTab({
+  modoGestao,
   members,
-  pendingPaymentsCount,
+  p2pMatrix,
   collectiveExpenses,
   totalMonthExpenses,
-  cycleStart,
-  cycleEnd,
   currentDate,
-  exMembersDebt,
-  departuresCount,
-  redistributedCount,
-  lowStockCount,
-  cycleSplits,
-  pendingSplits,
-  memberPaymentsByCompetence = {},
-  closingDay,
 }: AdminTabProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [isReceivablesOpen, setIsReceivablesOpen] = useState(false);
+  const [isSimplifyModalOpen, setIsSimplifyModalOpen] = useState(false);
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
-  
-  const currentCompetenceKey = format(currentDate, "yyyy-MM");
 
-  // Ordena os membros pelo saldo acumulado (negativos primeiro)
-  const sortedMembers = useMemo(() =>
-    [...members].sort((a, b) => (a.accumulated_balance ?? a.balance) - (b.accumulated_balance ?? b.balance)),
-    [members]
-  );
+  const processedMembers = useMemo(() => {
+    const memberMap = new Map(members.map(m => [m.id, { ...m, debts: [], credits: [], netBalance: 0 }]));
 
-  const selectedMember = useMemo(() => 
-    sortedMembers.find(m => m.user_id === selectedMemberId), 
-  [sortedMembers, selectedMemberId]);
+    p2pMatrix.forEach(entry => {
+      const fromMember = memberMap.get(entry.from_user_id);
+      const toMember = memberMap.get(entry.to_user_id);
+      if (!fromMember || !toMember) return;
 
-  // Pega apenas as despesas desta competência para este morador
-  const selectedMemberSplits = useMemo(() => {
-    if (!selectedMemberId || !cycleSplits) return [];
-    return cycleSplits
-      .filter(s => s.user_id === selectedMemberId)
-      .sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime());
-  }, [selectedMemberId, cycleSplits]);
+      fromMember.netBalance -= entry.amount;
+      toMember.netBalance += entry.amount;
 
-  const selectedMemberPreviousSplits = useMemo(() => {
-    if (!selectedMemberId || !pendingSplits) return [];
-    return pendingSplits
-      .filter((s: any) => s.user_id === selectedMemberId && s.expenses?.competence_key !== currentCompetenceKey)
-      .sort((a: any, b: any) => (b.expenses?.competence_key || "").localeCompare(a.expenses?.competence_key || ""));
-  }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
-
-  const selectedPreviousByCompetence = useMemo(() => {
-    const selectedMemberPaymentsByCompetence = selectedMemberId
-      ? (memberPaymentsByCompetence[selectedMemberId] || {})
-      : {};
-
-    const groups: Record<string, any[]> = {};
-    selectedMemberPreviousSplits.forEach((split: any) => {
-      const key = split.expenses?.competence_key || "sem-competencia";
-      groups[key] = groups[key] || [];
-      groups[key].push(split);
+      fromMember.debts.push({ user: toMember, amount: entry.amount });
+      toMember.credits.push({ user: fromMember, amount: entry.amount });
     });
 
-    const grouped = Object.entries(groups)
-      .map(([competenceKey, items]) => ({
-        competenceKey,
-        items: items.sort((a, b) => new Date(b.expenses?.purchase_date || 0).getTime() - new Date(a.expenses?.purchase_date || 0).getTime()),
-        totalCompetence: items.reduce((acc, s) => acc + Number(s.amount || 0), 0),
-        totalPaidFromSplits: items.reduce((acc, s) => acc + (s.status === "paid" ? Number(s.amount || 0) : 0), 0),
-        totalPaidFromPayments: Number(selectedMemberPaymentsByCompetence[competenceKey] || 0),
-      }))
-      .map((group) => {
-        const totalPaid = Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments);
-        return {
-          ...group,
-          totalPaid,
-          totalPending: Math.max(group.totalCompetence - totalPaid, 0),
-          pendingItems: group.items.filter((split: any) => split.status !== "paid"),
-        };
-      })
-      .filter((group) => group.totalPending > 0.05)
-      .sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
+    return Array.from(memberMap.values()).sort((a, b) => a.netBalance - b.netBalance);
+  }, [members, p2pMatrix]);
 
-    if (grouped.length > 0) return grouped;
+  const selectedMember = useMemo(() => 
+    processedMembers.find(m => m.id === selectedMemberId), 
+  [processedMembers, selectedMemberId]);
 
-    if (Number(selectedMember?.previous_debt || 0) > 0.05) {
-      return [{
-        competenceKey: "saldo-anterior",
-        items: [],
-        totalCompetence: Number(selectedMember?.previous_debt || 0),
-        totalPaidFromSplits: 0,
-        totalPaidFromPayments: 0,
-        totalPaid: 0,
-        totalPending: Number(selectedMember?.previous_debt || 0),
-        pendingItems: [],
-        synthetic: true,
-      }];
-    }
-
-    return [];
-  }, [memberPaymentsByCompetence, selectedMember?.previous_debt, selectedMemberId, selectedMemberPreviousSplits]);
-
-  const selectedHeaderTotals = useMemo(() => {
-    const currentCompetenceTotal = Number(selectedMember?.total_owed ?? selectedMember?.current_cycle_owed ?? 0);
-    const currentCompetencePaidFallback = selectedMemberId
-      ? Number(memberPaymentsByCompetence[selectedMemberId]?.[currentCompetenceKey] || 0)
-      : 0;
-    const currentCompetencePaid = Math.max(
-      Number(selectedMember?.total_paid ?? selectedMember?.current_cycle_paid ?? 0),
-      currentCompetencePaidFallback
-    );
-    let previousPendingTotal = 0;
-    for (const group of selectedPreviousByCompetence) {
-      previousPendingTotal += Number((group as any).totalPending || 0);
-    }
-    const totalConsolidated = Math.max(previousPendingTotal + currentCompetenceTotal - currentCompetencePaid, 0);
-
-    return {
-      currentCompetenceTotal,
-      previousPendingTotal,
-      currentCompetencePaid,
-      totalConsolidated,
-    };
-  }, [currentCompetenceKey, memberPaymentsByCompetence, selectedMember, selectedMemberId, selectedPreviousByCompetence]);
-
-  const formatCompetenceLabel = (key?: string) => {
-    if (!key || !/^\d{4}-\d{2}$/.test(key)) return "Competência não informada";
-    const [y, m] = key.split("-");
-    return format(new Date(Number(y), Number(m) - 1, 1), "MMMM/yyyy", { locale: ptBR });
-  };
-
-  const getBalanceStyle = (value: number) => {
-    if (value < -0.05) {
-      return { label: "Débito", className: "text-destructive", badgeClass: "destructive" as const };
-    }
-    if (value > 0.05) {
-      return { label: "Crédito", className: "text-success", badgeClass: "secondary" as const };
-    }
-    return { label: "Neutro", className: "text-muted-foreground", badgeClass: "outline" as const };
-  };
-
-  const totalReceivable = memberBalances.reduce(
-    (acc, m) => acc + (m.netBalance < -0.01 ? Math.abs(m.netBalance) : 0), 0
+  const totalReceivable = processedMembers.reduce(
+    (acc, m) => acc + (m.netBalance > 0 ? m.netBalance : 0), 0
   );
 
   const recentExpenses = useMemo(() =>
@@ -209,22 +99,33 @@ export function AdminTab({
   const displayLabel = activeSegment ? activeSegment.label : "Total";
   const displayPercentage = activeSegment && totalMonthExpenses > 0 ? (activeSegment.value / totalMonthExpenses) * 100 : 100;
 
+  const getBalanceStyle = (value: number) => {
+    if (value < -0.05) {
+      return { label: "Débito", className: "text-destructive", badgeClass: "destructive" as const };
+    }
+    if (value > 0.05) {
+      return { label: "Crédito", className: "text-success", badgeClass: "secondary" as const };
+    }
+    return { label: "Neutro", className: "text-muted-foreground", badgeClass: "outline" as const };
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <AdminFinancialSummary
         totalExpenses={totalMonthExpenses}
         totalReceivable={totalReceivable}
-        pendingPaymentsCount={pendingPaymentsCount}
-        exMembersDebt={exMembersDebt}
+        pendingPaymentsCount={0} // Placeholder
+        exMembersDebt={0} // Placeholder
       />
 
-      <Button onClick={() => setIsSimplifyModalOpen(true)} variant="outline" className="w-full justify-center gap-2">
-        <Scale className="h-4 w-4"/>
-        Simplificar Dívidas do Grupo
-      </Button>
+      {modoGestao === 'p2p' && (
+        <Button onClick={() => setIsSimplifyModalOpen(true)} variant="outline" className="w-full justify-center gap-2">
+          <Scale className="h-4 w-4"/>
+          Simplificar Dívidas do Grupo
+        </Button>
+      )}
 
-      {/* Quick Actions */}
       <Card>
         <CardContent className="p-0">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x">
@@ -238,9 +139,7 @@ export function AdminTab({
         </CardContent>
       </Card>
 
-      {/* Main Content Grid */}
       <div className="grid gap-4 md:grid-cols-12">
-        {/* Distribuição por Categoria */}
         <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -329,7 +228,6 @@ export function AdminTab({
           </CardContent>
         </Card>
 
-        {/* Últimas Despesas Coletivas */}
         <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -370,77 +268,6 @@ export function AdminTab({
         </Card>
       </div>
 
-      {/* Resumo da Competência Modal */}
-      <Dialog open={isReceivablesOpen} onOpenChange={setIsReceivablesOpen}>
-        <DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh]">
-          <DialogHeader className="px-5 pt-5 pb-3 shrink-0 border-b">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Users className="h-5 w-5" /> Resumo da Competência
-              </DialogTitle>
-              <Badge variant="outline" className="text-xs font-normal">
-                {members.length} ativo{members.length !== 1 ? "s" : ""}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {`Competência atual: ${format(currentDate, "MMM/yyyy", { locale: ptBR })} · Valores sem acumular pendências anteriores`} · Clique no morador para detalhes
-            </p>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto bg-background divide-y">
-            {sortedMembers.map(member => {
-              const currentBalance = Number(member.balance ?? 0);
-              const previousDebt = Number(member.previous_debt ?? 0);
-              const competenceTotal = Number(member.total_owed ?? 0);
-              const competencePaidFallback = Number(memberPaymentsByCompetence[member.user_id]?.[currentCompetenceKey] || 0);
-              const competencePaid = Math.max(Number(member.total_paid ?? 0), competencePaidFallback);
-              const competencePending = Math.max(competenceTotal - competencePaid, 0);
-              const status = getBalanceStyle(currentBalance);
-              const isDebt = currentBalance < -0.05;
-
-              return (
-                <div
-                  key={member.user_id}
-                  onClick={() => setSelectedMemberId(member.user_id)}
-                  className={`flex items-center justify-between px-6 py-3 transition-colors hover:bg-muted/50 cursor-pointer ${isDebt ? "bg-destructive/5" : ""}`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-9 w-9 border border-border">
-                        <AvatarImage src={member.profile?.avatar_url} />
-                        <AvatarFallback className="text-xs font-medium bg-muted">
-                        {member.profile?.full_name?.substring(0, 2)?.toUpperCase() || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{member.profile?.full_name}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground capitalize">
-                        {member.role === "admin" ? "Admin" : "Morador"}
-                        </span>
-                        <Badge variant={status.badgeClass} className="text-[10px] h-4 px-1.5">
-                          {status.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right flex-shrink-0 ml-4">
-                    <span className={`font-semibold text-sm tabular-nums ${status.className}`}>
-                      {currentBalance > 0.05 ? "+" : currentBalance < -0.05 ? "-" : ""}R$ {Math.abs(currentBalance).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-            {sortedMembers.length === 0 && (
-              <p className="text-sm text-muted-foreground px-6 py-8 text-center">
-                Nenhum morador encontrado.
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Detalhamento do Morador */}
       <Dialog open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)}>
         <DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh]">
           <DialogHeader className="px-5 pt-5 pb-4 shrink-0 border-b">
@@ -448,7 +275,7 @@ export function AdminTab({
               Auditoria P2P
             </DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5 capitalize">
-              {selectedMember?.profile?.full_name}
+              {selectedMember?.full_name}
             </p>
           </DialogHeader>
 
@@ -456,7 +283,7 @@ export function AdminTab({
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Saldo Líquido</p>
               <p className={`text-lg font-semibold tabular-nums ${getBalanceStyle(selectedMember?.netBalance ?? 0).className}`}>
-                R$ {selectedMember?.netBalance.toFixed(2)}
+                R$ {(selectedMember?.netBalance ?? 0).toFixed(2)}
               </p>
             </div>
           </div>
@@ -518,6 +345,15 @@ export function AdminTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {isSimplifyModalOpen && (
+        <DebtSimplificationModal 
+          open={isSimplifyModalOpen} 
+          onOpenChange={setIsSimplifyModalOpen} 
+          groupId={members[0]?.group_id} 
+          members={members.map(m => ({ profile: m }))}
+        />
+      )}
     </div>
   );
 }
@@ -545,159 +381,6 @@ function QuickActionLink({
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{desc}</p>
-      </div>
-    </Link>
-  );
-}DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function QuickActionLink({
-  to,
-  icon: Icon,
-  label,
-  desc,
-  state
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-  desc: string;
-  state?: any;
-}) {
-  return (
-    <Link
-      to={to}
-      state={state}
-      className="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors group outline-none focus-visible:bg-muted/50"
-    >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{desc}</p>
-      </div>
-    </Link>
-  );
-}/div>
-
-            <div className="px-5 py-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Itens da competência atual ({format(currentDate, "MMM/yyyy", { locale: ptBR })})
-              </p>
-              {selectedMemberSplits.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma despesa rateada nesta competência.</p>
-              ) : (
-                <Accordion type="single" collapsible className="w-full rounded-lg border bg-background/70 px-1">
-                  <AccordionItem value="current-competence-items" className="border-b-0">
-                    <AccordionTrigger className="px-3 py-2 text-xs font-medium hover:no-underline">
-                      Itens da competência atual ({selectedMemberSplits.length})
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-2 px-2 pb-2">
-                      {selectedMemberSplits.map((split: any) => (
-                        <div key={split.id} className="rounded-lg border px-3 py-2.5 bg-background/70">
-                          <div className="flex justify-between items-start mb-1 gap-2">
-                            <p className="text-sm font-medium text-foreground leading-tight">{split.expenses?.title || "Despesa sem título"}</p>
-                            <div className="flex flex-col items-end shrink-0">
-                              <span className="font-semibold text-sm tabular-nums whitespace-nowrap text-destructive">
-                                R$ {Number(split.amount).toFixed(2)}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
-                                de R$ {Number(split.expenses?.amount || 0).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                          {split.expenses?.description && (
-                            <p className="text-xs text-muted-foreground mb-2.5 leading-snug pr-8">{split.expenses.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
-                              {getCategoryLabel(split.expenses?.category)}
-                            </Badge>
-                            <span>{split.expenses?.purchase_date ? format(parseLocalDate(split.expenses.purchase_date), "dd/MM/yyyy") : "Data n/d"}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function QuickActionLink({
-  to,
-  icon: Icon,
-  label,
-  desc,
-  state
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-  desc: string;
-  state?: any;
-}) {
-  return (
-    <Link
-      to={to}
-      state={state}
-      className="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors group outline-none focus-visible:bg-muted/50"
-    >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{desc}</p>
-      </div>
-    </Link>
-  );
-}DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function QuickActionLink({
-  to,
-  icon: Icon,
-  label,
-  desc,
-  state
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-  desc: string;
-  state?: any;
-}) {
-  return (
-    <Link
-      to={to}
-      state={state}
-      className="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors group outline-none focus-visible:bg-muted/50"
-    >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{desc}</p>
-      </div>
-    </Link>
-  );
-}Name="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{desc}</p>
       </div>

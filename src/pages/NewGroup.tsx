@@ -6,13 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { PageHero } from "@/components/layout/PageHero";
 import type { GroupAddress } from "@/components/onboarding/GroupSettingsStep";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type SplittingRule = "equal" | "percentage";
 
@@ -25,6 +25,7 @@ export default function NewGroup() {
   const [splittingRule, setSplittingRule] = useState<SplittingRule>("equal");
   const [closingDay, setClosingDay] = useState(1);
   const [dueDay, setDueDay] = useState(10);
+  const [modoGestao, setModoGestao] = useState("centralized");
   const [address, setAddress] = useState<GroupAddress>({
     street: "",
     number: "",
@@ -114,7 +115,7 @@ export default function NewGroup() {
       await refreshMembership();
       setActiveGroupId(newGroupId);
 
-      toast({ title: "Grupo criado!", description: `"${groupName}" está pronto. Convide seus moradores.` });
+      toast({ title: "Grupo criado!", description: `\"${groupName}\" está pronto. Convide seus moradores.` });
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -195,38 +196,24 @@ export default function NewGroup() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Dia de Fechamento</Label>
-              <Input type="number" min={1} max={31} value={closingDay} onChange={(e) => setClosingDay(parseInt(e.target.value) || 1)} />
-              <p className="text-[10px] text-muted-foreground">
-                Lançamentos após este dia entram na competência do mês seguinte.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Dia de Vencimento</Label>
-              <Input type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(parseInt(e.target.value) || 10)} />
-              <p className="text-[10px] text-muted-foreground font-medium">
-                Data limite para pagamento será <strong>um dia antes</strong> (Dia {(dueDay - 1) || 30}).
-                No dia {dueDay} já será considerado atraso.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate(-1)} className="gap-1">
-              <ChevronLeft className="h-4 w-4" /> Voltar
-            </Button>
-            <Button onClick={handleCreate} disabled={saving} className="flex-1">
-              {saving && <CustomLoader className="h-4 w-4 mr-2" />}
-              Criar Grupo
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+          <div className="space-y-3">
+            <Label>Modo de Gestão Financeira</Label>
+            <RadioGroup value={modoGestao} onValueChange={setModoGestao} className="grid grid-cols-2 gap-4">
+                <div>
+                    <RadioGroupItem value="centralized" id="centralized" className="peer sr-only" />
+                    <Label htmlFor="centralized" className="flex flex-col items-center h-full justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <h4 className="font-semibold text-sm">Tesoureiro Central</h4>
+                        <p className="text-xs text-muted-foreground text-center mt-1">Ideal para grupos com um único responsável pelos pagamentos. O app calcula quanto cada um deve ao tesoureiro.</p>
+                    </Label>
+                </div>
+                <div>
+                    <RadioGroupItem value="p2p" id="p2p" className="peer sr-only" />
+                    <Label htmlFor="p2p" className="flex flex-col items-center h-full justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <h4 className="font-semibold text-sm">Resp. Compartilhadas</h4>
+                        <p className="text-xs text-muted-foreground text-center mt-1">Perfeito para quando vários membros pagam contas. O app calcula quem deve para quem.</p>
+                    </Label>
+                </div>
+            </RadioGroup>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

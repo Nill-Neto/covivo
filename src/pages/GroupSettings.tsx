@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,40 +42,10 @@ function AccountTab() {
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [cpf, setCpf] = useState("");
   const [cpfError, setCpfError] = useState("");
-  const [cpfLoaded, setCpfLoaded] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingCsv, setGeneratingCsv] = useState(false);
 
-  // Document upload states
-  const [rgFront, setRgFront] = useState<File | null>(null);
-  const [rgBack, setRgBack] = useState<File | null>(null);
-  const [rgDigital, setRgDigital] = useState<File | null>(null);
-  const [hasExistingDocs, setHasExistingDocs] = useState({ front: false, back: false, digital: false });
-  const frontRef = useRef<HTMLInputElement>(null);
-  const backRef = useRef<HTMLInputElement>(null);
-  const digitalRef = useRef<HTMLInputElement>(null);
-
-  // Danger Zone
   const [isAccountDeleteOpen, setIsAccountDeleteOpen] = useState(false);
-
-  // Load CPF
-  useEffect(() => {
-    if (!user) return;
-    supabase.rpc("read_my_cpf").then(({ data }) => {
-      if (data) setCpf(formatCPF(data));
-      setCpfLoaded(true);
-    });
-    // Check existing docs
-    supabase.from("profile_sensitive").select("rg_front_url, rg_back_url, rg_digital_url").eq("user_id", user.id).single().then(({ data }) => {
-      if (data) {
-        setHasExistingDocs({
-          front: !!data.rg_front_url,
-          back: !!data.rg_back_url,
-          digital: !!data.rg_digital_url,
-        });
-      }
-    });
-  }, [user]);
 
   useEffect(() => {
     if (profile) {
@@ -84,16 +55,10 @@ function AccountTab() {
     }
   }, [profile]);
 
-  const handleCpfChange = (value: string) => {
-    setCpf(formatCPF(value));
-    setCpfError("");
-  };
-
   const updateProfile = useMutation({
     mutationFn: async () => {
       if (!user) return;
 
-      // Validate CPF if provided
       const cleanedCpf = cpf.replace(/\D/g, "");
       if (cleanedCpf.length > 0 && cleanedCpf.length !== 11) {
         throw new Error("CPF deve ter 11 dígitos");
@@ -102,7 +67,6 @@ function AccountTab() {
         throw new Error("CPF inválido");
       }
 
-      // Update profile
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({
@@ -112,42 +76,9 @@ function AccountTab() {
         })
         .eq("id", user.id);
       if (profileErr) throw profileErr;
-
-      // Update CPF & docs if CPF is valid
-      if (cleanedCpf.length === 11) {
-        const docUpdates: Record<string, string | null> = {};
-
-        // Upload new docs
-        if (rgFront) {
-          const ext = rgFront.name.split(".").pop() || "jpg";
-          await supabase.storage.from("documents").upload(`${user.id}/rg-front.${ext}`, rgFront, { upsert: true });
-          docUpdates.rg_front_url = `${user.id}/rg-front.${ext}`;
-        }
-        if (rgBack) {
-          const ext = rgBack.name.split(".").pop() || "jpg";
-          await supabase.storage.from("documents").upload(`${user.id}/rg-back.${ext}`, rgBack, { upsert: true });
-          docUpdates.rg_back_url = `${user.id}/rg-back.${ext}`;
-        }
-        if (rgDigital) {
-          await supabase.storage.from("documents").upload(`${user.id}/rg-digital.pdf`, rgDigital, { upsert: true });
-          docUpdates.rg_digital_url = `${user.id}/rg-digital.pdf`;
-        }
-
-        const { error: cpfErr } = await supabase
-          .from("profile_sensitive")
-          .upsert({
-            user_id: user.id,
-            cpf: cleanedCpf,
-            ...docUpdates,
-          });
-        if (cpfErr) throw cpfErr;
-      }
     },
     onSuccess: async () => {
       await refreshProfile();
-      setRgFront(null);
-      setRgBack(null);
-      setRgDigital(null);
       toast({ title: "Perfil atualizado!" });
     },
     onError: (err: any) => {
@@ -252,50 +183,6 @@ function AccountTab() {
 
             <Separator />
 
-            {/* CPF */}
-            <div>
-              <Label>CPF</Label>
-              <Input
-                value={cpf}
-                onChange={(e) => handleCpfChange(e.target.value)}
-                placeholder="000.000.000-00"
-                maxLength={14}
-                className={`mt-1 ${cpfError ? "border-destructive" : ""}`}
-              />
-              {cpfError && <p className="text-sm text-destructive mt-1">{cpfError}</p>}
-              <p className="text-xs text-muted-foreground mt-1">Visível apenas para você e o administrador do grupo.</p>
-            </div>
-
-            {/* RG Documents */}
-            <div className="space-y-3">
-              <Label>RG — Frente e Verso</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <input ref={frontRef} type="file" accept="image/*" className="hidden" onChange={(e) => setRgFront(e.target.files?.[0] || null)} />
-                  <Button type="button" variant={(rgFront || hasExistingDocs.front) ? "default" : "outline"} className="w-full gap-2 h-auto py-3" onClick={() => frontRef.current?.click()}>
-                    {(rgFront || hasExistingDocs.front) ? <Check className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                    <span className="text-xs">{rgFront ? "Novo ✓" : hasExistingDocs.front ? "Enviado ✓" : "Frente"}</span>
-                  </Button>
-                </div>
-                <div>
-                  <input ref={backRef} type="file" accept="image/*" className="hidden" onChange={(e) => setRgBack(e.target.files?.[0] || null)} />
-                  <Button type="button" variant={(rgBack || hasExistingDocs.back) ? "default" : "outline"} className="w-full gap-2 h-auto py-3" onClick={() => backRef.current?.click()}>
-                    {(rgBack || hasExistingDocs.back) ? <Check className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                    <span className="text-xs">{rgBack ? "Novo ✓" : hasExistingDocs.back ? "Enviado ✓" : "Verso"}</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Ou RG Digital (PDF)</Label>
-              <input ref={digitalRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => setRgDigital(e.target.files?.[0] || null)} />
-              <Button type="button" variant={(rgDigital || hasExistingDocs.digital) ? "default" : "outline"} className="w-full gap-2" onClick={() => digitalRef.current?.click()}>
-                {(rgDigital || hasExistingDocs.digital) ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                {rgDigital ? rgDigital.name : hasExistingDocs.digital ? "RG Digital enviado ✓" : "Selecionar PDF"}
-              </Button>
-            </div>
-
             <Button onClick={() => updateProfile.mutate()} disabled={updateProfile.isPending} className="w-full">
               {updateProfile.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               {updateProfile.isPending ? "Salvando..." : "Salvar alterações"}
@@ -335,7 +222,6 @@ function AccountTab() {
         </CardContent>
       </Card>
 
-      {/* Danger Zone */}
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="font-serif text-lg flex items-center gap-2 text-destructive">
@@ -387,7 +273,6 @@ function GroupTab() {
   const { data: group, isLoading } = useQuery({
     queryKey: ["group", membership?.group_id],
     queryFn: async () => {
-      // Usamos (*) para garantir que o avatar_url venha caso a coluna exista
       const { data, error } = await supabase
         .from("groups")
         .select("*")
@@ -421,13 +306,14 @@ function GroupTab() {
   const [closingDay, setClosingDay] = useState<string>("1");
   const [dueDay, setDueDay] = useState<string>("10");
   const [participatesInSplits, setParticipatesInSplits] = useState(true);
+  const [modoGestao, setModoGestao] = useState("centralized");
+  const [isModoGestaoModalOpen, setIsModoGestaoModalOpen] = useState(false);
+  const [newModoGestao, setNewModoGestao] = useState("centralized");
 
-  // Avatar states
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
 
-  // Address fields
   const [street, setStreet] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
   const [complement, setComplement] = useState("");
@@ -437,7 +323,6 @@ function GroupTab() {
   const [zipCode, setZipCode] = useState("");
   const [fetchingCep, setFetchingCep] = useState(false);
 
-  // Danger Zone
   const [isGroupDeleteOpen, setIsGroupDeleteOpen] = useState(false);
   const [confirmGroupName, setConfirmGroupName] = useState("");
 
@@ -456,6 +341,8 @@ function GroupTab() {
       setState(group.state ?? "");
       setZipCode(group.zip_code ?? "");
       setAvatarUrl((group as any).avatar_url ?? null);
+      setModoGestao((group as any).modo_gestao || "centralized");
+      setNewModoGestao((group as any).modo_gestao || "centralized");
     }
   }, [group]);
 
@@ -465,7 +352,7 @@ function GroupTab() {
     }
   }, [myMembership]);
 
-  const handleCepChange = async (value: string) => {
+  const handleCepChange = useCallback(async (value: string) => {
     const cleaned = value.replace(/\D/g, "");
     const formatted = cleaned.length > 5 ? `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}` : cleaned;
     setZipCode(formatted);
@@ -485,7 +372,7 @@ function GroupTab() {
         setFetchingCep(false);
       }
     }
-  };
+  }, []);
 
   const handleRemoveAvatar = () => {
     setAvatarFile(null);
@@ -493,50 +380,12 @@ function GroupTab() {
   };
 
   const updateGroup = useMutation({
-    mutationFn: async () => {
-      let newAvatarUrl = avatarUrl;
-
-      // Realiza o upload da imagem se o usuário selecionou uma nova
-      if (avatarFile) {
-        const ext = avatarFile.name.split(".").pop() || "jpg";
-        // Garante que o caminho comece com user_id para respeitar o RLS
-        const path = `${user!.id}/group_${membership!.group_id}_avatar_${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("documents").upload(path, avatarFile, { upsert: true });
-        
-        if (!uploadError) {
-          const { data } = supabase.storage.from("documents").getPublicUrl(path);
-          newAvatarUrl = data.publicUrl;
-        } else {
-          console.error("Upload error:", uploadError);
-          throw new Error("Falha ao enviar a imagem de perfil do grupo.");
-        }
-      }
-
-      const payload: any = {
-        name: name.trim(),
-        description: description.trim() || null,
-        splitting_rule: splittingRule as any,
-        modo_gestao: modoGestao,
-        closing_day: parseInt(closingDay),
-        due_day: parseInt(dueDay),
-        street: street.trim() || null,
-        street_number: streetNumber.trim() || null,
-        complement: complement.trim() || null,
-        neighborhood: neighborhood.trim() || null,
-        city: city.trim() || null,
-        state: state.trim() || null,
-        zip_code: zipCode.replace(/\D/g, "") || null,
-        avatar_url: newAvatarUrl,
-      };
-
+    mutationFn: async (payload: any) => {
       const { error } = await supabase
         .from("groups")
         .update(payload)
         .eq("id", membership!.group_id);
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (myMembership) {
         const { error: memberError } = await supabase
@@ -557,6 +406,45 @@ function GroupTab() {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     },
   });
+
+  const handleSave = async () => {
+    let newAvatarUrl = avatarUrl;
+    if (avatarFile) {
+      const ext = avatarFile.name.split(".").pop() || "jpg";
+      const path = `${user!.id}/group_${membership!.group_id}_avatar_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("documents").upload(path, avatarFile, { upsert: true });
+      if (!uploadError) {
+        const { data } = supabase.storage.from("documents").getPublicUrl(path);
+        newAvatarUrl = data.publicUrl;
+      } else {
+        console.error("Upload error:", uploadError);
+        throw new Error("Falha ao enviar a imagem de perfil do grupo.");
+      }
+    }
+
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      splitting_rule: splittingRule as any,
+      closing_day: parseInt(closingDay),
+      due_day: parseInt(dueDay),
+      street: street.trim() || null,
+      street_number: streetNumber.trim() || null,
+      complement: complement.trim() || null,
+      neighborhood: neighborhood.trim() || null,
+      city: city.trim() || null,
+      state: state.trim() || null,
+      zip_code: zipCode.replace(/\D/g, "") || null,
+      avatar_url: newAvatarUrl,
+    };
+
+    updateGroup.mutate(payload);
+  };
+
+  const handleChangeModoGestao = () => {
+    updateGroup.mutate({ modo_gestao: newModoGestao });
+    setIsModoGestaoModalOpen(false);
+  };
 
   const deleteGroup = useMutation({
     mutationFn: async () => {
@@ -667,7 +555,7 @@ function GroupTab() {
             <div className="space-y-2">
               <Label>Dia de Vencimento</Label>
               <Input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
-              <p className="text-[10px] text-muted-foreground font-medium text-warning-foreground">
+              <p className="text-[10px] text-muted-foreground font-medium">
                 Data limite para pagamento será <strong>um dia antes</strong> (Dia {parseInt(dueDay) - 1 || 30}). 
                 No dia {dueDay} já será considerado atraso.
               </p>
@@ -686,7 +574,62 @@ function GroupTab() {
         </CardContent>
       </Card>
 
-      {/* Address Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <SlidersHorizontal className="h-5 w-5" /> Modo de Gestão Financeira
+          </CardTitle>
+          <CardDescription>Define como as dívidas e pagamentos são calculados no grupo.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup value={modoGestao} disabled className="space-y-3">
+            <div>
+              <RadioGroupItem value="centralized" id="centralized" className="peer sr-only" />
+              <Label htmlFor="centralized" className="flex flex-col items-center h-full justify-center rounded-md border-2 border-muted bg-popover p-4 peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                  <h4 className="font-semibold text-sm">Tesoureiro Central</h4>
+                  <p className="text-xs text-muted-foreground text-center mt-1">Ideal para grupos com um único responsável pelos pagamentos. O app calcula quanto cada um deve ao tesoureiro.</p>
+              </Label>
+            </div>
+            <div>
+                <RadioGroupItem value="p2p" id="p2p" className="peer sr-only" />
+                <Label htmlFor="p2p" className="flex flex-col items-center h-full justify-center rounded-md border-2 border-muted bg-popover p-4 peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                    <h4 className="font-semibold text-sm">Responsabilidades Compartilhadas</h4>
+                    <p className="text-xs text-muted-foreground text-center mt-1">Perfeito para quando vários membros pagam contas. O app calcula quem deve para quem.</p>
+                </Label>
+            </div>
+          </RadioGroup>
+          <AlertDialog open={isModoGestaoModalOpen} onOpenChange={setIsModoGestaoModalOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="w-full mt-4">Alterar Modo de Gestão</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Alterar Modo de Gestão</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Mudar o modo de gestão pode impactar como as dívidas são exibidas. Esta ação não pode ser desfeita facilmente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <RadioGroup value={newModoGestao} onValueChange={setNewModoGestao} className="py-4 space-y-2">
+                <Label htmlFor="centralized_modal" className="flex items-center gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
+                  <RadioGroupItem value="centralized" id="centralized_modal" />
+                  <span>Tesoureiro Central</span>
+                </Label>
+                <Label htmlFor="p2p_modal" className="flex items-center gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
+                  <RadioGroupItem value="p2p" id="p2p_modal" />
+                  <span>Responsabilidades Compartilhadas (P2P)</span>
+                </Label>
+              </RadioGroup>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleChangeModoGestao} disabled={newModoGestao === modoGestao || updateGroup.isPending}>
+                  {updateGroup.isPending ? <CustomLoader className="h-4 w-4" /> : "Confirmar e Alterar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -734,12 +677,11 @@ function GroupTab() {
         </CardContent>
       </Card>
 
-      <Button onClick={() => updateGroup.mutate()} disabled={updateGroup.isPending} className="w-full">
+      <Button onClick={handleSave} disabled={updateGroup.isPending} className="w-full">
         {updateGroup.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
         Salvar Alterações
       </Button>
 
-      {/* Danger Zone */}
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="font-serif text-lg flex items-center gap-2 text-destructive">
@@ -778,98 +720,6 @@ function GroupTab() {
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteGroup}
-                    disabled={confirmGroupName !== name || deleteGroup.isPending}
-                  >
-                    {deleteGroup.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
-                    Excluir Permanentemente
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardContent>
-      </Card>
-    </ScrollRevealGroup>
-  );
-}
-
-export default function GroupSettings() {
-  const { isAdmin } = useAuth();
-  const location = useLocation();
-
-  const [activeTab, setActiveTab] = useState(() => {
-    return location.state?.tab === "group" && isAdmin ? "group" : "account";
-  });
-  
-  const [heroCompact, setHeroCompact] = useState(false);
-
-  useEffect(() => {
-    if (location.state?.tab) {
-      if (location.state.tab === "group" && !isAdmin) {
-        setActiveTab("account");
-      } else {
-        setActiveTab(location.state.tab);
-      }
-    }
-  }, [location.state, isAdmin]);
-
-  const tabItems = (
-    <>
-      <TabsTrigger value="account" className={tabTriggerClass}>
-        <User className="h-3.5 w-3.5 mr-1.5" /> Conta
-      </TabsTrigger>
-      {isAdmin && (
-        <TabsTrigger value="group" className={tabTriggerClass}>
-          <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Grupo
-        </TabsTrigger>
-      )}
-    </>
-  );
-
-  const compactTabsList = (
-    <TabsList className={tabListClass}>{tabItems}</TabsList>
-  );
-
-  return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 animate-in fade-in duration-500">
-      <PageHero
-        title="Configurações"
-        subtitle={isAdmin ? "Gerencie sua conta e o grupo." : "Gerencie sua conta."}
-        tone="primary"
-        icon={<SlidersHorizontal className="h-4 w-4" />}
-        compactTabs={compactTabsList}
-        onCompactChange={setHeroCompact}
-      />
-
-      <div className="space-y-4">
-        {!heroCompact && (
-          <TabsList className={tabListClass}>{tabItems}</TabsList>
-        )}
-
-        <TabsContent value="account" className="space-y-4 mt-4">
-          <AccountTab />
-        </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="group" className="space-y-4 mt-4">
-            <GroupTab />
-          </TabsContent>
-        )}
-      </div>
-    </Tabs>
-  );
-}          <GroupTab />
-          </TabsContent>
-        )}
-      </div>
-    </Tabs>
-  );
-}        </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <Button

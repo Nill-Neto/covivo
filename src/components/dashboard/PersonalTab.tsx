@@ -1,31 +1,30 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertCircle, DollarSign, Users, Wallet, CheckCircle2, List, Receipt, ArrowRight, BarChart3 } from "lucide-react";
+import { format, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from "recharts";
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlertCircle, DollarSign, Users, Wallet, CheckCircle2, List, Receipt, ArrowRight, BarChart3, ArrowUpRight, ArrowDownLeft, Scale } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { format, subMonths } from "date-fns";
-import { parseLocalDate, cn } from "@/lib/utils";
-import { ptBR } from "date-fns/locale";
-import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { CustomLoader } from "@/components/ui/custom-loader";
 
+import { parseLocalDate, cn } from "@/lib/utils";
+import { CHART_COLORS, CATEGORY_COLORS, getCategoryLabel } from "@/constants/categories";
+import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
+import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
+
 interface PersonalTabProps {
+  modoGestao: 'centralized' | 'p2p';
+  p2pBalances: any[];
   totalIndividualPending: number;
   totalCollectivePendingPrevious: number;
   totalCollectivePendingCurrent: number;
@@ -47,6 +46,88 @@ interface PersonalTabProps {
   onPayRateio: (scope: "previous" | "current") => void;
 }
 
+function P2PBalanceView({ balances }: { balances: PersonalTabProps['p2pBalances'] }) {
+  const debts = balances.filter(b => b.net_balance < 0).sort((a, b) => a.net_balance - b.net_balance);
+  const credits = balances.filter(b => b.net_balance > 0).sort((a, b) => b.net_balance - a.net_balance);
+
+  const totalDebt = debts.reduce((sum, b) => sum + b.net_balance, 0);
+  const totalCredit = credits.reduce((sum, b) => sum + b.net_balance, 0);
+  const netBalance = totalDebt + totalCredit;
+
+  return (
+    <Card className="sm:col-span-2 lg:col-span-3 bg-card shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>Balanço Pessoal (P2P)</span>
+          <Badge variant={netBalance === 0 ? "outline" : netBalance > 0 ? "secondary" : "destructive"}>
+            Saldo Final: R$ {netBalance.toFixed(2)}
+          </Badge>
+        </CardTitle>
+        <CardDescription>Seu balanço de dívidas e créditos com outros membros do grupo.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Coluna de Dívidas */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-destructive flex items-center gap-2">
+            <ArrowUpRight className="h-4 w-4" />
+            Para Quem Você Deve (R$ {Math.abs(totalDebt).toFixed(2)})
+          </h3>
+          <div className="space-y-2">
+            {debts.length > 0 ? debts.map(debt => (
+              <div key={debt.other_user_id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={debt.other_user_avatar_url} />
+                    <AvatarFallback>{debt.other_user_full_name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium">{debt.other_user_full_name}</span>
+                </div>
+                <span className="text-sm font-semibold text-destructive">
+                  R$ {Math.abs(debt.net_balance).toFixed(2)}
+                </span>
+              </div>
+            )) : <p className="text-xs text-muted-foreground text-center py-4">Nenhuma dívida. Você está em dia!</p>}
+          </div>
+        </div>
+
+        {/* Coluna de Créditos */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-success flex items-center gap-2">
+            <ArrowDownLeft className="h-4 w-4" />
+            Quem Te Deve (R$ {totalCredit.toFixed(2)})
+          </h3>
+          <div className="space-y-2">
+            {credits.length > 0 ? credits.map(credit => (
+              <div key={credit.other_user_id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={credit.other_user_avatar_url} />
+                    <AvatarFallback>{credit.other_user_full_name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium">{credit.other_user_full_name}</span>
+                </div>
+                <span className="text-sm font-semibold text-success">
+                  R$ {credit.net_balance.toFixed(2)}
+                </span>
+              </div>
+            )) : <p className="text-xs text-muted-foreground text-center py-4">Ninguém te deve nada.</p>}
+          </div>
+        </div>
+        <div className="md:col-span-2 flex justify-end gap-2">
+            <Button variant="outline" disabled>
+                <Scale className="h-4 w-4 mr-2"/>
+                Simplificar Dívidas (Em Breve)
+            </Button>
+            <Button disabled>
+                <DollarSign className="h-4 w-4 mr-2"/>
+                Acertar Contas
+            </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function PersonalTab({
   modoGestao,
   p2pBalances,
@@ -57,8 +138,6 @@ export function PersonalTab({
   collectivePendingCurrentByCompetence,
   individualPending,
   totalPersonalCash,
-  totalBill,
-  totalUserExpensesCompetence,
   totalUserExpensesCurrentBalance,
   myCollectiveShare,
   personalChartData,
@@ -72,8 +151,6 @@ export function PersonalTab({
 }: PersonalTabProps) {
   const { activeGroupId, user } = useAuth();
   
-  const totalSpentCompetence = totalUserExpensesCompetence + totalPersonalCash;
-
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPreviousCollectiveOpen, setIsPreviousCollectiveOpen] = useState(false);
   const [isCurrentCollectiveOpen, setIsCurrentCollectiveOpen] = useState(false);
@@ -222,197 +299,100 @@ export function PersonalTab({
     }));
   }, [rawData, chartDataTemplate, user?.id, closingDay]);
 
-
-  function P2PBalanceView({ balances }: { balances: PersonalTabProps['p2pBalances'] }) {
-        const debts = balances.filter(b => b.net_balance < 0).sort((a, b) => a.net_balance - b.net_balance);
-        const credits = balances.filter(b => b.net_balance > 0).sort((a, b) => b.net_balance - a.net_balance);
+  return (
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-        const totalDebt = debts.reduce((sum, b) => sum + b.net_balance, 0);
-        const totalCredit = credits.reduce((sum, b) => sum + b.net_balance, 0);
-        const netBalance = totalDebt + totalCredit;
-  
-        return (
-          <Card className="sm:col-span-2 lg:col-span-3 bg-card shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Balanço Pessoal (P2P)</span>
-                <Badge variant={netBalance === 0 ? "outline" : netBalance > 0 ? "secondary" : "destructive"}>
-                  Saldo Final: R$ {netBalance.toFixed(2)}
-                </Badge>
-              </CardTitle>
-              <CardDescription>Seu balanço de dívidas e créditos com outros membros do grupo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Coluna de Dívidas */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-destructive flex items-center gap-2">
-                  <ArrowUpRight className="h-4 w-4" />
-                  Para Quem Você Deve (R$ {Math.abs(totalDebt).toFixed(2)})
-                </h3>
-                <div className="space-y-2">
-                  {debts.length > 0 ? debts.map(debt => (
-                    <div key={debt.other_user_id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={debt.other_user_avatar_url} />
-                          <AvatarFallback>{debt.other_user_full_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{debt.other_user_full_name}</span>
-                      </div>
-                      <span className="text-sm font-semibold text-destructive">
-                        R$ {Math.abs(debt.net_balance).toFixed(2)}
-                      </span>
-                    </div>
-                  )) : <p className="text-xs text-muted-foreground text-center py-4">Nenhuma dívida. Você está em dia!</p>}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {modoGestao === 'p2p' ? (
+          <P2PBalanceView balances={p2pBalances} />
+        ) : (
+          <>
+            <Card className="relative overflow-hidden border-0 sm:col-span-2 lg:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
+              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
+              <Wallet className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
+              <CardHeader className="relative z-10 pb-0 pt-6 px-6">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs sm:text-sm font-bold text-white/90 uppercase tracking-widest drop-shadow-sm">
+                    Total Comprometido
+                  </CardTitle>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-inner border border-white/20">
+                    <Wallet className="h-5 w-5 text-white" />
+                  </div>
                 </div>
-              </div>
-      
-              {/* Coluna de Créditos */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-success flex items-center gap-2">
-                  <ArrowDownLeft className="h-4 w-4" />
-                  Quem Te Deve (R$ {totalCredit.toFixed(2)})
-                </h3>
-                <div className="space-y-2">
-                  {credits.length > 0 ? credits.map(credit => (
-                    <div key={credit.other_user_id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={credit.other_user_avatar_url} />
-                          <AvatarFallback>{credit.other_user_full_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{credit.other_user_full_name}</span>
-                      </div>
-                      <span className="text-sm font-semibold text-success">
-                        R$ {credit.net_balance.toFixed(2)}
-                      </span>
-                    </div>
-                  )) : <p className="text-xs text-muted-foreground text-center py-4">Ninguém te deve nada.</p>}
+              </CardHeader>
+              <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
+                <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
+                  R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-2">
-                  <Button variant="outline" disabled>
-                      <Scale className="h-4 w-4 mr-2"/>
-                      Simplificar Dívidas (Em Breve)
+                <div className="flex flex-col items-start gap-2">
+                  <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                    Saldo atual consolidado (inclui pendências anteriores)
+                  </span>
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-xs text-white/90 hover:text-white" 
+                    onClick={() => setIsTotalDetailOpen(true)}
+                  >
+                    Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
-                  <Button disabled>
-                      <DollarSign className="h-4 w-4 mr-2"/>
-                      Acertar Contas
-                  </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      }
-  
-  // ... (rest of the component)
-  
-    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {modoGestao === 'p2p' ? (
-            <P2PBalanceView balances={p2pBalances} />
-          ) : (
-            <>
-              {/* Total Comprometido (Saldo Atual Consolidado) - DESTAQUE PREMIUM */}
-              <Card className="relative overflow-hidden border-0 sm:col-span-2 lg:col-span-1 flex flex-col justify-between bg-primary shadow-xl shadow-primary/20 min-h-[220px]">
-          {/* Premium Background Effects */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent mix-blend-overlay pointer-events-none" />
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-3xl pointer-events-none" />
-          
-          {/* Watermark Icon to fill empty space */}
-          <Wallet className="absolute -bottom-6 -right-6 w-48 h-48 text-black/5 pointer-events-none transform -rotate-12" />
-          
-          <CardHeader className="relative z-10 pb-0 pt-6 px-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs sm:text-sm font-bold text-white/90 uppercase tracking-widest drop-shadow-sm">
-                Total Comprometido
-              </CardTitle>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-inner border border-white/20">
-                <Wallet className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="relative z-10 pt-8 pb-6 px-6 flex flex-col gap-3 mt-auto">
-            <div className="text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
-              R$ {totalUserExpensesCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="flex flex-col items-start gap-2">
-              <span className="text-xs font-medium bg-black/20 text-white px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
-                Saldo atual consolidado (inclui pendências anteriores)
-              </span>
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-xs text-white/90 hover:text-white" 
-                onClick={() => setIsTotalDetailOpen(true)}
-              >
-                Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Detalhes do Total Comprometido */}
-        <Dialog open={isTotalDetailOpen} onOpenChange={setIsTotalDetailOpen}>
-          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
-            <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
-              <DialogTitle className="text-lg font-semibold text-foreground">
-                Detalhamento do Saldo
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">Composição do total comprometido</p>
-            </DialogHeader>
-
-            <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Total consolidado</span>
-              <span className="text-lg font-bold text-primary tabular-nums">
-                R$ {totalUserExpensesCurrentBalance.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="border-t">
-              <div className="overflow-y-auto max-h-[50vh]">
-                <div className="divide-y">
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Sua parte nas despesas da casa</span>
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        R$ {myCollectiveShare.toFixed(2)}
-                      </span>
+            <Dialog open={isTotalDetailOpen} onOpenChange={setIsTotalDetailOpen}>
+              <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh]">
+                <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+                  <DialogTitle className="text-lg font-semibold text-foreground">
+                    Detalhamento do Saldo
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground mt-0.5">Composição do total comprometido</p>
+                </DialogHeader>
+                <div className="mx-5 mb-4 rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Total consolidado</span>
+                  <span className="text-lg font-bold text-primary tabular-nums">
+                    R$ {totalUserExpensesCurrentBalance.toFixed(2)}
+                  </span>
+                </div>
+                <div className="border-t">
+                  <div className="overflow-y-auto max-h-[50vh]">
+                    <div className="divide-y">
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Sua parte nas despesas da casa</span>
+                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                            R$ {myCollectiveShare.toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Sua cota no rateio da competência atual (em aberto ou paga).</p>
+                      </div>
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Pendências individuais</span>
+                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                            R$ {totalIndividualPending.toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Valores a pagar de uso próprio (ex: cartões da competência atual).</p>
+                      </div>
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Rateios de meses anteriores</span>
+                          <span className={`text-sm font-semibold tabular-nums ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                            R$ {totalCollectivePendingPrevious.toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Dívida acumulada da casa em ciclos passados.</p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Sua cota no rateio da competência atual (em aberto ou paga).</p>
-                  </div>
-
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Pendências individuais</span>
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        R$ {totalIndividualPending.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Valores a pagar de uso próprio (ex: cartões da competência atual).</p>
-                  </div>
-
-                  <div className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Rateios de meses anteriores</span>
-                      <span className={`text-sm font-semibold tabular-nums ${totalCollectivePendingPrevious > 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                        R$ {totalCollectivePendingPrevious.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Dívida acumulada da casa em ciclos passados.</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+              </DialogContent>
+            </Dialog>
           </>
         )}
 
-        {/* Rateio pendente (competências anteriores) */}
         <Card className={`border-l-4 ${totalCollectivePendingPrevious > 0.01 ? "border-l-destructive" : "border-l-success"} bg-card shadow-sm`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -522,7 +502,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* Rateio em aberto (competência atual) */}
         <Card className={`border-l-4 ${totalCollectivePendingCurrent > 0.01 ? "border-l-warning" : "border-l-muted"} bg-card shadow-sm`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -626,7 +605,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* Pendências Individuais */}
         <Card className="border-l-4 border-l-muted bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -710,7 +688,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* Gastos à Vista */}
         <Card className="border-l-4 border-l-secondary bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Gastos à Vista</CardTitle>
@@ -782,7 +759,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* Total Gasto na Competência */}
         <Card className="border-l-4 border-l-success bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Gasto (Competência)</CardTitle>
@@ -792,16 +768,14 @@ export function PersonalTab({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              R$ {totalSpentCompetence.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              R$ {(myCollectiveShare + totalPersonalCash).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Competência vigente: comprometido do ciclo + à vista.</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* --- GRÁFICOS E LISTAS INDIVIDUAIS --- */}
       <div className="grid gap-4 md:grid-cols-12">
-        {/* Chart Individual */}
         <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Individual</CardTitle>
@@ -887,7 +861,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* List Individual */}
         <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -938,9 +911,7 @@ export function PersonalTab({
         </Card>
       </div>
 
-      {/* --- GRÁFICOS E LISTAS COLETIVAS --- */}
       <div className="grid gap-4 md:grid-cols-12">
-        {/* Chart Coletivo */}
         <Card className="md:col-span-6 lg:col-span-6 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Distribuição Coletiva</CardTitle>
@@ -1026,7 +997,6 @@ export function PersonalTab({
           </CardContent>
         </Card>
 
-        {/* List Coletivo */}
         <Card className="md:col-span-6 lg:col-span-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -1077,7 +1047,6 @@ export function PersonalTab({
         </Card>
       </div>
 
-      {/* --- EVOLUÇÃO DE GASTOS --- */}
       <Card className="shadow-sm bg-card">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -1174,138 +1143,6 @@ export function PersonalTab({
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-    </div>
-  );
-}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-    </div>
-  );
-}>
-  );
-}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-    </div>
-  );
-}me="h-5 w-5 text-primary" />
-                Evolução de Gastos
-              </CardTitle>
-              <CardDescription>
-                Acompanhe o total da casa, a sua parte no rateio e seus gastos individuais, já considerando as parcelas futuras de cartões de crédito.
-              </CardDescription>
-            </div>
-            <Select value={String(monthsCount)} onValueChange={(v) => setMonthsCount(Number(v) as 6 | 12)}>
-              <SelectTrigger className="w-[140px] h-8 text-xs shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="6">Últimos 6 meses</SelectItem>
-                <SelectItem value="12">Últimos 12 meses</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="h-[340px] w-full pt-4">
-          {isLoading ? (
-            <div className="h-full flex items-center justify-center">
-              <CustomLoader className="h-6 w-6 text-primary" />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={populatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="label" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  dy={10} 
-                />
-                <YAxis 
-                  width={75}
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  tickFormatter={(val) => `R$ ${val}`} 
-                />
-                <RechartsTooltip
-                  cursor={{ stroke: "hsl(var(--muted))", strokeWidth: 2, strokeDasharray: "3 3" }}
-                  contentStyle={{ 
-                    borderRadius: "8px", 
-                    border: "1px solid hsl(var(--border))", 
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", 
-                    fontSize: "12px", 
-                    backgroundColor: "hsl(var(--background))", 
-                    color: "hsl(var(--foreground))" 
-                  }}
-                  formatter={(val: number) => `R$ ${val.toFixed(2)}`}
-                />
-                <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "20px" }} />
-                
-                <Line 
-                  type="monotone"
-                  dataKey="Coletivo" 
-                  name="Total Casa (Referência)" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line 
-                  type="monotone"
-                  dataKey="MeuRateio" 
-                  name="Meu Rateio" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line 
-                  type="monotone"
-                  dataKey="Individual" 
-                  name="Meus Gastos (Individuais)" 
-                  stroke="#0ea5e9"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line 
-                  type="monotone"
-                  dataKey="TotalPessoal" 
-                  name="Total Pessoal (Individual + Rateio)" 
-                  stroke="hsl(var(--destructive))"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-    </div>
-  );
-}
                 />
               </LineChart>
             </ResponsiveContainer>

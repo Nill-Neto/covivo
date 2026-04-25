@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, CreditCard, Home } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ import {
   resolvePendingCompetenceKey,
   sortPendingItemsByDateDesc,
 } from "@/lib/collectivePending";
+import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -163,7 +164,7 @@ export default function Dashboard() {
     queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase.rpc("get_my_p2p_balances", {
+      const { data, error } = await supabase.rpc("get_my_p2p_balances" as any, {
         _user_id: user.id,
       });
       if (error) throw error;
@@ -505,7 +506,7 @@ export default function Dashboard() {
       />
 
       <div className="px-4 space-y-4 md:px-6">
-        <UnpaidBills />
+        {(membership as any)?.group_modo_gestao === 'p2p' && <UnpaidBills />}
 
         {!heroCompact && (
           <TabsList className={tabListClass}>
@@ -527,6 +528,8 @@ export default function Dashboard() {
 
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
+            modoGestao={(membership as any)?.group_modo_gestao}
+            p2pBalances={p2pBalances}
             closingDay={closingDay}
             currentDate={currentDate}
             totalIndividualPending={totalIndividualPending}
