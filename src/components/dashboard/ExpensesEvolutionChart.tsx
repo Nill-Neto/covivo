@@ -38,14 +38,16 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
           .select("amount, purchase_date")
           .eq("created_by", user.id)
           .eq("expense_type", "individual")
+          .eq("group_id", membership.group_id)
           .gte("purchase_date", startDate)
           .lte("purchase_date", endDate),
         // User's share of collective expenses
         supabase
           .from("expense_splits")
-          .select("amount, expenses!inner(purchase_date, group_id)")
+          .select("amount, expenses!inner(purchase_date, group_id, expense_type)")
           .eq("user_id", user.id)
           .eq("expenses.group_id", membership.group_id)
+          .eq("expenses.expense_type", "collective")
           .gte("expenses.purchase_date", startDate)
           .lte("expenses.purchase_date", endDate),
         // Total collective expenses for the group
