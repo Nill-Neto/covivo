@@ -40,7 +40,7 @@ function AdminDashboard() {
         _competence_key: currentCompetenceKey,
       });
       if (error) throw error;
-      return data || null;
+      return data as AdminDashboardData | null;
     },
     enabled: !!membership?.group_id,
   });
@@ -74,6 +74,14 @@ function AdminDashboard() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="flex justify-center items-center h-40 text-muted-foreground">
+        Nenhum dado administrativo para exibir.
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card>
@@ -103,7 +111,7 @@ function AdminDashboard() {
           <CardDescription>Total de pessoas devendo</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">{data?.members_in_debt_count}</div>
+          <div className="text-3xl font-bold">{data.members_in_debt_count}</div>
         </CardContent>
       </Card>
     </div>
