@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { CHART_COLORS, CATEGORY_COLORS } from "@/constants/categories";
-import { cn } from "@/lib/utils";
 
-export function RepublicChart({ data, total }: { data: { name: string; value: number }[]; total: number }) {
-  const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
+interface RepublicChartProps {
+  data: { name: string; value: number }[];
+  total: number;
+  onHover: (label: string | null) => void;
+  hoveredLabel: string | null;
+}
 
+export function RepublicChart({ data, total, onHover, hoveredLabel }: RepublicChartProps) {
   if (!data || data.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-8">Sem dados para exibir.</p>;
   }
@@ -15,42 +18,34 @@ export function RepublicChart({ data, total }: { data: { name: string; value: nu
     color: CATEGORY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length],
   }));
 
-  const activeSegment = chartData.find(d => d.name === hoveredSegmentLabel);
+  const activeSegment = chartData.find(d => d.name === hoveredLabel);
   const displayValue = activeSegment ? activeSegment.value : total;
   const displayLabel = activeSegment ? activeSegment.name : "Total da Casa";
   const displayPercentage = activeSegment && total > 0 ? (activeSegment.value / total) * 100 : 100;
 
   return (
-    <div className="h-48 w-full relative">
+    <div className="relative h-[200px] w-[200px] shrink-0">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Tooltip
-            formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-            contentStyle={{
-              borderRadius: "0.5rem",
-              borderColor: "hsl(var(--border))",
-              backgroundColor: "hsl(var(--background))",
-            }}
-          />
           <Pie
             data={chartData}
             dataKey="value"
             nameKey="name"
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={80}
+            innerRadius={70}
+            outerRadius={90}
             paddingAngle={5}
             stroke="none"
             cornerRadius={5}
-            onMouseEnter={(_, index) => setHoveredSegmentLabel(chartData[index].name)}
-            onMouseLeave={() => setHoveredSegmentLabel(null)}
+            onMouseEnter={(_, index) => onHover(chartData[index].name)}
+            onMouseLeave={() => onHover(null)}
           >
             {chartData.map((entry) => (
               <Cell 
                 key={`cell-${entry.name}`} 
                 fill={entry.color} 
-                opacity={hoveredSegmentLabel === null || hoveredSegmentLabel === entry.name ? 1 : 0.3}
+                opacity={hoveredLabel === null || hoveredLabel === entry.name ? 1 : 0.3}
                 className="transition-opacity duration-200"
                 style={{ outline: "none" }}
               />

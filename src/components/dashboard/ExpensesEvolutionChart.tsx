@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { subMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomLoader } from "@/components/ui/custom-loader";
@@ -104,14 +104,6 @@ export function ExpensesEvolutionChart() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                 <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `R$${value}`} />
-                <Tooltip
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-                  contentStyle={{
-                    borderRadius: "0.5rem",
-                    borderColor: "hsl(var(--border))",
-                    backgroundColor: "hsl(var(--background))",
-                  }}
-                />
                 <Legend wrapperStyle={{ fontSize: "12px" }} />
                 <Line type="monotone" dataKey="pessoal" name="Pessoal" stroke="hsl(var(--primary))" strokeWidth={2} />
                 <Line type="monotone" dataKey="coletivo" name="Coletivo" stroke="hsl(var(--secondary-foreground))" strokeWidth={2} />

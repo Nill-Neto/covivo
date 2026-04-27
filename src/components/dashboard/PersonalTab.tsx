@@ -1,11 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Info, Plus, FileText, Banknote, Landmark, AlertCircle, CheckCircle2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { getCategoryIcon } from "@/constants/categories.tsx";
+import { getCategoryIcon, CATEGORY_COLORS, CHART_COLORS } from "@/constants/categories.tsx";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -22,6 +22,7 @@ import { CustomLoader } from "../ui/custom-loader";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { formatCompetenceKey } from "@/lib/cycleDates";
 import { ExpensesEvolutionChart } from "./ExpensesEvolutionChart";
+import { useState } from "react";
 
 type AdminDashboardData = {
   pending_payments_count: number;
@@ -144,6 +145,8 @@ export function PersonalTab({
   onPayRateio,
 }) {
   const { isAdmin } = useAuth();
+  const [hoveredPersonal, setHoveredPersonal] = useState<string | null>(null);
+  const [hoveredRepublic, setHoveredRepublic] = useState<string | null>(null);
   const totalPersonalExpenses = personalChartData.reduce((sum, item) => sum + item.value, 0);
 
   if (isAdmin && modoGestao === 'centralized') {
@@ -342,8 +345,34 @@ export function PersonalTab({
             <CardTitle>Meus Gastos Pessoais</CardTitle>
             <CardDescription>Visão geral das suas despesas individuais na competência.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <PersonalExpensesChart data={personalChartData} total={totalPersonalExpenses} />
+          <CardContent className="h-auto flex flex-col md:flex-row items-center justify-center gap-6 p-4 md:p-6">
+            <PersonalExpensesChart data={personalChartData} total={totalPersonalExpenses} onHover={setHoveredPersonal} hoveredLabel={hoveredPersonal} />
+            <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
+              {personalChartData.map((segment, index) => (
+                <div
+                  key={segment.name}
+                  className={cn(
+                    "flex items-center justify-between p-2 rounded-md transition-colors cursor-default text-sm gap-3",
+                    hoveredPersonal === segment.name ? "bg-muted" : "hover:bg-muted/50"
+                  )}
+                  onMouseEnter={() => setHoveredPersonal(segment.name)}
+                  onMouseLeave={() => setHoveredPersonal(null)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: CATEGORY_COLORS[segment.name] || CHART_COLORS[index % CHART_COLORS.length] }}
+                    />
+                    <span className="font-medium truncate text-muted-foreground" title={segment.name}>
+                      {segment.name}
+                    </span>
+                  </div>
+                  <span className="font-semibold tabular-nums shrink-0 whitespace-nowrap text-right text-foreground">
+                    R$ {segment.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -353,8 +382,34 @@ export function PersonalTab({
               Total de {formatCurrency(totalMonthExpenses)} na competência.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <RepublicChart data={republicChartData} total={totalMonthExpenses} />
+          <CardContent className="h-auto flex flex-col md:flex-row items-center justify-center gap-6 p-4 md:p-6">
+            <RepublicChart data={republicChartData} total={totalMonthExpenses} onHover={setHoveredRepublic} hoveredLabel={hoveredRepublic} />
+            <div className="flex-1 flex flex-col space-y-2 w-full overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
+              {republicChartData.map((segment, index) => (
+                <div
+                  key={segment.name}
+                  className={cn(
+                    "flex items-center justify-between p-2 rounded-md transition-colors cursor-default text-sm gap-3",
+                    hoveredRepublic === segment.name ? "bg-muted" : "hover:bg-muted/50"
+                  )}
+                  onMouseEnter={() => setHoveredRepublic(segment.name)}
+                  onMouseLeave={() => setHoveredRepublic(null)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: CATEGORY_COLORS[segment.name] || CHART_COLORS[index % CHART_COLORS.length] }}
+                    />
+                    <span className="font-medium truncate text-muted-foreground" title={segment.name}>
+                      {segment.name}
+                    </span>
+                  </div>
+                  <span className="font-semibold tabular-nums shrink-0 whitespace-nowrap text-right text-foreground">
+                    R$ {segment.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
