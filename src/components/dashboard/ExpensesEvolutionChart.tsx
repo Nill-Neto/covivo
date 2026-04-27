@@ -23,100 +23,32 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
   );
 
   const { data: evolutionData, isLoading } = useQuery({
-    queryKey: ["expenses-evolution-detailed", user?.id, membership?.group_id, monthsCount, currentDate.toISOString()],
+    queryKey: ["expenses-evolution-rpc", user?.id, membership?.group_id, monthsCount, currentDate.toISOString()],
     queryFn: async () => {
       if (!user?.id || !membership?.group_id) return [];
 
-      const competenceKeys = lastMonths.map(date => format(date, "yyyy-MM"));
-      const monthFilters = lastMonths
-        .map(date => `and(competence_year.eq.${date.getFullYear()},competence_month.eq.${date.getMonth() + 1})`)
-        .join(',');
+      const startKey = format(lastMonths[0], "yyyy-MM");
+      const endKey = format(lastMonths[lastMonths.length - 1], "yyyy-MM");
 
-      const [
-        personalCashRes,
-        personalInstallmentsRes,
-        individualGroupInstallmentsRes,
-        collectiveExpensesWithSplitsRes,
-      ] = await Promise.all([
-        supabase
-          .from("expenses")
-          .select("amount, competence_key")
-          .eq("created_by", user.id)
-          .eq("expense_type", "individual")
-          .neq("payment_method", "credit_card")
-          .in("competence_key", competenceKeys),
-        supabase
-          .from("personal_expense_installments")
-          .select("amount, competence_year, competence_month")
-          .eq("user_id", user.id)
-          .or(monthFilters),
-        supabase
-          .from("expense_installments")
-          .select("amount, competence_year, competence_month, expenses!inner(group_id, expense_type)")
-          .eq("user_id", user.id)
-          .eq("expenses.group_id", membership.group_id)
-          .eq("expenses.expense_type", "individual")
-          .or(monthFilters),
-        supabase
-          .from("expenses")
-          .select("amount, competence_key, expense_splits(user_id, amount)")
-          .eq("group_id", membership.group_id)
-          .eq("expense_type", "collective")
-          .in("competence_key", competenceKeys),
-      ]);
-
-      if (personalCashRes.error) throw personalCashRes.error;
-      if (personalInstallmentsRes.error) throw personalInstallmentsRes.error;
-      if (individualGroupInstallmentsRes.error) throw individualGroupInstallmentsRes.error;
-      if (collectiveExpensesWithSplitsRes.error) throw collectiveExpensesWithSplitsRes.error;
-
-      const totalsByCompetence: Record<string, { 
-        meusGastosIndividuais: number; 
-        meuRateio: number;
-        totalCasa: number;
-      }> = {};
-
-      lastMonths.forEach(date => {
-        const key = format(date, "yyyy-MM");
-        totalsByCompetence[key] = { meusGastosIndividuais: 0, meuRateio: 0, totalCasa: 0 };
+      const { data, error } = await supabase.rpc("get_expenses_evolution", {
+        _group_id: membership.group_id,
+        _start_key: startKey,
+        _end_key: endKey,
       });
 
-      personalCashRes.data?.forEach(expense => {
-        if (totalsByCompetence[expense.competence_key]) {
-          totalsByCompetence[expense.competence_key].meusGastosIndividuais += expense.amount;
-        }
-      });
+      if (error) throw error;
 
-      personalInstallmentsRes.data?.forEach(inst => {
-        const key = `${inst.competence_year}-${String(inst.competence_month).padStart(2, '0')}`;
-        if (totalsByCompetence[key]) {
-          totalsByCompetence[key].meusGastosIndividuais += inst.amount;
-        }
-      });
-
-      individualGroupInstallmentsRes.data?.forEach(inst => {
-        const key = `${inst.competence_year}-${String(inst.competence_month).padStart(2, '0')}`;
-        if (totalsByCompetence[key]) {
-          totalsByCompetence[key].meusGastosIndividuais += inst.amount;
-        }
-      });
-
-      collectiveExpensesWithSplitsRes.data?.forEach(exp => {
-        const key = exp.competence_key;
-        if (totalsByCompetence[key]) {
-          totalsByCompetence[key].totalCasa += exp.amount;
-          const mySplit = exp.expense_splits.find(s => s.user_id === user.id);
-          if (mySplit) {
-            totalsByCompetence[key].meuRateio += mySplit.amount;
-          }
-        }
-      });
+      const dataMap = new Map((data || []).map(d => [d.competence_key, d]));
 
       return lastMonths.map(date => {
         const key = format(date, "yyyy-MM");
-        const { meusGastosIndividuais, meuRateio, totalCasa } = totalsByCompetence[key];
-        const totalPessoal = meusGastosIndividuais + meuRateio;
+        const monthData = dataMap.get(key);
         
+        const meusGastosIndividuais = monthData?.meus_gastos_individuais ?? 0;
+        const meuRateio = monthData?.meu_rateio ?? 0;
+        const totalCasa = monthData?.total_casa ?? 0;
+        const totalPessoal = meusGastosIndividuais + meuRateio;
+
         return {
           monthLabel: format(date, "MMM/yy", { locale: ptBR }),
           meusGastosIndividuais: Number(meusGastosIndividuais.toFixed(2)),
