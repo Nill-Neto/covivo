@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AdminTab } from "./AdminTab";
+import type { AdminMember } from "@/types/admin";
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -16,32 +17,41 @@ vi.mock("recharts", () => ({
 const baseDate = new Date("2026-04-10T12:00:00.000Z");
 
 function renderAdminTab() {
+  const mockMembers: AdminMember[] = [
+    {
+      user_id: "u-1",
+      active: true,
+      previous_debt: 100,
+      current_cycle_owed: 100,
+      current_cycle_paid: 0,
+      accrued_debt: 200,
+      total_owed: 200,
+      total_paid: 0,
+      balance: -200,
+      profile: { id: "u-1", full_name: "Ana Silva", avatar_url: null },
+      role: 'morador',
+    },
+    {
+      user_id: "u-2",
+      active: true,
+      previous_debt: 20,
+      current_cycle_owed: 20,
+      current_cycle_paid: 0,
+      accrued_debt: 40,
+      total_owed: 40,
+      total_paid: 0,
+      balance: -40,
+      profile: { id: "u-2", full_name: "Bruno Costa", avatar_url: null },
+      role: 'morador',
+    },
+  ];
+
   return render(
     <MemoryRouter>
       <AdminTab
-        members={[
-          {
-            user_id: "u-1",
-            profile: { full_name: "Ana Silva", avatar_url: null },
-            role: "morador",
-            previous_debt: 120,
-            balance: -80,
-            accumulated_balance: -200,
-            total_owed: 80,
-            total_paid: 0,
-          },
-          {
-            user_id: "u-2",
-            profile: { full_name: "Bruno Costa", avatar_url: null },
-            role: "admin",
-            previous_debt: 0,
-            balance: -40,
-            accumulated_balance: -40,
-            total_owed: 40,
-            total_paid: 0,
-          },
-        ]}
-        pendingPaymentsCount={1}
+        members={mockMembers}
+        modoGestao="p2p"
+        p2pMatrix={[]}
         collectiveExpenses={[
           {
             id: "exp-1",
@@ -55,80 +65,17 @@ function renderAdminTab() {
         cycleStart={new Date("2026-04-01T00:00:00.000Z")}
         cycleEnd={new Date("2026-05-01T00:00:00.000Z")}
         currentDate={baseDate}
+        closingDay={10}
+        groupId="group-1"
+        pendingPaymentsCount={0}
         exMembersDebt={0}
         departuresCount={0}
         redistributedCount={0}
         lowStockCount={0}
-        cycleSplits={[
-          {
-            id: "split-current-ana",
-            user_id: "u-1",
-            amount: 80,
-            expenses: {
-              id: "exp-1",
-              title: "Mercado",
-              amount: 120,
-              category: "food",
-              purchase_date: "2026-04-03",
-              competence_key: "2026-04",
-            },
-          },
-          {
-            id: "split-current-bruno",
-            user_id: "u-2",
-            amount: 40,
-            expenses: {
-              id: "exp-1",
-              title: "Mercado",
-              amount: 120,
-              category: "food",
-              purchase_date: "2026-04-03",
-              competence_key: "2026-04",
-            },
-          },
-        ]}
-        pendingSplits={[
-          {
-            id: "split-prev-1",
-            user_id: "u-1",
-            amount: 50,
-            status: "paid",
-            expenses: {
-              title: "Água",
-              purchase_date: "2026-03-15",
-              competence_key: "2026-03",
-            },
-          },
-          {
-            id: "split-prev-2",
-            user_id: "u-1",
-            amount: 70,
-            status: "pending",
-            expenses: {
-              title: "Luz",
-              purchase_date: "2026-02-15",
-              competence_key: "2026-02",
-            },
-          },
-          {
-            id: "split-current-pending",
-            user_id: "u-1",
-            amount: 80,
-            status: "pending",
-            expenses: {
-              title: "Mercado",
-              purchase_date: "2026-04-03",
-              competence_key: "2026-04",
-            },
-          },
-        ]}
-        memberPaymentsByCompetence={{
-          "u-1": {
-            "2026-02": 20,
-            "2026-03": 50,
-          },
-        }}
-        closingDay={10}
+        cycleSplits={[]}
+        pendingSplits={[]}
+        memberPaymentsByCompetence={{}}
+        nonCriticalWarnings={[]}
       />
     </MemoryRouter>
   );

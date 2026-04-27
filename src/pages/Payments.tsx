@@ -174,11 +174,11 @@ export default function Payments() {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      const userIds = [...new Set(data.map((p) => p.paid_by))];
-      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name").eq("group_id", membership!.group_id).in("id", userIds);
-      return data.map((p) => ({
+      const userIds = [...new Set(data.map((p: any) => p.pagador_user_id))];
+      const { data: profiles } = await supabase.from("group_member_profiles").select("id, full_name").eq("group_id", membership!.group_id).in("id", userIds as string[]);
+      return data.map((p: any) => ({
         ...p,
-        payer_name: profiles?.find((pr) => pr.id === p.paid_by)?.full_name ?? "—",
+        payer_name: profiles?.find((pr) => pr.id === p.pagador_user_id)?.full_name ?? "—",
       }));
     },
     enabled: !!membership?.group_id,
@@ -290,7 +290,7 @@ export default function Payments() {
           native_runtime: isNativeRuntime,
           ...details,
         },
-      } as any);
+      });
     } catch { /* ignore */ }
   };
 
@@ -335,7 +335,7 @@ export default function Payments() {
       const paymentsToInsert = selectedSplits.map((split) => ({
         group_id: membership!.group_id,
         expense_split_id: split.id,
-        paid_by: user!.id,
+        pagador_user_id: user!.id,
         competence_key: compKey,
         competence_year: y,
         competence_month: m,
@@ -349,7 +349,7 @@ export default function Payments() {
         paymentsToInsert.push({
           group_id: membership!.group_id,
           expense_split_id: null,
-          paid_by: user!.id,
+          pagador_user_id: user!.id,
           competence_key: compKey,
           competence_year: y,
           competence_month: m,
@@ -359,7 +359,7 @@ export default function Payments() {
         });
       }
 
-      const { error } = await (supabase.from("payments") as any).insert(paymentsToInsert);
+      const { error } = await supabase.from("payments").insert(paymentsToInsert as any);
       if (error) throw error;
 
       toast({ title: "Pagamento enviado!" });
@@ -415,17 +415,18 @@ export default function Payments() {
         icon={<CreditCard className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+          {/* Month Selector */}
+          <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
+               <ChevronLeft className="h-4 w-4" />
+             </Button>
+             <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
+               {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+             </div>
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
+               <ChevronRight className="h-4 w-4" />
+             </Button>
+           </div>
 
             {!isAdmin && (pendingSplits?.length ?? 0) > 0 && (
               <Dialog

@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, CreditCard, Home, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, CreditCard, Home } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -15,7 +15,7 @@ import { HomeTab } from "@/components/dashboard/HomeTab";
 import { PersonalTab } from "@/components/dashboard/PersonalTab";
 import { CardsTab } from "@/components/dashboard/CardsTab";
 import { PaymentDialogs, type RateioScope } from "@/components/dashboard/PaymentDialogs";
-import { getCategoryLabel } from "@/constants/categories";
+import { getCategoryLabel } from "@/constants/categories.tsx";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import {
@@ -23,6 +23,10 @@ import {
   resolvePendingCompetenceKey,
   sortPendingItemsByDateDesc,
 } from "@/lib/collectivePending";
+import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
+import type { Database } from "@/integrations/supabase/types";
+
+type MyP2PBalance = Database["public"]["Functions"]["get_my_p2p_balances"]["Returns"][number];
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -51,7 +55,7 @@ export default function Dashboard() {
   const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: expensesInCycle = [] } = useQuery({
-    queryKey: ["expenses-dashboard", membership?.group_id, currentCompetenceKey],
+    queryKey: ["dashboard-expenses", membership?.group_id, currentCompetenceKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
@@ -90,11 +94,10 @@ export default function Dashboard() {
   const { data: myBulkPayments = [] } = useQuery({
     queryKey: ["my-bulk-payments-dashboard", membership?.group_id, user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
+      const { data, error } = await (supabase.from("payments") as any)
         .select("id, amount, notes, status")
         .eq("group_id", membership!.group_id)
-        .eq("paid_by", user!.id)
+        .eq("pagador_user_id", user!.id)
         .is("expense_split_id", null)
         .in("status", ["pending", "confirmed"]);
       if (error) throw error;
@@ -157,6 +160,16 @@ export default function Dashboard() {
     },
     enabled: !!user && !!membership?.group_id,
     staleTime: 60_000,
+  });
+
+  const { data: p2pBalances = [] } = useQuery<MyP2PBalance[]>({
+    queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_my_p2p_balances");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user && !!membership && (membership as any).group_modo_gestao === 'p2p',
   });
 
   const collectiveExpenses = expensesInCycle.filter(e => e.expense_type === "collective");
@@ -395,7 +408,7 @@ export default function Dashboard() {
       await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: null,
-        paid_by: user!.id,
+        pagador_user_id: user!.id,
         competence_key: currentCompetenceKey,
         amount,
         receipt_url: urlData.publicUrl,
@@ -436,7 +449,7 @@ export default function Dashboard() {
       await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
-        paid_by: user!.id,
+        pagador_user_id: user!.id,
         competence_key: currentCompetenceKey,
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
@@ -491,7 +504,7 @@ export default function Dashboard() {
         onCompactChange={setHeroCompact}
       />
 
-      <div className="space-y-4">
+      <div className="px-4 space-y-4 md:px-6">
         {!heroCompact && (
           <TabsList className={tabListClass}>
             <TabsTrigger value="home" className={tabTriggerClass}>
@@ -512,6 +525,8 @@ export default function Dashboard() {
 
         <TabsContent value="personal" className="space-y-6">
           <PersonalTab
+            modoGestao={(membership as any)?.group_modo_gestao}
+            p2pBalances={p2pBalances}
             closingDay={closingDay}
             currentDate={currentDate}
             totalIndividualPending={totalIndividualPending}
@@ -527,7 +542,6 @@ export default function Dashboard() {
             myCollectiveShare={myCollectiveShare}
             personalChartData={personalChartData}
             myPersonalExpenses={myPersonalExpenses}
-            collectiveExpenses={collectiveExpenses}
             republicChartData={republicChartData}
             totalMonthExpenses={totalMonthExpenses}
             onPayRateio={(scope) => {

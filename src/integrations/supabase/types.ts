@@ -227,7 +227,6 @@ export type Database = {
           group_id: string
           id: string
           installments: number
-          instantallments: number | null
           paid_to_provider: boolean
           payment_method: string
           purchase_date: string
@@ -251,7 +250,6 @@ export type Database = {
           group_id: string
           id?: string
           installments?: number
-          instantallments?: number | null
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
@@ -275,7 +273,6 @@ export type Database = {
           group_id?: string
           id?: string
           installments?: number
-          instantallments?: number | null
           paid_to_provider?: boolean
           payment_method?: string
           purchase_date?: string
@@ -404,6 +401,7 @@ export type Database = {
           id: string
           name: string
           neighborhood: string | null
+          modo_gestao: "centralized" | "p2p"
           splitting_rule: Database["public"]["Enums"]["splitting_rule"]
           state: string | null
           street: string | null
@@ -422,6 +420,7 @@ export type Database = {
           id?: string
           name: string
           neighborhood?: string | null
+          modo_gestao?: "centralized" | "p2p"
           splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
           state?: string | null
           street?: string | null
@@ -440,6 +439,7 @@ export type Database = {
           id?: string
           name?: string
           neighborhood?: string | null
+          modo_gestao?: "centralized" | "p2p"
           splitting_rule?: Database["public"]["Enums"]["splitting_rule"]
           state?: string | null
           street?: string | null
@@ -1194,6 +1194,10 @@ export type Database = {
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: Json }
       admin_read_cpf: { Args: { _target_user_id: string }; Returns: string }
+      claim_expense_payment: {
+        Args: { _expense_id: string }
+        Returns: undefined
+      }
       confirm_payment: {
         Args: { _payment_id: string; _status?: string }
         Returns: undefined
@@ -1270,6 +1274,13 @@ export type Database = {
         }
         Returns: string
       }
+      fetch_admin_dashboard_metrics: {
+        Args: {
+          _group_id: string
+          _competence_key: string
+        }
+        Returns: Json
+      }
       get_group_member_public_profiles: {
         Args: { _group_id: string }
         Returns: {
@@ -1289,6 +1300,23 @@ export type Database = {
           current_cycle_paid: number
           previous_debt: number
           user_id: string
+        }[]
+      }
+      get_group_p2p_matrix: {
+        Args: { _group_id: string }
+        Returns: {
+          net_balance_a_to_b: number
+          person_a_id: string
+          person_b_id: string
+        }[]
+      }
+      get_my_p2p_balances: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          net_balance: number
+          other_user_avatar_url: string | null
+          other_user_full_name: string | null
+          other_user_id: string
         }[]
       }
       get_member_balances: {
@@ -1321,6 +1349,14 @@ export type Database = {
       remove_group_member: {
         Args: { _group_id: string; _reason?: string; _target_user_id: string }
         Returns: Json
+      }
+      simplify_group_debts: {
+        Args: { _group_id: string }
+        Returns: {
+          amount: number
+          payer_id: string | null
+          receiver_id: string | null
+        }[]
       }
       user_has_split_on_expense: {
         Args: { _expense_id: string; _user_id: string }

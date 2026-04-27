@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { parseLocalDate, cn } from "@/lib/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +50,7 @@ import { ptBR } from "date-fns/locale";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
+import type { Tables } from "@/integrations/supabase/types";
 
 const CATEGORIES = [
   { value: "rent", label: "Aluguel" },
@@ -68,34 +69,15 @@ const PAYMENT_METHODS = [
   { value: "credit_card", label: "Cartão de Crédito" },
 ];
 
-type ExpenseRow = {
-  id: string;
-  group_id: string;
-  created_by: string;
-  title: string;
-  description: string | null;
-  amount: number;
-  category: string;
-  expense_type: string;
-  due_date: string | null;
-  paid_to_provider: boolean;
-  receipt_url: string | null;
-  recurring_expense_id: string | null;
-  created_at: string;
-  updated_at: string;
-  payment_method: string;
-  credit_card_id: string | null;
-  installments: number;
-  purchase_date: string;
-  competence_key: string | null;
-  expense_splits?: Array<{
-    id: string;
-    user_id: string;
-    amount: number;
-    status: string;
-    paid_at: string | null;
-  }>;
+type ExpenseSplit = Tables<"expense_splits">;
+type ExpenseRow = Omit<Tables<"expenses">, "expense_splits"> & {
+  expense_splits?: ExpenseSplit[];
+  _is_installment?: boolean;
+  _installment_number?: number;
+  _installment_amount?: number;
 };
+type RecurringExpenseRow = Tables<"recurring_expenses">;
+type CreditCardRow = Tables<"credit_cards">;
 
 type InstallmentRow = {
   id: string;
@@ -109,11 +91,12 @@ type InstallmentRow = {
 export default function Expenses() {
   const { membership, isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const highlightedId = useRef<string | null>(null);
 
   const [activeTab, setActiveTab] = useState("all");
   const [heroCompact, setHeroCompact] = useState(false);
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingType, setEditingType] = useState<"expense" | "recurring">("expense");
@@ -135,8 +118,8 @@ export default function Expenses() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceDay, setRecurrenceDay] = useState("5");
 
-  const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<any>(null);
-  const [editConfirmExpense, setEditConfirmExpense] = useState<any>(null);
+  const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<ExpenseRow | null>(null);
+  const [editConfirmExpense, setEditConfirmExpense] = useState<ExpenseRow | null>(null);
 
   const [isPaid, setIsPaid] = useState(false);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
@@ -280,7 +263,7 @@ export default function Expenses() {
         .eq("group_id", membership!.group_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as RecurringExpenseRow[];
     },
     enabled: !!membership?.group_id,
     staleTime: 60_000,
@@ -290,7 +273,7 @@ export default function Expenses() {
     queryKey: ["credit-cards", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("credit_cards").select("*").eq("user_id", user!.id);
-      return data ?? [];
+      return (data ?? []) as CreditCardRow[];
     },
     enabled: !!user,
   });
@@ -569,33 +552,29 @@ export default function Expenses() {
     return data as Pick<ExpenseRow, "id" | "purchase_date">;
   };
 
-  const handleSave = async () => {
-    const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
-    const individualParticipantIds = user?.id ? [user.id] : [];
-
-    if (!title.trim() || !amount || parseFloat(amount) <= 0) {
-      toast({ title: "Erro", description: "Preencha título e valor.", variant: "destructive" });
-      return;
-    }
-
-    if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId) && editingType === "expense") {
-      toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
-      return;
-    }
-
-    if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
-      toast({ title: "Erro", description: "Selecione pelo menos um participante.", variant: "destructive" });
-      return;
-    }
-
-    const categoryToSend = category === "other" ? customCategory.trim() : category;
-    const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
-    const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid" || isPaid;
-
-    let uploadedReceiptUrl = receiptUrl;
-
-    setSaving(true);
-    try {
+  const createOrUpdateExpense = useMutation({
+    mutationFn: async () => {
+      const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
+      const individualParticipantIds = user?.id ? [user.id] : [];
+  
+      if (!title.trim() || !amount || parseFloat(amount) <= 0) {
+        throw new Error("Preencha título e valor.");
+      }
+  
+      if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId) && editingType === "expense") {
+        throw new Error("Selecione um cartão de crédito.");
+      }
+  
+      if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
+        throw new Error("Selecione pelo menos um participante.");
+      }
+  
+      const categoryToSend = category === "other" ? customCategory.trim() : category;
+      const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
+      const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid" || isPaid;
+  
+      let uploadedReceiptUrl = receiptUrl;
+  
       if (receiptFile) {
         const ext = receiptFile.name.split(".").pop() ?? "jpg";
         const path = `${user!.id}/${Date.now()}_expense.${ext}`;
@@ -604,7 +583,7 @@ export default function Expenses() {
         const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
         uploadedReceiptUrl = publicUrlData.publicUrl;
       }
-
+  
       if (editingType === "recurring" && editingId) {
         const { error } = await supabase
           .from("recurring_expenses")
@@ -618,12 +597,10 @@ export default function Expenses() {
           })
           .eq("id", editingId);
         if (error) throw error;
-        toast({ title: "Recorrência atualizada!" });
-        queryClient.invalidateQueries({ queryKey: ["recurring-expenses"] });
       } else if (editingType === "expense" && editingId) {
         const parsedAmount = parseFloat(amount);
         const parsedInstallments = parseInt(installments) || 1;
-
+  
         const compKey = editCompetence?.trim()
           ? editCompetence
           : getCompetenceKeyFromDate(
@@ -632,7 +609,7 @@ export default function Expenses() {
                 ? cards.find((c) => c.id === finalCreditCardId)?.closing_day || 1
                 : closingDay,
             );
-
+  
         const { error } = await supabase
           .from("expenses")
           .update({
@@ -653,7 +630,7 @@ export default function Expenses() {
         if (error) throw error;
         const savedExpense = await fetchSavedExpense(editingId);
         setDateValue(savedExpense.purchase_date);
-
+  
         if (editingOriginalAmount && parsedAmount !== editingOriginalAmount) {
           const ratio = parsedAmount / editingOriginalAmount;
           const { data: splits } = await supabase
@@ -669,9 +646,9 @@ export default function Expenses() {
             }
           }
         }
-
+  
         await supabase.from("expense_installments").delete().eq("expense_id", editingId);
-
+  
         if (paymentMethod === "credit_card" && finalCreditCardId && parsedInstallments > 0) {
           const card = cards.find((c) => c.id === finalCreditCardId);
           if (card) {
@@ -681,7 +658,7 @@ export default function Expenses() {
             if (purchaseDate.getDate() >= closingDay) {
               billBase.setMonth(billBase.getMonth() + 1);
             }
-
+  
             const perInstallment = Math.round((parsedAmount / parsedInstallments) * 100) / 100;
             const installmentRows = [];
             for (let i = 1; i <= parsedInstallments; i++) {
@@ -699,20 +676,16 @@ export default function Expenses() {
             await supabase.from("expense_installments").insert(installmentRows);
           }
         }
-
+  
         if (expenseType === "collective" && splitMode === "manual") {
           await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds);
         }
-
-        toast({ title: "Despesa atualizada!" });
-        queryClient.invalidateQueries({ queryKey: ["expenses"] });
-        queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
       } else {
         const compKey = getCompetenceKeyFromDate(
           new Date(`${dateValue}T12:00:00`), 
           finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
         );
-
+  
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
           _title: title.trim(),
@@ -729,7 +702,7 @@ export default function Expenses() {
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
         };
-
+  
         const { data: newExpenseId, error: createError } = await supabase.rpc(
           "create_expense_with_splits",
           {
@@ -737,9 +710,9 @@ export default function Expenses() {
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
           },
         );
-
+  
         if (createError) throw createError;
-
+  
         if (newExpenseId) {
           await supabase
             .from("expenses")
@@ -750,24 +723,24 @@ export default function Expenses() {
             })
             .eq("id", newExpenseId);
         }
-
+  
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
           await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds);
         }
-
+  
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
           await supabase
             .from("expense_splits")
             .update({ status: "paid", paid_at: new Date().toISOString() })
             .eq("expense_id", newExpenseId);
         }
-
+  
         if (isRecurring) {
           const day = parseInt(recurrenceDay);
           const nextMonthDate = new Date();
           nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
           nextMonthDate.setDate(day);
-
+  
           await supabase.from("recurring_expenses").insert({
             group_id: membership!.group_id,
             created_by: user!.id,
@@ -783,20 +756,23 @@ export default function Expenses() {
           } as any);
           queryClient.invalidateQueries({ queryKey: ["recurring-expenses"] });
         }
-
-        toast({ title: "Despesa criada!" });
-        queryClient.invalidateQueries({ queryKey: ["expenses"] });
-        queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
       }
-
+    },
+    onSuccess: () => {
+      const message = editingId ? "Despesa atualizada!" : "Despesa criada!";
+      toast({ title: message });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-installments-by-month"] });
+      if (editingType === "recurring") {
+        queryClient.invalidateQueries({ queryKey: ["recurring-expenses"] });
+      }
       setOpen(false);
       resetForm();
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
   const resetForm = () => {
     setEditingId(null);
@@ -826,7 +802,7 @@ export default function Expenses() {
     setEditingOriginalAmount(null);
   };
 
-  const openEditExpense = (expense: any) => {
+  const openEditExpense = (expense: ExpenseRow) => {
     resetForm();
     setEditingType("expense");
     setEditingId(expense.id);
@@ -836,7 +812,7 @@ export default function Expenses() {
     setDescription(expense.description || "");
     setDateValue(expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
     setEditCompetence(expense.competence_key || (expense.purchase_date ? expense.purchase_date.slice(0, 7) : format(new Date(), "yyyy-MM")));
-    setExpenseType(expense.expense_type);
+    setExpenseType(expense.expense_type as "collective" | "individual");
     setPaymentMethod(expense.payment_method || "cash");
     setCreditCardId(expense.credit_card_id || "none");
     setInstallments(String(expense.installments || 1));
@@ -845,7 +821,7 @@ export default function Expenses() {
     setReceiptUrl(expense.receipt_url || null);
     setPayerUserId(expense.created_by || "me");
 
-    const currentSplitIds = (expense.expense_splits ?? []).map((split: any) => split.user_id);
+    const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
     if (expense.expense_type === "collective" && currentSplitIds.length > 0) {
       setSplitMode("manual");
       setSelectedParticipantIds(currentSplitIds);
@@ -861,7 +837,7 @@ export default function Expenses() {
     setOpen(true);
   };
 
-  const openEditRecurring = (recurring: any) => {
+  const openEditRecurring = (recurring: RecurringExpenseRow) => {
     resetForm();
     setEditingType("recurring");
     setEditingId(recurring.id);
@@ -887,31 +863,31 @@ export default function Expenses() {
 
       return {
         ...e,
+        _is_installment: true,
         _installment_number: inst.installment_number,
         _installment_amount: inst.amount,
-        _is_installment: true,
       };
     });
   }, [allExpenses, installmentByExpenseId]);
 
-  const filteredAll = (decoratedExpenses ?? []).filter((e: any) => {
+  const filteredAll = (decoratedExpenses ?? []).filter((e) => {
     if (e.expense_type === "collective") return true;
     if (e.created_by === user?.id) return true;
-    const splits = (e.expense_splits as any[]) || [];
-    return splits.some((s: any) => s.user_id === user?.id);
+    const splits = (e.expense_splits as ExpenseSplit[]) || [];
+    return splits.some((s) => s.user_id === user?.id);
   });
 
-  const filteredMine = (decoratedExpenses ?? []).filter((e: any) => {
+  const filteredMine = (decoratedExpenses ?? []).filter((e) => {
     if (e.expense_type !== "individual") return false;
     if (e.created_by === user?.id) return true;
-    const splits = (e.expense_splits as any[]) || [];
-    return splits.some((s: any) => s.user_id === user?.id);
+    const splits = (e.expense_splits as ExpenseSplit[]) || [];
+    return splits.some((s) => s.user_id === user?.id);
   });
 
-  const filteredCollective = (decoratedExpenses ?? []).filter((e: any) => e.expense_type === "collective");
+  const filteredCollective = (decoratedExpenses ?? []).filter((e) => e.expense_type === "collective");
 
   const lowerSearchTerm = searchTerm.toLowerCase().trim();
-  const filterBySearch = (e: any) => {
+  const filterBySearch = (e: ExpenseRow | RecurringExpenseRow) => {
     if (!lowerSearchTerm) return true;
     const catLabel = CATEGORIES.find((c) => c.value === e.category)?.label ?? e.category;
     return (
@@ -925,7 +901,28 @@ export default function Expenses() {
   const finalFilteredCollective = filteredCollective.filter(filterBySearch);
   const finalRecurring = recurringExpenses?.filter(filterBySearch);
 
-  const handleEditClick = (expense: any) => {
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.substring(1);
+      const element = document.getElementById(`expense-${id}`);
+      if (element) {
+        if (highlightedId.current) {
+          const prevElement = document.getElementById(highlightedId.current);
+          prevElement?.classList.remove("ring-2", "ring-primary", "ring-offset-2", "transition-all", "duration-300");
+        }
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add("ring-2", "ring-primary", "ring-offset-2", "transition-all", "duration-300");
+        highlightedId.current = `expense-${id}`;
+        const timer = setTimeout(() => {
+          element.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+          highlightedId.current = null;
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.hash, finalFilteredAll, finalFilteredCollective, finalFilteredMine]);
+
+  const handleEditClick = (expense: ExpenseRow) => {
     if (expense._is_installment && expense.installments > 1) {
       setEditConfirmExpense(expense);
     } else {
@@ -933,7 +930,7 @@ export default function Expenses() {
     }
   };
 
-  const handleDeleteClick = (expense: any) => {
+  const handleDeleteClick = (expense: ExpenseRow) => {
     if (expense._is_installment && expense.installments > 1) {
       setDeleteConfirmExpense(expense);
     } else {
@@ -1325,8 +1322,8 @@ export default function Expenses() {
 
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
-              <Button onClick={handleSave} disabled={saving} className="w-full">
-                {saving ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending} className="w-full">
+                {createOrUpdateExpense.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
             </div>
@@ -1403,7 +1400,7 @@ export default function Expenses() {
               <AlertDialogAction onClick={() => {
                 const exp = editConfirmExpense;
                 setEditConfirmExpense(null);
-                openEditExpense(exp);
+                if (exp) openEditExpense(exp);
               }}>
                 Editar despesa completa
               </AlertDialogAction>
@@ -1514,7 +1511,7 @@ export default function Expenses() {
 
       <TabsContent value="all" className="space-y-3 mt-4">
         {finalFilteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
-        {finalFilteredAll.map((e: any) => (
+        {finalFilteredAll.map((e) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1535,7 +1532,7 @@ export default function Expenses() {
 
       <TabsContent value="mine" className="space-y-3 mt-4">
         {finalFilteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
-        {finalFilteredMine.map((e: any) => (
+        {finalFilteredMine.map((e) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1556,7 +1553,7 @@ export default function Expenses() {
 
       <TabsContent value="collective" className="space-y-3 mt-4">
         {finalFilteredCollective.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa coletiva encontrada nesta competência.</p>}
-        {finalFilteredCollective.map((e: any) => (
+        {finalFilteredCollective.map((e) => (
           <ExpenseCard
             key={e.id}
             expense={e}
@@ -1590,7 +1587,7 @@ export default function Expenses() {
         </div>
 
         {!finalRecurring?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
-        {finalRecurring?.map((r: any) => (
+        {finalRecurring?.map((r) => (
           <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />
         ))}
       </TabsContent>
@@ -1599,10 +1596,10 @@ export default function Expenses() {
   );
 }
 
-function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: any) {
+function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void }) {
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
-  const mySplit = expense.expense_splits?.find((s: any) => s.user_id === userId);
-  const cardLabel = cards.find((c: any) => c.id === expense.credit_card_id)?.label;
+  const mySplit = expense.expense_splits?.find((s) => s.user_id === userId);
+  const cardLabel = cards.find((c) => c.id === expense.credit_card_id)?.label;
   const canManage = isAdmin || expense.created_by === userId;
   const paymentHistory = (expense.description ?? "")
     .split("\n")
@@ -1614,7 +1611,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
 
   return (
-    <Card>
+    <Card id={`expense-${expense.id}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -1676,12 +1673,12 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
           </div>
           {canManage && (
             <div className="flex flex-col gap-1 ml-2">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit}>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar despesa">
                 <Edit className="h-4 w-4" />
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir despesa">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
@@ -1708,7 +1705,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
   );
 }
 
-function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
+function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recurring: RecurringExpenseRow, isAdmin: boolean, userId?: string, onEdit: () => void, onDelete: () => void }) {
   const catLabel = CATEGORIES.find((c) => c.value === recurring.category)?.label ?? recurring.category;
   const canManage = isAdmin || recurring.created_by === userId;
 
@@ -1728,7 +1725,7 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Próximo vencimento: {format(parseLocalDate(recurring.next_due_date), "dd/MM/yyyy")}
+              Próximo vencimento: {format(parseLocalDate(recurring.next_due_date), "dd/MM/yyyy", { locale: ptBR })}
             </p>
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">
@@ -1737,12 +1734,12 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: any) {
           </div>
           {canManage && (
             <div className="flex items-center gap-1 mt-1">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit}>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar recorrência">
                 <Edit className="h-4 w-4" />
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir recorrência">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>

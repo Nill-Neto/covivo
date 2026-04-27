@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function formatCurrency(value: number | string | null | undefined): string {
+  const numericValue = Number(value || 0);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(numericValue);
+}
+
 /**
  * Parses a date-only string (e.g. "2025-01-15") as local timezone.
  * Prevents the -1 day bug caused by `new Date("2025-01-15")` being parsed as UTC.

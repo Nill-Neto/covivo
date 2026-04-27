@@ -25,6 +25,7 @@ export interface GroupMembership {
   group_id: string;
   role: "admin" | "morador";
   group_name: string;
+  group_modo_gestao: "centralized" | "p2p";
   avatar_url?: string | null;
 }
 
@@ -97,11 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data || data.length === 0) return [];
 
     return data.map((row) => {
-      const groupData = row.groups as unknown as { name: string; avatar_url?: string } | null;
+      const groupData = row.groups as unknown as {
+        name: string;
+        avatar_url?: string | null;
+        modo_gestao?: "centralized" | "p2p" | null;
+      } | null;
       return {
         group_id: row.group_id,
         role: row.role as "admin" | "morador",
         group_name: groupData?.name ?? "",
+        group_modo_gestao: groupData?.modo_gestao ?? "centralized",
         avatar_url: groupData?.avatar_url ?? null,
       };
     });
