@@ -32,6 +32,7 @@ export function UnpaidBills() {
     mutationFn: async (expenseId: string) => {
       const { error } = await supabase.rpc("claim_expense_payment", {
         _expense_id: expenseId,
+        _user_id: user!.id,
       });
       if (error) throw error;
     },
@@ -39,6 +40,8 @@ export function UnpaidBills() {
       toast({ title: "Despesa assumida!", description: "As dívidas foram atualizadas para os outros membros." });
       queryClient.invalidateQueries({ queryKey: ["unpaid-bills"] });
       queryClient.invalidateQueries({ queryKey: ["get_my_p2p_balances"] }); // To refresh the main balance
+      queryClient.invalidateQueries({ queryKey: ["dashboard-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
     },
     onError: (err: any) => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });

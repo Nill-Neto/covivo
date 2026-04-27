@@ -506,8 +506,6 @@ export default function Dashboard() {
       />
 
       <div className="px-4 space-y-4 md:px-6">
-        {(membership as any)?.group_modo_gestao === 'p2p' && <UnpaidBills />}
-
         {!heroCompact && (
           <TabsList className={tabListClass}>
             <TabsTrigger value="home" className={tabTriggerClass}>

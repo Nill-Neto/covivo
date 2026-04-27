@@ -14,6 +14,7 @@ import { PersonalExpensesChart } from "./PersonalExpensesChart";
 import { RepublicChart } from "./RepublicChart";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { P2PBalances } from "./P2PBalances";
+import { UnpaidBills } from "./UnpaidBills";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -149,6 +150,7 @@ export function PersonalTab({
 
   return (
     <ScrollReveal preset="blur-slide" className="space-y-6">
+      {modoGestao === 'p2p' && <UnpaidBills />}
       {modoGestao === 'p2p' && <P2PBalances balances={p2pBalances} />}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
