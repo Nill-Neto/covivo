@@ -212,13 +212,13 @@ export function CardsTab({
       "cards-last-months-raw",
       user?.id,
       membership?.group_id,
-      currentDate.getMonth(),
-      currentDate.getFullYear(),
+      currentDate.toISOString(),
       monthsCount,
     ],
     queryFn: async () => {
-      const months = lastMonths.map((date) => date.getMonth() + 1);
-      const years = Array.from(new Set(lastMonths.map((date) => date.getFullYear())));
+      const monthFilters = lastMonths.map(date => 
+        `and(bill_year.eq.${date.getFullYear()},bill_month.eq.${date.getMonth() + 1})`
+      ).join(',');
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
@@ -226,15 +226,13 @@ export function CardsTab({
           .select("*, expenses!inner(expense_type, group_id, credit_card_id)")
           .eq("user_id", user!.id)
           .eq("expenses.group_id", membership!.group_id)
-          .in("bill_month", months)
-          .in("bill_year", years)
+          .or(monthFilters)
           .limit(5000),
         supabase
           .from("personal_expense_installments")
           .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
           .eq("user_id", user!.id)
-          .in("bill_month", months)
-          .in("bill_year", years)
+          .or(monthFilters)
           .limit(5000),
       ]);
 

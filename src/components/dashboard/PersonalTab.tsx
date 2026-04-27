@@ -414,7 +414,7 @@ export function PersonalTab({
         </Card>
       </div>
 
-      <ExpensesEvolutionChart />
+      <ExpensesEvolutionChart currentDate={currentDate} />
     </ScrollReveal>
   );
 }

@@ -10,10 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { parseLocalDate } from "@/lib/utils";
 
-export function ExpensesEvolutionChart() {
+interface ExpensesEvolutionChartProps {
+  currentDate: Date;
+}
+
+export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartProps) {
   const { user, membership } = useAuth();
   const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
-  const currentDate = new Date();
 
   const lastMonths = useMemo(
     () => Array.from({ length: monthsCount }, (_, index) => subMonths(currentDate, (monthsCount - 1) - index)),
@@ -21,7 +24,7 @@ export function ExpensesEvolutionChart() {
   );
 
   const { data: evolutionData, isLoading } = useQuery({
-    queryKey: ["expenses-evolution", user?.id, membership?.group_id, monthsCount],
+    queryKey: ["expenses-evolution", user?.id, membership?.group_id, monthsCount, currentDate.toISOString()],
     queryFn: async () => {
       if (!user?.id || !membership?.group_id) return [];
 
