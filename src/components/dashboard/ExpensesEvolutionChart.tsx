@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { subMonths, format, startOfMonth } from "date-fns";
+import { subMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,8 +28,7 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
     queryFn: async () => {
       if (!user?.id || !membership?.group_id) return [];
 
-      const firstMonthOfRange = subMonths(currentDate, monthsCount - 1);
-      const startDate = format(startOfMonth(firstMonthOfRange), "yyyy-MM-dd");
+      const startDate = format(subMonths(currentDate, monthsCount), "yyyy-MM-dd");
 
       const [personalRes, collectiveSplitsRes, groupCollectiveRes] = await Promise.all([
         // User's individual expenses
