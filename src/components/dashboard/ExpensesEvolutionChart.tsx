@@ -13,6 +13,27 @@ interface ExpensesEvolutionChartProps {
   currentDate: Date;
 }
 
+interface CollectiveSplit {
+  amount: number;
+}
+
+interface CollectiveExpenseWithSplits {
+  amount: number;
+  expense_splits?: CollectiveSplit[];
+}
+
+interface CollectiveInstallmentWithSplits {
+  amount: number;
+  competence_year: number;
+  competence_month: number;
+  expenses?: CollectiveExpenseWithSplits;
+}
+
+interface CollectiveNonCardExpenseWithSplits {
+  competence_key: string;
+  expense_splits?: CollectiveSplit[];
+}
+
 export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartProps) {
   const { user, membership } = useAuth();
   const [monthsCount, setMonthsCount] = useState<6 | 12>(6);
@@ -39,6 +60,7 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
         myCollectiveInstallmentsRes,
         houseCollectiveInstallmentsRes,
         houseCollectiveNonCardRes,
+        myCollectiveNonCardRes,
       ] = await Promise.all([
         supabase
           .from("expenses")
@@ -82,6 +104,14 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
           .eq("expense_type", "collective")
           .neq("payment_method", "credit_card")
           .in("competence_key", competenceKeys),
+        supabase
+          .from("expenses")
+          .select("amount, competence_key, expense_splits!inner(user_id, amount)")
+          .eq("group_id", membership.group_id)
+          .eq("expense_type", "collective")
+          .neq("payment_method", "credit_card")
+          .eq("expense_splits.user_id", user.id)
+          .in("competence_key", competenceKeys),
       ]);
 
       if (cashIndividualRes.error) throw cashIndividualRes.error;
@@ -90,6 +120,7 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
       if (myCollectiveInstallmentsRes.error) throw myCollectiveInstallmentsRes.error;
       if (houseCollectiveInstallmentsRes.error) throw houseCollectiveInstallmentsRes.error;
       if (houseCollectiveNonCardRes.error) throw houseCollectiveNonCardRes.error;
+      if (myCollectiveNonCardRes.error) throw myCollectiveNonCardRes.error;
 
       const totalsByMonth: Record<string, { personal: number; myCollective: number; houseCollective: number }> = {};
       lastMonths.forEach((date) => {
@@ -117,7 +148,7 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
         }
       });
 
-      myCollectiveInstallmentsRes.data?.forEach((installment: any) => {
+      myCollectiveInstallmentsRes.data?.forEach((installment: CollectiveInstallmentWithSplits) => {
         const key = `${installment.competence_year}-${String(installment.competence_month).padStart(2, "0")}`;
         const expense = installment.expenses;
         const mySplit = expense?.expense_splits?.[0];
@@ -139,6 +170,15 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
       houseCollectiveNonCardRes.data?.forEach((expense) => {
         if (totalsByMonth[expense.competence_key]) {
           totalsByMonth[expense.competence_key].houseCollective += expense.amount;
+        }
+      });
+
+      myCollectiveNonCardRes.data?.forEach((expense: CollectiveNonCardExpenseWithSplits) => {
+        const key = expense.competence_key;
+        const mySplit = expense.expense_splits?.[0];
+        const splitAmount = Number(mySplit?.amount || 0);
+        if (totalsByMonth[key] && splitAmount > 0) {
+          totalsByMonth[key].myCollective += splitAmount;
         }
       });
 
