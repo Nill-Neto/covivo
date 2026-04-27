@@ -89,26 +89,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchMemberships = async (userId: string): Promise<GroupMembership[]> => {
-    const { data } = await supabase
+    // O inner join garante que obteremos apenas papéis para grupos que realmente existem
+    // e torna o objeto 'groups' não nulo, simplificando o código.
+    const { data, error } = await supabase
       .from("user_roles")
-      // Selecionando todos os campos (*) em groups garante que não quebre mesmo que a coluna não exista ainda
-      .select("role, group_id, groups:group_id(*)")
+      .select("role, group_id, groups!inner(name, avatar_url, modo_gestao)")
       .eq("user_id", userId);
 
-    if (!data || data.length === 0) return [];
+    if (error) {
+      console.error("Erro ao buscar grupos:", error);
+      return [];
+    }
+    if (!data) {
+      return [];
+    }
 
     return data.map((row) => {
-      const groupData = row.groups as unknown as {
-        name: string;
-        avatar_url?: string | null;
-        modo_gestao?: "centralized" | "p2p" | null;
-      } | null;
+      // Por causa do inner join, row.groups tem a garantia de não ser nulo.
+      const groupData = row.groups;
+      
       return {
         group_id: row.group_id,
         role: row.role as "admin" | "morador",
-        group_name: groupData?.name ?? "",
-        group_modo_gestao: groupData?.modo_gestao ?? "centralized",
-        avatar_url: groupData?.avatar_url ?? null,
+        group_name: groupData.name,
+        // A coluna do banco de dados é NOT NULL, então podemos confiar que ela existe.
+        // Chega de padrões perigosos.
+        group_modo_gestao: groupData.modo_gestao as "centralized" | "p2p",
+        avatar_url: groupData.avatar_url,
       };
     });
   };
