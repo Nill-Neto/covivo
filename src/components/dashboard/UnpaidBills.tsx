@@ -30,9 +30,8 @@ export function UnpaidBills() {
 
   const claimPayment = useMutation({
     mutationFn: async (expenseId: string) => {
-      const { error } = await supabase.rpc("claim_expense_payment" as any, {
+      const { error } = await supabase.rpc("claim_expense_payment", {
         _expense_id: expenseId,
-        _user_id: user!.id,
       });
       if (error) throw error;
     },

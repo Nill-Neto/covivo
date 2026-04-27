@@ -324,7 +324,7 @@ export default function RecurringExpenses() {
         _installments: 1,
         _purchase_date: rec.next_due_date || null,
         _participant_user_ids: rec.participant_user_ids || null,
-      } as any);
+      });
 
       if (error) throw error;
 

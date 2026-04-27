@@ -4,12 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowRight, Scale } from "lucide-react";
+import { useMemo } from "react";
 
 interface DebtSimplificationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groupId: string;
-  members: { profile: { id: string; full_name: string; avatar_url: string } }[];
+  members: { profile: { id: string; full_name: string; avatar_url: string | null } | null }[];
 }
 
 type SimplifiedPayment = {
@@ -22,18 +23,20 @@ export function DebtSimplificationModal({ open, onOpenChange, groupId, members }
   const { data: simplifiedPayments, isLoading, error } = useQuery({
     queryKey: ["simplify-debts", groupId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("simplify_group_debts" as any, {
+      const { data, error } = await supabase.rpc("simplify_group_debts", {
         _group_id: groupId,
       });
       if (error) throw error;
-      // Filter out null placeholder results
-      const validData = data as SimplifiedPayment[];
-      return validData.filter(p => p.payer_id && p.receiver_id && p.amount > 0.01);
+      return (data ?? []).filter((payment): payment is SimplifiedPayment =>
+        !!payment.payer_id && !!payment.receiver_id && payment.amount > 0.01
+      );
     },
     enabled: open, // Only run query when modal is open
   });
 
-  const memberMap = new Map(members.map(m => [m.profile.id, m.profile]));
+  const memberMap = useMemo(() => new Map(
+    members.map(m => m.profile ? [m.profile.id, m.profile] : null).filter(Boolean) as [string, { id: string; full_name: string; avatar_url: string | null }][]
+  ), [members]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -65,8 +68,8 @@ export function DebtSimplificationModal({ open, onOpenChange, groupId, members }
                   <div key={index} className="flex items-center justify-between gap-2 p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-3 font-medium">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={payer.avatar_url} />
-                        <AvatarFallback>{payer.full_name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={payer.avatar_url ?? undefined} />
+                        <AvatarFallback>{payer.full_name?.charAt(0) ?? '?'}</AvatarFallback>
                       </Avatar>
                       <span>{payer.full_name}</span>
                     </div>
@@ -77,8 +80,8 @@ export function DebtSimplificationModal({ open, onOpenChange, groupId, members }
                     </div>
                     <div className="flex items-center gap-3 font-medium">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={receiver.avatar_url} />
-                        <AvatarFallback>{receiver.full_name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={receiver.avatar_url ?? undefined} />
+                        <AvatarFallback>{receiver.full_name?.charAt(0) ?? '?'}</AvatarFallback>
                       </Avatar>
                       <span>{receiver.full_name}</span>
                     </div>

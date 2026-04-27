@@ -38,7 +38,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn((options: { queryKey: unknown[] }) => {
     const key = String(options.queryKey?.[0]);
-    if (key === "expenses-dashboard") {
+    if (key === "admin-expenses") {
       return { data: [], isLoading: false, isError: false, error: null };
     }
 

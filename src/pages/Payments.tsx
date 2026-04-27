@@ -290,7 +290,7 @@ export default function Payments() {
           native_runtime: isNativeRuntime,
           ...details,
         },
-      } as any);
+      });
     } catch { /* ignore */ }
   };
 
@@ -416,13 +416,13 @@ export default function Payments() {
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth} aria-label="Mês anterior">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth} aria-label="Próximo mês">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -614,7 +614,7 @@ export default function Payments() {
           <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background flex justify-between items-center">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir pagamento"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -669,14 +669,14 @@ function PaymentItem({ payment, isAdmin, onConfirm, onManage }: any) {
           <div className="flex items-center gap-1">
             <p className="text-sm font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
             {isAdmin && onManage && (
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)} aria-label="Gerenciar pagamento"><Settings className="h-3 w-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onManage(payment)}><Settings className="h-3 w-3" /></Button>
             )}
           </div>
           <Badge variant={s.variant} className="text-[10px] px-1.5 py-0 h-4">{s.label}</Badge>
           {isAdmin && payment.status === "pending" && (
             <div className="flex gap-1 mt-1">
-              <Button size="icon" variant="default" className="h-6 w-6" onClick={() => onConfirm(payment.id, "confirmed")} aria-label="Confirmar pagamento"><Check className="h-3 w-3" /></Button>
-              <Button size="icon" variant="destructive" className="h-6 w-6" onClick={() => onConfirm(payment.id, "rejected")} aria-label="Recusar pagamento"><X className="h-3 w-3" /></Button>
+              <Button size="icon" variant="default" className="h-6 w-6" onClick={() => onConfirm(payment.id, "confirmed")}><Check className="h-3 w-3" /></Button>
+              <Button size="icon" variant="destructive" className="h-6 w-6" onClick={() => onConfirm(payment.id, "rejected")}><X className="h-3 w-3" /></Button>
             </div>
           )}
         </div>

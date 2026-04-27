@@ -2,10 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { Resend } from "npm:resend@4.0.0";
 import { BRANDING } from "../../../src/config/branding.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const CORS_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 
 const DEFAULT_LOCAL_PUBLIC_URL = "http://localhost:8080";
 const APP_PUBLIC_URL_ALIAS_SEPARATOR = ",";
@@ -52,8 +49,36 @@ const resolveAppPublicUrl = () => {
 
 const APP_PUBLIC_URL = resolveAppPublicUrl();
 const APP_PUBLIC_URL_ALIASES = parseAliases(Deno.env.get("APP_PUBLIC_URL_ALIASES"));
+const ALLOWED_ORIGINS = new Set([
+  getOrigin(APP_PUBLIC_URL),
+  ...APP_PUBLIC_URL_ALIASES.map(getOrigin),
+].filter(Boolean));
+
+const resolveCorsHeaders = (req: Request) => {
+  const requestOrigin = req.headers.get("origin");
+  const allowedOrigin = requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)
+    ? requestOrigin
+    : getOrigin(APP_PUBLIC_URL);
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+};
 
 Deno.serve(async (req) => {
+  const corsHeaders = resolveCorsHeaders(req);
+  const requestOrigin = req.headers.get("origin");
+
+  if (requestOrigin && !ALLOWED_ORIGINS.has(requestOrigin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

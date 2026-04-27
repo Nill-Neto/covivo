@@ -1,41 +1,63 @@
-import type { PendingByCompetenceGroup } from "@/lib/collectivePending";
-import type { Tables } from "@/integrations/supabase/types";
-
-// Shared types
-export interface ChartDataPoint {
-  name: string;
-  value: number;
+export interface CreditCard {
+  id: string;
+  user_id: string;
+  label: string;
+  brand: string;
+  limit_amount: number | null;
+  closing_day: number;
+  due_day: number;
+  color: string | null;
+  created_at: string;
 }
 
-// PersonalTab types
-export interface P2PBalance {
-  other_user_id: string;
-  other_user_full_name: string;
-  other_user_avatar_url: string | null;
-  net_balance: number;
-}
-
-export interface IndividualPendingItem {
+// A unified type for both group and personal installments for the dashboard view
+export interface BillInstallment {
   id: string;
   amount: number;
-  installment_number?: number;
-  expenses?: {
-    title?: string | null;
-    category?: string | null;
-    purchase_date?: string | null;
-    installments?: number;
-  };
+  installment_number: number;
+  expenses: {
+    title: string | null;
+    category: string | null;
+    credit_card_id: string | null;
+    expense_type: string | null;
+    purchase_date: string | null;
+    installments: number | null;
+    group_id?: string | null; // Only for group expenses
+    created_at: string | null;
+  } | null;
 }
 
-export interface PersonalExpenseItem {
+// Specific types for data fetching
+export interface GroupInstallmentItem {
   id: string;
-  title: string;
   amount: number;
-  category: string;
-  purchase_date: string;
-  payment_method: string;
-  installments?: number;
-  installment_number?: number;
+  bill_month: number;
+  bill_year: number;
+  expenses: {
+    expense_type: string;
+    group_id: string;
+    credit_card_id: string | null;
+  } | null;
+}
+
+export interface PersonalInstallmentItem {
+  id: string;
+  amount: number;
+  bill_month: number;
+  bill_year: number;
+  personal_expenses: {
+    credit_card_id: string | null;
+  } | null;
+}
+
+export interface CardsTabProps {
+  totalBill: number;
+  currentDate: Date;
+  cardsChartData: { name: string; value: number }[];
+  creditCards: CreditCard[];
+  cardsBreakdown: Record<string, number>;
+  billInstallments: BillInstallment[];
+  isLoading?: boolean;
 }
 
 export interface PendingSplit {
@@ -51,9 +73,9 @@ export interface PendingSplit {
     expense_type: string;
     created_at: string;
     purchase_date: string | null;
-    payment_method: string | null;
+    payment_method: string;
     credit_card_id: string | null;
-    installments: number | null;
+    installments: number;
     competence_key: string | null;
     credit_cards: {
       closing_day: number;
@@ -63,70 +85,4 @@ export interface PendingSplit {
     id: string;
     status: string;
   }[];
-  competenceKey?: string | null;
-  originalAmount?: number;
 }
-
-export interface PersonalTabProps {
-  modoGestao: 'centralized' | 'p2p';
-  p2pBalances: P2PBalance[];
-  closingDay: number;
-  currentDate: Date;
-  totalIndividualPending: number;
-  totalCollectivePendingPrevious: number;
-  totalCollectivePendingCurrent: number;
-  collectivePendingPreviousByCompetence: PendingByCompetenceGroup[];
-  collectivePendingCurrentByCompetence: PendingByCompetenceGroup[];
-  individualPending: IndividualPendingItem[];
-  totalPersonalCash: number;
-  totalBill: number;
-  totalUserExpensesCompetence: number;
-  totalUserExpensesCurrentBalance: number;
-  myCollectiveShare: number;
-  personalChartData: ChartDataPoint[];
-  myPersonalExpenses: PersonalExpenseItem[];
-  republicChartData: ChartDataPoint[];
-  totalMonthExpenses: number;
-  onPayRateio: (scope: 'previous' | 'current') => void;
-}
-
-// CardsTab types
-export type CreditCard = Tables<"credit_cards">;
-
-export interface BillInstallment {
-  id: string;
-  amount: number;
-  installment_number: number;
-  expenses?: {
-    title?: string | null;
-    category?: string | null;
-    credit_card_id?: string | null;
-    expense_type?: string;
-    purchase_date?: string | null;
-    installments?: number;
-    created_at?: string;
-  };
-}
-
-export interface CardsTabProps {
-  totalBill: number;
-  currentDate: Date;
-  cardsChartData: ChartDataPoint[];
-  creditCards: CreditCard[];
-  cardsBreakdown: Record<string, number>;
-  billInstallments: BillInstallment[];
-  isLoading?: boolean;
-}
-
-export type GroupInstallmentItem = Tables<"expense_installments"> & {
-  expenses: {
-    expense_type: string;
-    group_id: string;
-    credit_card_id: string | null;
-  } | null;
-};
-export type PersonalInstallmentItem = Tables<"personal_expense_installments"> & {
-  personal_expenses: {
-    credit_card_id: string | null;
-  } | null;
-};

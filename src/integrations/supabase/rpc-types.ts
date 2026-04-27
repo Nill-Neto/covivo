@@ -17,6 +17,8 @@ export interface RemoveGroupMemberRpcResponse {
   redistributed_pending_splits?: number;
 }
 
+export type ClaimExpensePaymentRpcArgs = RpcArgs<"claim_expense_payment">;
+export type ClaimExpensePaymentRpcResponse = RpcReturns<"claim_expense_payment">;
 export type GetMemberBalancesRpcResponse = RpcReturns<"get_member_balances">;
 export type GetGroupMemberPublicProfilesRpcResponse = RpcReturns<"get_group_member_public_profiles">;
 export type GetAdminMemberCompetenceBalancesRpcResponse = RpcReturns<"get_admin_member_competence_balances">;

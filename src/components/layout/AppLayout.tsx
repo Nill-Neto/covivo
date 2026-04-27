@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config/brand";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 import { BRANDING } from "@/config/branding";
@@ -200,12 +201,12 @@ export function AppLayout() {
             size="icon"
             className="h-12 w-12 shrink-0"
             onClick={handleMenuToggle}
-            aria-label={isMobileViewport ? (mobileMenuOpen ? "Fechar menu" : "Abrir menu") : (desktopMenuOpen ? "Recolher menu" : "Expandir menu")}
           >
             <MenuToggleIcon
               open={isMobileViewport ? mobileMenuOpen : desktopMenuOpen}
               className="h-8 w-8 scale-125"
             />
+            <span className="sr-only">Menu</span>
           </Button>
 
           <Logo />

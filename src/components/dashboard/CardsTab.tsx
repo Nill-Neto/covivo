@@ -231,7 +231,7 @@ export function CardsTab({
           .limit(5000),
         supabase
           .from("personal_expense_installments")
-          .select("*, personal_expenses(credit_card_id)")
+          .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
           .eq("user_id", user!.id)
           .in("bill_month", months)
           .in("bill_year", years)

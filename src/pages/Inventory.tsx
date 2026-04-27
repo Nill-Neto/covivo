@@ -21,12 +21,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Plus, AlertTriangle, Minus, PlusCircle, Trash2 } from "lucide-react";
+import { Package, Plus, AlertTriangle, Minus, PlusCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, subDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { useCycleDates } from "@/hooks/useCycleDates";
-import { MonthNavigator } from "@/components/layout/MonthNavigator";
 
 const categories = [
   { value: "limpeza", label: "Limpeza" },
@@ -126,42 +126,49 @@ export default function Inventory() {
         icon={<Package className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <MonthNavigator
-              currentDate={currentDate}
-              onPrevMonth={prevMonth}
-              onNextMonth={nextMonth}
-            />
+          {/* Month Selector */}
+          <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
+               <ChevronLeft className="h-4 w-4" />
+             </Button>
+             <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
+               {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+             </div>
+             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
+               <ChevronRight className="h-4 w-4" />
+             </Button>
+           </div>
 
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="h-10 w-full gap-2 sm:w-auto"><Plus className="mr-2 h-4 w-4" />Novo item</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle className="font-serif">Adicionar item</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Detergente" /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><Label>Categoria</Label>
-                      <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Unidade</Label>
-                      <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{units.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-10 w-full gap-2 sm:w-auto"><Plus className="mr-2 h-4 w-4" />Novo item</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-serif">Adicionar item</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Detergente" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Categoria</Label>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><Label>Quantidade</Label><Input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
-                    <div><Label>Qtd. mínima</Label><Input type="number" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} /></div>
+                  <div><Label>Unidade</Label>
+                    <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{units.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
-                  <Button className="w-full" disabled={!form.name.trim()} onClick={() => addItem.mutate()}>Adicionar</Button>
                 </div>
-              </DialogContent>
-            </Dialog>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Quantidade</Label><Input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
+                  <div><Label>Qtd. mínima</Label><Input type="number" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} /></div>
+                </div>
+                <Button className="w-full" disabled={!form.name.trim()} onClick={() => addItem.mutate()}>Adicionar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           </div>
         }
       />
@@ -207,7 +214,7 @@ export default function Inventory() {
                   {isAdmin && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label={`Remover item ${item.name}`}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -228,11 +235,11 @@ export default function Inventory() {
                 </CardHeader>
                 <CardContent className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: -1 })} aria-label={`Diminuir quantidade de ${item.name}`}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: -1 })}>
                       <Minus className="h-4 w-4" />
                     </Button>
                     <span className="text-xl font-bold w-12 text-center">{Number(item.quantity)}</span>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: 1 })} aria-label={`Aumentar quantidade de ${item.name}`}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQty.mutate({ id: item.id, delta: 1 })}>
                       <PlusCircle className="h-4 w-4" />
                     </Button>
                     <span className="text-xs text-muted-foreground">{item.unit}</span>

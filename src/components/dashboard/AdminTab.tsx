@@ -20,13 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AdminFinancialSummary } from "./AdminFinancialSummary";
 import { DebtSimplificationModal } from "./DebtSimplificationModal";
-import type { AdminTabProps, AdminMember, P2PMatrixEntry } from "@/types/admin";
-
-type ProcessedP2PMember = AdminMember & {
-  debts: { user: { id: string; full_name: string | null; avatar_url: string | null }; amount: number }[];
-  credits: { user: { id: string; full_name: string | null; avatar_url: string | null }; amount: number }[];
-  netBalance: number;
-};
+import type { AdminTabProps } from "@/types/admin";
 
 export function AdminTab(props: AdminTabProps) {
   const { modoGestao } = props;
@@ -50,19 +44,15 @@ function P2PAdminTab({
   const [hoveredSegmentLabel, setHoveredSegmentLabel] = useState<string | null>(null);
 
   const processedMembers = useMemo(() => {
-    const memberMap = new Map<string, ProcessedP2PMember>();
-    members.forEach(m => {
-      memberMap.set(m.user_id, { ...m, debts: [], credits: [], netBalance: 0 });
-    });
-
+    const memberMap = new Map(members.map(m => [m.user_id, { ...m, debts: [], credits: [], netBalance: 0 }]));
     p2pMatrix.forEach(entry => {
       const fromMember = memberMap.get(entry.from_user_id);
       const toMember = memberMap.get(entry.to_user_id);
       if (!fromMember || !toMember) return;
       fromMember.netBalance -= entry.amount;
       toMember.netBalance += entry.amount;
-      const cleanToMember = { id: toMember.user_id, full_name: toMember.profile?.full_name ?? '', avatar_url: toMember.profile?.avatar_url ?? null };
-      const cleanFromMember = { id: fromMember.user_id, full_name: fromMember.profile?.full_name ?? '', avatar_url: fromMember.profile?.avatar_url ?? null };
+      const cleanToMember = { id: toMember.user_id, full_name: toMember.profile?.full_name, avatar_url: toMember.profile?.avatar_url };
+      const cleanFromMember = { id: fromMember.user_id, full_name: fromMember.profile?.full_name, avatar_url: fromMember.profile?.avatar_url };
       fromMember.debts.push({ user: cleanToMember, amount: entry.amount });
       toMember.credits.push({ user: cleanFromMember, amount: entry.amount });
     });
@@ -102,7 +92,7 @@ function P2PAdminTab({
         <Card className="md:col-span-6 lg:col-span-6"><CardHeader className="flex flex-row items-center justify-between pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4" /> Últimas Despesas</CardTitle><Button variant="ghost" size="sm" className="h-7 text-xs" asChild><Link to="/expenses">Ver todas</Link></Button></CardHeader><CardContent className="p-0"><ScrollArea className="h-[250px] pr-2 px-2"><div className="space-y-1">{recentExpenses.length === 0 ? (<p className="text-sm text-muted-foreground text-center py-6">Nenhuma despesa registrada.</p>) : (recentExpenses.map(expense => (<div key={expense.id} className="flex items-center justify-between py-2.5 px-3 group hover:bg-muted/50 rounded-md transition-colors"><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0"><Receipt className="h-3.5 w-3.5" /></div><div className="min-w-0"><p className="text-sm font-medium leading-none truncate max-w-[120px]">{expense.title}</p><p className="text-xs text-muted-foreground mt-1 truncate">{getCategoryLabel(expense.category)} • {format(parseLocalDate(expense.purchase_date), "dd MMM", { locale: ptBR })}</p></div></div><span className="text-sm font-semibold tabular-nums flex-shrink-0 ml-3">R$ {Number(expense.amount).toFixed(2)}</span></div>)))}</div></ScrollArea></CardContent></Card>
       </div>
       <Dialog open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)}><DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh]"><DialogHeader className="px-5 pt-5 pb-4 shrink-0 border-b"><DialogTitle className="text-lg font-semibold text-foreground">Auditoria P2P</DialogTitle><p className="text-sm text-muted-foreground mt-0.5 capitalize">{selectedMember?.profile?.full_name}</p></DialogHeader><div className="px-5 py-3 bg-muted/10 grid grid-cols-2 gap-4 border-b shrink-0"><div><p className="text-xs text-muted-foreground uppercase tracking-wider">Saldo Líquido</p><p className={`text-lg font-semibold tabular-nums ${getBalanceStyle(selectedMember?.netBalance ?? 0).className}`}>R$ {(selectedMember?.netBalance ?? 0).toFixed(2)}</p></div></div><div className="flex-1 overflow-y-auto bg-muted/5 divide-y divide-border/50"><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-destructive flex items-center gap-2"><ArrowUpRight className="h-4 w-4" />Dívidas com outros membros</h3>{selectedMember?.debts.length === 0 ? (<p className="text-sm text-muted-foreground">Sem dívidas com outros membros.</p>) : (<div className="space-y-2">{selectedMember?.debts.map((debt: any) => (<div key={debt.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={debt.user.avatar_url} /><AvatarFallback>{debt.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{debt.user.full_name}</span></div><span className="text-sm font-semibold text-destructive">R$ {debt.amount.toFixed(2)}</span></div>))}</div>)}</div><div className="px-5 py-4 space-y-3"><h3 className="text-sm font-medium text-success flex items-center gap-2"><ArrowDownLeft className="h-4 w-4" />Créditos com outros membros</h3>{selectedMember?.credits.length === 0 ? (<p className="text-sm text-muted-foreground">Nenhum membro te deve.</p>) : (<div className="space-y-2">{selectedMember?.credits.map((credit: any) => (<div key={credit.user.id} className="flex items-center justify-between p-2 rounded-md bg-background"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={credit.user.avatar_url} /><AvatarFallback>{credit.user.full_name.charAt(0)}</AvatarFallback></Avatar><span className="text-sm font-medium">{credit.user.full_name}</span></div><span className="text-sm font-semibold text-success">R$ {credit.amount.toFixed(2)}</span></div>))}</div>)}</div></div></DialogContent></Dialog>
-      {isSimplifyModalOpen && (<DebtSimplificationModal open={isSimplifyModalOpen} onOpenChange={setIsSimplifyModalOpen} groupId={groupId} members={members.map(m => ({ profile: m.profile! }))}/>)}
+      {isSimplifyModalOpen && (<DebtSimplificationModal open={isSimplifyModalOpen} onOpenChange={setIsSimplifyModalOpen} groupId={groupId} members={members.map(m => ({ profile: m.profile }))}/>)}
     </div>
   );
 }
@@ -124,13 +114,13 @@ function CentralizedAdminTab(props: AdminTabProps) {
 
   const selectedMemberPreviousSplits = useMemo(() => {
     if (!selectedMemberId || !pendingSplits) return [];
-    return pendingSplits.filter((s) => s.user_id === selectedMemberId && s.expenses?.competence_key !== currentCompetenceKey).sort((a, b) => (b.expenses?.competence_key || "").localeCompare(a.expenses?.competence_key || ""));
+    return pendingSplits.filter((s: any) => s.user_id === selectedMemberId && s.expenses?.competence_key !== currentCompetenceKey).sort((a: any, b: any) => (b.expenses?.competence_key || "").localeCompare(a.expenses?.competence_key || ""));
   }, [currentCompetenceKey, pendingSplits, selectedMemberId]);
 
   const selectedPreviousByCompetence = useMemo(() => {
     const selectedMemberPayments = selectedMemberId ? (memberPaymentsByCompetence[selectedMemberId] || {}) : {};
     const groups: Record<string, any[]> = {};
-    selectedMemberPreviousSplits.forEach((split) => {
+    selectedMemberPreviousSplits.forEach((split: any) => {
       const key = split.expenses?.competence_key || "sem-competencia";
       groups[key] = groups[key] || [];
       groups[key].push(split);
@@ -143,7 +133,7 @@ function CentralizedAdminTab(props: AdminTabProps) {
         totalPaidFromPayments: Number(selectedMemberPayments[competenceKey] || 0),
       })).map((group) => {
         const totalPaid = Math.max(group.totalPaidFromSplits, group.totalPaidFromPayments);
-        return { ...group, totalPaid, totalPending: Math.max(group.totalCompetence - totalPaid, 0), pendingItems: group.items.filter((split) => split.status !== "paid") };
+        return { ...group, totalPaid, totalPending: Math.max(group.totalCompetence - totalPaid, 0), pendingItems: group.items.filter((split: any) => split.status !== "paid") };
       }).filter((group) => group.totalPending > 0.05).sort((a, b) => b.competenceKey.localeCompare(a.competenceKey));
     if (grouped.length > 0) return grouped;
     if (Number(selectedMember?.previous_debt || 0) > 0.05) {
