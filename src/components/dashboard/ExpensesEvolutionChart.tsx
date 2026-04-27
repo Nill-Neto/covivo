@@ -23,13 +23,13 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
   );
 
   const { data: evolutionData, isLoading } = useQuery({
-    queryKey: ["expenses-evolution-detailed", user?.id, membership?.group_id, monthsCount, currentDate.toISOString()],
+    queryKey: ["expenses-evolution-v4", user?.id, membership?.group_id, monthsCount, currentDate.toISOString()],
     queryFn: async () => {
       if (!user?.id || !membership?.group_id) return [];
 
       const competenceKeys = lastMonths.map(date => format(date, "yyyy-MM"));
-      const monthFilters = lastMonths
-        .map(date => `and(competence_year.eq.${date.getFullYear()},competence_month.eq.${date.getMonth() + 1})`)
+      const billMonthFilters = lastMonths
+        .map(date => `and(bill_year.eq.${date.getFullYear()},bill_month.eq.${date.getMonth() + 1})`)
         .join(',');
 
       const [
@@ -47,16 +47,16 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
           .in("competence_key", competenceKeys),
         supabase
           .from("personal_expense_installments")
-          .select("amount, competence_year, competence_month")
+          .select("amount, bill_year, bill_month")
           .eq("user_id", user.id)
-          .or(monthFilters),
+          .or(billMonthFilters),
         supabase
           .from("expense_installments")
-          .select("amount, competence_year, competence_month, expenses!inner(group_id, expense_type)")
+          .select("amount, bill_year, bill_month, expenses!inner(group_id, expense_type)")
           .eq("user_id", user.id)
           .eq("expenses.group_id", membership.group_id)
           .eq("expenses.expense_type", "individual")
-          .or(monthFilters),
+          .or(billMonthFilters),
         supabase
           .from("expenses")
           .select("amount, competence_key, expense_splits(user_id, amount)")
@@ -88,14 +88,14 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
       });
 
       personalInstallmentsRes.data?.forEach(inst => {
-        const key = `${inst.competence_year}-${String(inst.competence_month).padStart(2, '0')}`;
+        const key = `${inst.bill_year}-${String(inst.bill_month).padStart(2, '0')}`;
         if (totalsByCompetence[key]) {
           totalsByCompetence[key].meusGastosIndividuais += inst.amount;
         }
       });
 
       individualGroupInstallmentsRes.data?.forEach(inst => {
-        const key = `${inst.competence_year}-${String(inst.competence_month).padStart(2, '0')}`;
+        const key = `${inst.bill_year}-${String(inst.bill_month).padStart(2, '0')}`;
         if (totalsByCompetence[key]) {
           totalsByCompetence[key].meusGastosIndividuais += inst.amount;
         }
