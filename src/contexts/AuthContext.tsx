@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchMemberships = async (userId: string): Promise<GroupMembership[]> => {
     const { data, error } = await supabase
       .from("user_roles")
-      .select("role, group_id, groups!inner(name, avatar_url, modo_gestao)")
+      .select("role, group_id, groups!inner(name, modo_gestao)")
       .eq("user_id", userId);
 
     if (error) {
@@ -114,7 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: row.role as "admin" | "morador",
         group_name: groupData.name,
         group_modo_gestao: (groupData.modo_gestao ?? 'centralized') as "centralized" | "p2p",
-        avatar_url: groupData.avatar_url,
       };
     }).filter((m): m is GroupMembership => m !== null);
 
