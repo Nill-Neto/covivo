@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomLoader } from "../ui/custom-loader";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { formatCompetenceKey } from "@/lib/cycleDates";
+import { ExpensesEvolutionChart } from "./ExpensesEvolutionChart";
 
 type AdminDashboardData = {
   pending_payments_count: number;
@@ -143,6 +144,7 @@ export function PersonalTab({
   onPayRateio,
 }) {
   const { isAdmin } = useAuth();
+  const totalPersonalExpenses = personalChartData.reduce((sum, item) => sum + item.value, 0);
 
   if (isAdmin && modoGestao === 'centralized') {
     return <AdminDashboard />;
@@ -341,7 +343,7 @@ export function PersonalTab({
             <CardDescription>Visão geral das suas despesas individuais na competência.</CardDescription>
           </CardHeader>
           <CardContent>
-            <PersonalExpensesChart data={personalChartData} />
+            <PersonalExpensesChart data={personalChartData} total={totalPersonalExpenses} />
           </CardContent>
         </Card>
         <Card>
@@ -352,10 +354,12 @@ export function PersonalTab({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RepublicChart data={republicChartData} />
+            <RepublicChart data={republicChartData} total={totalMonthExpenses} />
           </CardContent>
         </Card>
       </div>
+
+      <ExpensesEvolutionChart />
     </ScrollReveal>
   );
 }
