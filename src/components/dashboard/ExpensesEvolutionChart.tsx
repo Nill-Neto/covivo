@@ -2,13 +2,12 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { subMonths, format, startOfMonth, endOfMonth } from "date-fns";
+import { subMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomLoader } from "@/components/ui/custom-loader";
-import { parseLocalDate } from "@/lib/utils";
 
 interface ExpensesEvolutionChartProps {
   currentDate: Date;
@@ -28,13 +27,15 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
     queryFn: async () => {
       if (!user?.id || !membership?.group_id) return [];
 
-      const startDate = format(startOfMonth(subMonths(currentDate, monthsCount - 1)), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(currentDate), "yyyy-MM-dd");
+      const competenceKeys = lastMonths.map((date) => format(date, "yyyy-MM"));
+      const monthFilters = lastMonths
+        .map((date) => `and(competence_year.eq.${date.getFullYear()},competence_month.eq.${date.getMonth() + 1})`)
+        .join(",");
 
       const [personalRes, mySplitRes, houseCollectiveRes] = await Promise.all([
         supabase
           .from("expenses")
-          .select("amount, purchase_date")
+          .select("amount, competence_key")
           .eq("created_by", user.id)
           .eq("expense_type", "individual")
           .eq("group_id", membership.group_id)
@@ -67,8 +68,8 @@ export function ExpensesEvolutionChart({ currentDate }: ExpensesEvolutionChartPr
         totalsByMonth[key] = { personal: 0, myCollective: 0, houseCollective: 0 };
       });
 
-      personalRes.data?.forEach(expense => {
-        const key = format(parseLocalDate(expense.purchase_date), "yyyy-MM");
+      cashIndividualRes.data?.forEach(expense => {
+        const key = expense.competence_key;
         if (totalsByMonth[key]) {
           totalsByMonth[key].personal += expense.amount;
         }
