@@ -116,9 +116,6 @@ export default function RecurringExpenses() {
         }),
       ]);
 
-      if (membersError) throw membersError;
-      if (profilesError) throw profilesError;
-
       const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
       return (members ?? []).map((member) => {
         const profile = profileMap.get(member.user_id);
@@ -294,7 +291,7 @@ export default function RecurringExpenses() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recurring-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
       toast({ title: "Recorrência excluída." });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
@@ -327,7 +324,6 @@ export default function RecurringExpenses() {
         _installments: 1,
         _purchase_date: rec.next_due_date || null,
         _participant_user_ids: rec.participant_user_ids || null,
-        _payer_id: rec.created_by,
       });
 
       if (error) throw error;
