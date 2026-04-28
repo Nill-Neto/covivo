@@ -125,6 +125,7 @@ export default function Expenses() {
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
@@ -139,12 +140,6 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-
-  const [generateConfig, setGenerateConfig] = useState<{ open: boolean; rec: any | null; amount: string }>({
-    open: false,
-    rec: null,
-    amount: "",
-  });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
@@ -367,13 +362,30 @@ export default function Expenses() {
     return total / count;
   }, [amount, effectiveParticipantIds.length]);
 
+  const payerLabel = useMemo(() => {
+    if (payerUserId === "me") return "Você";
+    return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
+  }, [payerUserId, participantOptions]);
+
   const instantSummary = useMemo(() => {
     if (expenseType !== "collective" || perPersonQuota <= 0) {
       return null;
     }
 
-    const actualPayerId = user?.id;
+    const payerName = participantOptions.find((p) => p.id === payerUserId)?.name || "um participante";
+    const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
 
+    if (statusWithProvider === 'pending') {
+        const numParticipants = effectiveParticipantIds.length;
+        if (numParticipants === 0) return null;
+        return (
+            <p>
+                Quando a conta for paga, cada um dos {numParticipants} participantes deverá <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong>.
+            </p>
+        );
+    }
+
+    // Logic for 'paid' status
     if (actualPayerId === user?.id) {
       if (!editingId) {
         // New expense
@@ -422,9 +434,10 @@ export default function Expenses() {
             .map((s) => participantOptions.find((p) => p.id === s.user_id)?.name)
             .filter(Boolean);
           if (names.length > 0) {
+            const verb = names.length > 1 ? "devem" : "deve";
             summaryElements.push(
               <p key="pending">
-                {names.join(", ")} te {names.length > 1 ? "devem" : "deve"}{" "}
+                {names.join(", ")} te {verb}{" "}
                 <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong>
                 {names.length > 1 ? " cada" : ""}.
               </p>
@@ -433,11 +446,58 @@ export default function Expenses() {
         }
         return <div className="space-y-1">{summaryElements}</div>;
       }
+    } else {
+      // Scenario 2: Another member is the payer
+      if (!editingId) {
+        // New expense
+        if (!effectiveParticipantIds.includes(user?.id ?? "")) {
+          return <p>Você não participa do rateio desta despesa.</p>;
+        }
+        if (isPaid) {
+          return (
+            <p>
+              Você será marcado como tendo pago{" "}
+              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+            </p>
+          );
+        }
+        return (
+          <p>
+            Você deve <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+          </p>
+        );
+      } else {
+        // Editing an existing expense
+        const expense = allExpenses.find((e) => e.id === editingId);
+        if (!expense || !expense.expense_splits) return null;
+
+        const mySplit = expense.expense_splits.find((s) => s.user_id === user?.id);
+        if (!mySplit) {
+          return <p>Você não participa desta despesa.</p>;
+        }
+
+        if (mySplit.status === "paid") {
+          return (
+            <p>
+              Você pagou <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        } else {
+          return (
+            <p>
+              Você deve <strong className="text-primary">R$ {Number(mySplit.amount).toFixed(2)}</strong> para{" "}
+              {payerName}.
+            </p>
+          );
+        }
+      }
     }
   }, [
     statusWithProvider,
     expenseType,
     perPersonQuota,
+    payerUserId,
     user?.id,
     editingId,
     isPaid,
@@ -647,6 +707,7 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
+          _payer_id: payerUserId === 'me' ? user!.id : payerUserId,
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
@@ -741,6 +802,7 @@ export default function Expenses() {
     setIsPaid(false);
     setStatusWithProvider("pending");
     setSplitMode("all");
+    setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
     setReceiptFile(null);
     setReceiptUrl(null);
@@ -764,6 +826,7 @@ export default function Expenses() {
     setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
     setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
     setReceiptUrl(expense.receipt_url || null);
+    setPayerUserId(expense.created_by || "me");
 
     const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
     if (expense.expense_type === "collective" && currentSplitIds.length > 0) {
@@ -957,15 +1020,6 @@ export default function Expenses() {
     });
   };
 
-  const toggleActive = async (id: string, active: boolean) => {
-    const { error } = await supabase.from("recurring_expenses").update({ active: !active }).eq("id", id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["recurring"] });
-    }
-  };
-
   if (loadingExpenses || loadingRecurring || loading) {
     return (
       <div className="flex justify-center py-12">
@@ -1125,20 +1179,20 @@ export default function Expenses() {
                             </SelectContent>
                           </Select>
                         </div>
-                        {paymentMethod === "credit_card" ? (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">Cartão</Label>
-                            <Select value={creditCardId} onValueChange={setCreditCardId}>
-                              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                              <SelectContent>
-                                {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
-                                {cards.map((c: any) => (
-                                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ) : null}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Quem pagou</Label>
+                          <Select value={payerUserId} onValueChange={setPayerUserId}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="me">Você</SelectItem>
+                              {participantOptions.map((participant) => (
+                                <SelectItem key={participant.id} value={participant.id}>
+                                  {participant.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
@@ -1179,13 +1233,27 @@ export default function Expenses() {
                       )}
 
                       {paymentMethod === "credit_card" && (
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Parcelas</Label>
-                          <div className="flex items-center gap-2">
-                            <Input type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} className="w-24" />
-                            <span className="text-sm text-muted-foreground">
-                              x de R$ {(Number(amount) / (parseInt(installments) || 1)).toFixed(2)}
-                            </span>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Cartão</Label>
+                            <Select value={creditCardId} onValueChange={setCreditCardId}>
+                              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                              <SelectContent>
+                                {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                                {cards.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Parcelas</Label>
+                            <div className="flex items-center gap-2">
+                              <Input type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} className="w-24" />
+                              <span className="text-sm text-muted-foreground">
+                                x de R$ {(Number(amount) / (parseInt(installments) || 1)).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1529,16 +1597,7 @@ export default function Expenses() {
 
         {!finalRecurring?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
         {finalRecurring?.map((r) => (
-          <RecurringCard
-            key={r.id}
-            recurring={r}
-            isAdmin={isAdmin}
-            userId={user?.id}
-            onEdit={() => openEditRecurring(r)}
-            onDelete={() => deleteRecurring.mutate(r.id)}
-            onGenerateNow={() => setGenerateConfig({ open: true, rec: r, amount: String(r.amount) })}
-            onToggleActive={() => toggleActive(r.id, r.active)}
-          />
+          <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />
         ))}
       </TabsContent>
     </div>
@@ -1655,7 +1714,7 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
   );
 }
 
-function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete, onGenerateNow, onToggleActive }: { recurring: RecurringExpenseRow, isAdmin: boolean, userId?: string, onEdit: () => void, onDelete: () => void, onGenerateNow: () => void, onToggleActive: () => void }) {
+function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recurring: RecurringExpenseRow, isAdmin: boolean, userId?: string, onEdit: () => void, onDelete: () => void }) {
   const catLabel = CATEGORIES.find((c) => c.value === recurring.category)?.label ?? recurring.category;
   const canManage = isAdmin || recurring.created_by === userId;
 
@@ -1674,56 +1733,42 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete, onGenerat
                 {recurring.active ? "Ativa" : "Pausada"}
               </Badge>
             </div>
-            {recurring.description && <p className="text-xs text-muted-foreground mt-1">{recurring.description}</p>}
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              Próximo: {format(new Date(recurring.next_due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+            <p className="text-xs text-muted-foreground mt-1">
+              Próximo vencimento: {format(parseLocalDate(recurring.next_due_date), "dd/MM/yyyy", { locale: ptBR })}
             </p>
           </div>
           <div className="text-right shrink-0 flex flex-col items-end gap-2">
             <p className="text-lg font-bold">R$ {Number(recurring.amount).toFixed(2)}</p>
-            {(isAdmin || recurring.created_by === userId) && (
-              <div className="flex items-center gap-1 mt-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} title="Editar">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Excluir">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir recorrência?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja excluir "{recurring.title}"? Novas despesas não serão geradas automaticamente.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <div className="w-px h-4 bg-border mx-1" />
-                
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  className="h-8 w-8" 
-                  title="Gerar agora"
-                  onClick={onGenerateNow}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-
-                <Switch checked={recurring.active} onCheckedChange={onToggleActive} className="ml-1" />
-              </div>
-            )}
+            <p className="text-[10px] text-muted-foreground uppercase">Mensal</p>
           </div>
+          {canManage && (
+            <div className="flex items-center gap-1 mt-1">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar recorrência">
+                <Edit className="h-4 w-4" />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir recorrência">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir recorrência?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir "{recurring.title}"? Novas despesas não serão geradas automaticamente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
