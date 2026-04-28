@@ -555,9 +555,12 @@ export default function Expenses() {
 
   const createOrUpdateExpense = useMutation({
     mutationFn: async () => {
+      if (!user || !membership) {
+        throw new Error("Sessão inválida. Por favor, faça login novamente.");
+      }
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
-      const actualPayerId = payerUserId === "me" ? user!.id : payerUserId;
+      const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
   
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
@@ -579,7 +582,7 @@ export default function Expenses() {
   
       if (receiptFile) {
         const ext = receiptFile.name.split(".").pop() ?? "jpg";
-        const path = `${user!.id}/${Date.now()}_expense.${ext}`;
+        const path = `${user.id}/${Date.now()}_expense.${ext}`;
         const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receiptFile);
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
@@ -667,7 +670,7 @@ export default function Expenses() {
               const installDate = new Date(billBase);
               installDate.setMonth(installDate.getMonth() + (i - 1));
               installmentRows.push({
-                user_id: user!.id,
+                user_id: user.id,
                 expense_id: editingId,
                 installment_number: i,
                 amount: perInstallment,
@@ -689,7 +692,7 @@ export default function Expenses() {
         );
   
         const baseCreateExpenseArgs = {
-          _group_id: membership!.group_id,
+          _group_id: membership.group_id,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
@@ -744,8 +747,8 @@ export default function Expenses() {
           nextMonthDate.setDate(day);
   
           await supabase.from("recurring_expenses").insert({
-            group_id: membership!.group_id,
-            created_by: user!.id,
+            group_id: membership.group_id,
+            created_by: user.id,
             title: title.trim(),
             description: description.trim() || null,
             amount: parseFloat(amount),
@@ -1049,6 +1052,7 @@ export default function Expenses() {
         icon={<Receipt className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            {/* Month Selector */}
             <div className="flex h-10 w-full sm:w-auto items-center justify-between rounded-lg border bg-card p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
