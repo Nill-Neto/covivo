@@ -1150,6 +1150,18 @@ export default function Expenses() {
                         Paga
                       </Button>
                     </div>
+                    
+                    {statusWithProvider === 'paid' && paymentMethod !== "credit_card" && !editingId && (
+                      <div className="pt-3 border-t space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
+                          <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago</Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-11">
+                          Ative se os participantes já te reembolsaram. Isso marcará a parte de todos como 'paga' no sistema.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {statusWithProvider === 'paid' && (
