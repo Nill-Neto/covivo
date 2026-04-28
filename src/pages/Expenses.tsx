@@ -385,7 +385,7 @@ export default function Expenses() {
           return <p>Você está pagando a despesa inteira.</p>;
         }
   
-        if (paidParticipantIds.length === 0) {
+        if (!isPaid || paidParticipantIds.length === 0) {
           return (
             <p>
               Você receberá{" "}
@@ -457,6 +457,14 @@ export default function Expenses() {
         if (!effectiveParticipantIds.includes(user?.id ?? "")) {
           return <p>Você não participa do rateio desta despesa.</p>;
         }
+        if (isPaid) {
+          return (
+            <p>
+              Você será marcado como tendo pago{" "}
+              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+            </p>
+          );
+        }
         return (
           <p>
             Você deve <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
@@ -494,6 +502,7 @@ export default function Expenses() {
     payerUserId,
     user?.id,
     editingId,
+    isPaid,
     effectiveParticipantIds,
     allExpenses,
     participantOptions,
@@ -1296,7 +1305,7 @@ export default function Expenses() {
                             Ative para registrar quem já te reembolsou por esta despesa.
                           </p>
                           {isPaid && (
-                            <div className="pl-11 space-y-3 animate-accordion-down">
+                            <div className="pl-11 space-y-3">
                               <Label className="font-medium">Quem já pagou?</Label>
                               <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto bg-background">
                                 {participantsToPay.length > 1 && (
