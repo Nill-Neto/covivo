@@ -705,7 +705,7 @@ export default function Expenses() {
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
-          "v2_create_expense_with_splits",
+          "v2_create_expense_with_splits" as any,
           {
             ...baseCreateExpenseArgs,
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
