@@ -121,7 +121,6 @@ export default function Expenses() {
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<ExpenseRow | null>(null);
   const [editConfirmExpense, setEditConfirmExpense] = useState<ExpenseRow | null>(null);
 
-  const [isPaid, setIsPaid] = useState(false);
   const [paidParticipantIds, setPaidParticipantIds] = useState<string[]>([]);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
@@ -368,64 +367,46 @@ export default function Expenses() {
     return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
   }, [payerUserId, participantOptions]);
 
-  const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
-  const participantsToPay = participantOptions.filter(p => effectiveParticipantIds.includes(p.id) && p.id !== actualPayerId);
-
   const instantSummary = useMemo(() => {
     if (expenseType !== "collective" || perPersonQuota <= 0) {
       return null;
     }
-  
+
     const payerName = participantOptions.find((p) => p.id === payerUserId)?.name || "um participante";
-  
+    const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
+
+    // Scenario 1: Current user is the payer
     if (actualPayerId === user?.id) {
       if (!editingId) {
-        const otherParticipantsCount = participantsToPay.length;
+        // New expense
+        const otherParticipantsCount = effectiveParticipantIds.length - 1;
         if (otherParticipantsCount <= 0) {
           return <p>Você está pagando a despesa inteira.</p>;
         }
-  
-        if (paidParticipantIds.length === 0) {
-          return (
-            <p>
-              Você receberá{" "}
-              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> de cada um dos{" "}
-              {otherParticipantsCount} participantes.
-            </p>
-          );
-        }
-  
-        const paidNames = paidParticipantIds
-          .map(id => participantOptions.find(p => p.id === id)?.name)
-          .filter(Boolean);
-        
-        const unpaidCount = otherParticipantsCount - paidParticipantIds.length;
-  
-        const summaryElements = [];
-        if (paidNames.length > 0) {
-          summaryElements.push(<p key="paid">Você já recebeu de {paidNames.join(', ')}.</p>);
-        }
-        if (unpaidCount > 0) {
-          summaryElements.push(<p key="unpaid">Ainda falta receber de {unpaidCount} participante(s).</p>);
-        }
-  
-        return <div className="space-y-1">{summaryElements}</div>;
+        return (
+          <p>
+            Você receberá{" "}
+            <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> de cada um dos{" "}
+            {otherParticipantsCount} outros participantes.
+          </p>
+        );
       } else {
+        // Editing an existing expense
         const expense = allExpenses.find((e) => e.id === editingId);
         if (!expense || !expense.expense_splits) return null;
-  
+
         const otherSplits = expense.expense_splits.filter((s) => s.user_id !== user?.id);
         if (otherSplits.length === 0) {
           return <p>Você está pagando a despesa inteira.</p>;
         }
-  
+
         const paid = otherSplits.filter((s) => s.status === "paid");
         const pending = otherSplits.filter((s) => s.status === "pending");
-  
+
         if (pending.length === 0) {
           return <p>Todos os participantes já te reembolsaram.</p>;
         }
-  
+
         const summaryElements = [];
         if (paid.length > 0) {
           const names = paid
@@ -453,7 +434,9 @@ export default function Expenses() {
         return <div className="space-y-1">{summaryElements}</div>;
       }
     } else {
+      // Scenario 2: Another member is the payer
       if (!editingId) {
+        // New expense
         if (!effectiveParticipantIds.includes(user?.id ?? "")) {
           return <p>Você não participa do rateio desta despesa.</p>;
         }
@@ -463,14 +446,15 @@ export default function Expenses() {
           </p>
         );
       } else {
+        // Editing an existing expense
         const expense = allExpenses.find((e) => e.id === editingId);
         if (!expense || !expense.expense_splits) return null;
-  
+
         const mySplit = expense.expense_splits.find((s) => s.user_id === user?.id);
         if (!mySplit) {
           return <p>Você não participa desta despesa.</p>;
         }
-  
+
         if (mySplit.status === "paid") {
           return (
             <p>
@@ -497,8 +481,6 @@ export default function Expenses() {
     effectiveParticipantIds,
     allExpenses,
     participantOptions,
-    paidParticipantIds,
-    participantsToPay,
   ]);
 
   const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[], credorId: string) => {
@@ -800,7 +782,6 @@ export default function Expenses() {
     setInstallments("1");
     setIsRecurring(false);
     setRecurrenceDay("5");
-    setIsPaid(false);
     setPaidParticipantIds([]);
     setStatusWithProvider("pending");
     setSplitMode("all");
@@ -1044,6 +1025,9 @@ export default function Expenses() {
     </TabsList>
   );
 
+  const actualPayerId = payerUserId === "me" ? user?.id : payerUserId;
+  const participantsToPay = participantOptions.filter(p => effectiveParticipantIds.includes(p.id) && p.id !== actualPayerId);
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
     <div className="space-y-4">
@@ -1286,53 +1270,45 @@ export default function Expenses() {
                           </div>
                         </div>
                       )}
-                      {statusWithProvider === 'paid' && paymentMethod !== "credit_card" && !editingId && expenseType === 'collective' && payerUserId === 'me' && (
+                      {statusWithProvider === 'paid' && paymentMethod !== "credit_card" && !editingId && expenseType === 'collective' && (
                         <div className="pt-3 border-t space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
-                            <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago</Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground pl-11">
-                            Ative para registrar quem já te reembolsou por esta despesa.
-                          </p>
-                          {isPaid && (
-                            <div className="pl-11 space-y-3 animate-accordion-down">
-                              <Label className="font-medium">Quem já pagou?</Label>
-                              <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto bg-background">
-                                {participantsToPay.length > 1 && (
-                                  <div className="flex items-center gap-2 pb-2 border-b mb-2">
-                                    <Checkbox
-                                      id="paid-all"
-                                      checked={paidParticipantIds.length === participantsToPay.length}
-                                      onCheckedChange={(checked) => {
-                                        setPaidParticipantIds(checked ? participantsToPay.map(p => p.id) : []);
-                                      }}
-                                    />
-                                    <Label htmlFor="paid-all" className="font-semibold">Marcar todos</Label>
-                                  </div>
-                                )}
-                                {participantsToPay.map(participant => (
-                                  <div key={participant.id} className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={`paid-${participant.id}`}
-                                      checked={paidParticipantIds.includes(participant.id)}
-                                      onCheckedChange={() => {
-                                        setPaidParticipantIds(prev => 
-                                          prev.includes(participant.id) 
-                                            ? prev.filter(id => id !== participant.id) 
-                                            : [...prev, participant.id]
-                                        );
-                                      }}
-                                    />
-                                    <Label htmlFor={`paid-${participant.id}`} className="font-normal">{participant.name}</Label>
-                                  </div>
-                                ))}
-                                {participantsToPay.length === 0 && (
-                                  <p className="text-xs text-muted-foreground text-center py-2">Nenhum outro participante no rateio.</p>
-                                )}
+                          <Label className="font-medium">Marcar quem já te pagou</Label>
+                          <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto">
+                            {participantsToPay.length > 1 && (
+                              <div className="flex items-center gap-2 pb-2 border-b mb-2">
+                                <Checkbox
+                                  id="paid-all"
+                                  checked={paidParticipantIds.length === participantsToPay.length}
+                                  onCheckedChange={(checked) => {
+                                    setPaidParticipantIds(checked ? participantsToPay.map(p => p.id) : []);
+                                  }}
+                                />
+                                <Label htmlFor="paid-all" className="font-semibold">Marcar todos</Label>
                               </div>
-                            </div>
-                          )}
+                            )}
+                            {participantsToPay.map(participant => (
+                              <div key={participant.id} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`paid-${participant.id}`}
+                                  checked={paidParticipantIds.includes(participant.id)}
+                                  onCheckedChange={() => {
+                                    setPaidParticipantIds(prev => 
+                                      prev.includes(participant.id) 
+                                        ? prev.filter(id => id !== participant.id) 
+                                        : [...prev, participant.id]
+                                    );
+                                  }}
+                                />
+                                <Label htmlFor={`paid-${participant.id}`} className="font-normal">{participant.name}</Label>
+                              </div>
+                            ))}
+                            {participantsToPay.length === 0 && (
+                              <p className="text-xs text-muted-foreground text-center py-2">Nenhum outro participante no rateio.</p>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Selecione os participantes que já te reembolsaram por esta despesa.
+                          </p>
                         </div>
                       )}
                     </div>
