@@ -1,5 +1,4 @@
--- Recreate the function with an explicit _created_by parameter and a new name to avoid conflicts
-CREATE OR REPLACE FUNCTION public.v2_create_expense_with_splits(
+CREATE OR REPLACE FUNCTION public.create_expense_with_splits_v2(
   _group_id uuid,
   _created_by uuid,
   _title text,
@@ -24,7 +23,7 @@ SET search_path TO 'public'
 AS $$
 DECLARE
   _expense_id uuid;
-  _caller_id uuid := COALESCE(_created_by, auth.uid());
+  _caller_id uuid := _created_by;
   _member record;
   _participant_id uuid;
   _member_count int;

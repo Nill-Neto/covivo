@@ -495,7 +495,7 @@ export default function Expenses() {
     participantOptions,
   ]);
 
-  const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[]) => {
+  const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[], credorId: string) => {
     const uniqueParticipantIds = Array.from(new Set(participantIds));
     if (uniqueParticipantIds.length === 0) {
       throw new Error("Selecione pelo menos 1 participante para o rateio manual.");
@@ -535,6 +535,7 @@ export default function Expenses() {
           user_id: userId,
           amount: splitAmount,
           status: "pending",
+          credor_user_id: credorId,
         });
         if (insertErr) throw insertErr;
       }
@@ -554,8 +555,12 @@ export default function Expenses() {
 
   const createOrUpdateExpense = useMutation({
     mutationFn: async () => {
+      if (!user || !membership) {
+        throw new Error("Sessão inválida. Por favor, faça login novamente.");
+      }
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
+      const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
   
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
@@ -577,7 +582,7 @@ export default function Expenses() {
   
       if (receiptFile) {
         const ext = receiptFile.name.split(".").pop() ?? "jpg";
-        const path = `${user!.id}/${Date.now()}_expense.${ext}`;
+        const path = `${user.id}/${Date.now()}_expense.${ext}`;
         const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receiptFile);
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
@@ -665,7 +670,7 @@ export default function Expenses() {
               const installDate = new Date(billBase);
               installDate.setMonth(installDate.getMonth() + (i - 1));
               installmentRows.push({
-                user_id: user!.id,
+                user_id: user.id,
                 expense_id: editingId,
                 installment_number: i,
                 amount: perInstallment,
@@ -678,14 +683,9 @@ export default function Expenses() {
         }
   
         if (expenseType === "collective" && splitMode === "manual") {
-          await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds);
+          await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds, actualPayerId);
         }
       } else {
-        const compKey = getCompetenceKeyFromDate(
-          new Date(`${dateValue}T12:00:00`), 
-          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
-        );
-  
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
           _created_by: user!.id,
@@ -705,7 +705,7 @@ export default function Expenses() {
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
-          "v2_create_expense_with_splits",
+          "create_expense_with_splits_v2",
           {
             ...baseCreateExpenseArgs,
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
@@ -726,7 +726,7 @@ export default function Expenses() {
         }
   
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
-          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds);
+          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds, actualPayerId);
         }
   
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
@@ -743,8 +743,8 @@ export default function Expenses() {
           nextMonthDate.setDate(day);
   
           await supabase.from("recurring_expenses").insert({
-            group_id: membership!.group_id,
-            created_by: user!.id,
+            group_id: membership.group_id,
+            created_by: user.id,
             title: title.trim(),
             description: description.trim() || null,
             amount: parseFloat(amount),
