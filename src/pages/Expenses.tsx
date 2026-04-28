@@ -705,7 +705,7 @@ export default function Expenses() {
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
-          "create_expense_with_splits_v2",
+          "v2_create_expense_with_splits",
           {
             ...baseCreateExpenseArgs,
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
@@ -726,7 +726,7 @@ export default function Expenses() {
         }
   
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
-          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds);
+          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds, actualPayerId);
         }
   
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
@@ -1764,7 +1764,5 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recur
         </div>
       </CardContent>
     </Card>
-  );
-}/Card>
   );
 }
