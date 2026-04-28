@@ -1,6 +1,6 @@
--- Drop the old function signature
+-- Drop the old function signature (with 15 parameters)
 DROP FUNCTION IF EXISTS public.create_expense_with_splits(
-    uuid, text, text, numeric, text, text, date, text, uuid, uuid, text, uuid, integer, date
+    uuid, text, text, numeric, text, text, date, text, uuid, uuid, text, uuid, integer, date, uuid[]
 );
 
 -- Create the new function with participant_user_ids and payer_id
