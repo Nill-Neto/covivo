@@ -3,6 +3,7 @@
 CREATE OR REPLACE FUNCTION public.create_expense_with_splits(
   _group_id uuid,
   _title text,
+  _payer_id uuid,
   _description text DEFAULT NULL::text,
   _amount numeric DEFAULT 0,
   _category text DEFAULT 'other'::text,
@@ -11,7 +12,6 @@ CREATE OR REPLACE FUNCTION public.create_expense_with_splits(
   _receipt_url text DEFAULT NULL::text,
   _recurring_expense_id uuid DEFAULT NULL::uuid,
   _target_user_id uuid DEFAULT NULL::uuid,
-  _payer_id uuid,
   _payment_method text DEFAULT 'cash'::text,
   _credit_card_id uuid DEFAULT NULL::uuid,
   _installments integer DEFAULT 1,
