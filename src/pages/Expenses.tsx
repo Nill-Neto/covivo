@@ -726,7 +726,7 @@ export default function Expenses() {
         }
   
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
-          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds, actualPayerId);
+          await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds);
         }
   
         if (isPaid && paymentMethod !== "credit_card" && newExpenseId) {
@@ -1764,5 +1764,7 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recur
         </div>
       </CardContent>
     </Card>
+  );
+}/Card>
   );
 }
