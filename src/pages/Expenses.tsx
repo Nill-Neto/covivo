@@ -499,7 +499,6 @@ export default function Expenses() {
     participantOptions,
     paidParticipantIds,
     participantsToPay,
-    actualPayerId,
   ]);
 
   const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[], credorId: string) => {
