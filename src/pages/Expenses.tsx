@@ -385,7 +385,7 @@ export default function Expenses() {
           return <p>Você está pagando a despesa inteira.</p>;
         }
   
-        if (!isPaid || paidParticipantIds.length === 0) {
+        if (paidParticipantIds.length === 0) {
           return (
             <p>
               Você receberá{" "}
@@ -494,12 +494,12 @@ export default function Expenses() {
     payerUserId,
     user?.id,
     editingId,
-    isPaid,
     effectiveParticipantIds,
     allExpenses,
     participantOptions,
     paidParticipantIds,
     participantsToPay,
+    actualPayerId,
   ]);
 
   const applyManualSplitSelection = async (expenseId: string, totalAmount: number, participantIds: string[], credorId: string) => {
@@ -1297,7 +1297,7 @@ export default function Expenses() {
                             Ative para registrar quem já te reembolsou por esta despesa.
                           </p>
                           {isPaid && (
-                            <div className="pl-11 space-y-3 animate-in fade-in duration-300">
+                            <div className="pl-11 space-y-3 animate-accordion-down">
                               <Label className="font-medium">Quem já pagou?</Label>
                               <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto bg-background">
                                 {participantsToPay.length > 1 && (
