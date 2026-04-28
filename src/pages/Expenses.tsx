@@ -686,13 +686,9 @@ export default function Expenses() {
           await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds, actualPayerId);
         }
       } else {
-        const compKey = getCompetenceKeyFromDate(
-          new Date(`${dateValue}T12:00:00`), 
-          finalCreditCardId && finalCreditCardId !== 'none' ? (cards.find(c => c.id === finalCreditCardId)?.closing_day || 1) : closingDay
-        );
-  
         const baseCreateExpenseArgs = {
-          _group_id: membership.group_id,
+          _group_id: membership!.group_id,
+          _created_by: user!.id,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
@@ -709,7 +705,7 @@ export default function Expenses() {
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
-          "create_expense_with_splits",
+          "create_expense_with_splits_v2",
           {
             ...baseCreateExpenseArgs,
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
@@ -1052,7 +1048,6 @@ export default function Expenses() {
         icon={<Receipt className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            {/* Month Selector */}
             <div className="flex h-10 w-full sm:w-auto items-center justify-between rounded-lg border bg-card p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
