@@ -57,11 +57,11 @@ begin
     raise exception 'Falha de identidade do usuário pagador (credor)';
   end if;
 
-  if _expense_type = 'collective' and not has_role_in_group(_caller_id, _group_id, 'admin') then
-    raise exception 'Apenas administradores podem criar despesas coletivas';
-  end if;
-
   if _expense_type = 'collective' then
+    if not has_role_in_group(_caller_id, _group_id, 'admin') then
+      raise exception 'Apenas administradores podem criar despesas coletivas';
+    end if;
+
     if array_length(_effective_participants, 1) is null then
       select array_agg(gm.user_id order by gm.user_id)
       into _effective_participants
