@@ -9,6 +9,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 import Login from "./pages/Login";
 import { ROUTE_ALIASES } from "@/config/branding";
@@ -183,58 +184,67 @@ const AppShell = () => {
     <div className="relative isolate min-h-screen overflow-hidden bg-white dark:bg-neutral-950">
       {showGlobalBackground && <BackgroundPathsLayer />}
       <div className="relative z-10">
-        <Suspense
-          fallback={
-            <div className="flex min-h-screen items-center justify-center">
-              <CustomLoader className="h-8 w-8 text-primary" />
-            </div>
-          }
-        >
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/invite" element={<AcceptInvite />} />
-            <Route path="/sidebar-demo" element={<SidebarDemoPage />} />
-            <Route path="/background-paths-demo" element={<BackgroundPathsDemoPage />} />
-            {ROUTE_ALIASES.map((alias) => (
+        <ErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center">
+                <CustomLoader className="h-8 w-8 text-primary" />
+              </div>
+            }
+          >
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/invite" element={<AcceptInvite />} />
+              
+              {/* Dev-only routes */}
+              {import.meta.env.DEV && (
+                <>
+                  <Route path="/sidebar-demo" element={<SidebarDemoPage />} />
+                  <Route path="/background-paths-demo" element={<BackgroundPathsDemoPage />} />
+                </>
+              )}
+
+              {ROUTE_ALIASES.map((alias) => (
+                <Route
+                  key={alias.from}
+                  path={alias.from}
+                  element={<Navigate to={alias.to} replace />}
+                />
+              ))}
+
+              {/* Authenticated routes */}
               <Route
-                key={alias.from}
-                path={alias.from}
-                element={<Navigate to={alias.to} replace />}
-              />
-            ))}
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard key="dashboard-general" />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/payments" element={<Payments />} />
+                <Route path="/recurring" element={<RecurringExpenses />} />
+                <Route path="/members" element={<Members />} />
+                <Route path="/invites" element={<Invites />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/shopping" element={<ShoppingLists />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<GroupSettings />} />
+                <Route path="/bulletin" element={<Bulletin />} />
+                <Route path="/rules" element={<HouseRules />} />
+                <Route path="/polls" element={<Polls />} />
+                <Route path="/audit-log" element={<AuditLog />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/groups/new" element={<NewGroup />} />
+              </Route>
 
-            {/* Authenticated routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<Dashboard key="dashboard-general" />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/payments" element={<Payments />} />
-              <Route path="/recurring" element={<RecurringExpenses />} />
-              <Route path="/members" element={<Members />} />
-              <Route path="/invites" element={<Invites />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/shopping" element={<ShoppingLists />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<GroupSettings />} />
-              <Route path="/bulletin" element={<Bulletin />} />
-              <Route path="/rules" element={<HouseRules />} />
-              <Route path="/polls" element={<Polls />} />
-              <Route path="/audit-log" element={<AuditLog />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/groups/new" element={<NewGroup />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   );

@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { CardsTabProps, CreditCard as CreditCardType, GroupInstallmentItem, PersonalInstallmentItem } from "@/types/dashboard";
+import type { Tables } from "@/integrations/supabase/types";
 
 const cardSchema = z.object({
   label: z.string().min(3, "Informe o apelido do cartão"),
@@ -206,49 +207,40 @@ export function CardsTab({
   const { data: rawLastMonthsData, isLoading: isLoadingLastMonthsCardsData } = useQuery<{
     groupInstallments: GroupInstallmentItem[];
     personalInstallments: PersonalInstallmentItem[];
-  }>({
+  } | null>({
     queryKey: [
       "cards-last-months-raw",
       user?.id,
       membership?.group_id,
-      currentDate.getMonth(),
-      currentDate.getFullYear(),
+      currentDate.toISOString(),
       monthsCount,
     ],
     queryFn: async () => {
-      const months = lastMonths.map((date) => date.getMonth() + 1);
-      const years = Array.from(new Set(lastMonths.map((date) => date.getFullYear())));
+      const monthFilters = lastMonths.map(date => 
+        `and(bill_year.eq.${date.getFullYear()},bill_month.eq.${date.getMonth() + 1})`
+      ).join(',');
 
       const [groupRes, personalRes] = await Promise.all([
         supabase
           .from("expense_installments")
-          .select(
-            "*, expenses(expense_type, group_id, credit_card_id)"
-          )
+          .select("*, expenses!inner(expense_type, group_id, credit_card_id)")
           .eq("user_id", user!.id)
-          .in("bill_month", months)
-          .in("bill_year", years)
+          .eq("expenses.group_id", membership!.group_id)
+          .or(monthFilters)
           .limit(5000),
         supabase
           .from("personal_expense_installments")
-          .select(
-            "*, personal_expenses(credit_card_id)"
-          )
+          .select("amount, bill_month, bill_year, personal_expenses(credit_card_id)")
           .eq("user_id", user!.id)
-          .in("bill_month", months)
-          .in("bill_year", years)
+          .or(monthFilters)
           .limit(5000),
       ]);
 
       if (groupRes.error) throw groupRes.error;
       if (personalRes.error) throw personalRes.error;
 
-      const filteredGroupData = (groupRes.data || []).filter(
-        item => item.expenses?.group_id === membership!.group_id
-      );
-
       return {
-        groupInstallments: (filteredGroupData as GroupInstallmentItem[]) || [],
+        groupInstallments: (groupRes.data as GroupInstallmentItem[]) || [],
         personalInstallments: (personalRes.data as PersonalInstallmentItem[]) || [],
       };
     },
@@ -663,7 +655,7 @@ export function CardsTab({
                     </div>
 
                     <div className="mb-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2">
+                      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5">
                         <span className="block text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Individuais</span>
                         <span className="block text-xs font-extrabold text-foreground mt-0.5">R$ {formatCurrency(individualTotal)}</span>
                       </div>

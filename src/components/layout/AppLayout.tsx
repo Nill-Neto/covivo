@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import type { Location } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,7 +61,7 @@ const convenienceItems = [
 ];
 
 export function AppLayout() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, membership } = useAuth();
   const location = useLocation();
 
   // Desktop mantém estado persistente; mobile é controlado por toggle/backdrop.
@@ -91,9 +91,17 @@ export function AppLayout() {
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const sidebarItems = isAdmin
-    ? [{ to: "/admin", icon: Shield, label: "Administração" }, ...sidebarCoreItems, ...adminItems]
-    : sidebarCoreItems;
+  const sidebarItems = useMemo(() => {
+    const items = [...sidebarCoreItems];
+    if (isAdmin) {
+      // Admin page is only for centralized mode
+      if (membership?.group_modo_gestao === 'centralized') {
+        items.unshift({ to: "/admin", icon: Shield, label: "Administração" });
+      }
+      items.push(...adminItems);
+    }
+    return items;
+  }, [isAdmin, membership?.group_modo_gestao]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

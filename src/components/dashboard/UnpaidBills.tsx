@@ -7,10 +7,12 @@ import { toast } from "@/hooks/use-toast";
 import { HandCoins, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 export function UnpaidBills() {
   const { user, membership } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: unpaidBills, isLoading } = useQuery({
     queryKey: ["unpaid-bills", membership?.group_id],
@@ -32,6 +34,7 @@ export function UnpaidBills() {
     mutationFn: async (expenseId: string) => {
       const { error } = await supabase.rpc("claim_expense_payment", {
         _expense_id: expenseId,
+        _user_id: user!.id,
       });
       if (error) throw error;
     },
@@ -39,6 +42,8 @@ export function UnpaidBills() {
       toast({ title: "Despesa assumida!", description: "As dívidas foram atualizadas para os outros membros." });
       queryClient.invalidateQueries({ queryKey: ["unpaid-bills"] });
       queryClient.invalidateQueries({ queryKey: ["get_my_p2p_balances"] }); // To refresh the main balance
+      queryClient.invalidateQueries({ queryKey: ["dashboard-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
     },
     onError: (err: any) => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -50,7 +55,7 @@ export function UnpaidBills() {
   }
 
   return (
-    <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
           <AlertCircle className="h-5 w-5" />
@@ -66,7 +71,11 @@ export function UnpaidBills() {
           const myShare = mySplit ? mySplit.amount : 0;
 
           return (
-            <div key={bill.id} className="flex items-center justify-between rounded-lg border bg-background p-3">
+            <div 
+              key={bill.id} 
+              className="flex items-center justify-between rounded-lg border bg-background p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => navigate(`/expenses#${bill.id}`)}
+            >
               <div className="space-y-1">
                 <p className="font-medium">{bill.title}</p>
                 <p className="text-sm text-muted-foreground">
@@ -80,7 +89,10 @@ export function UnpaidBills() {
               </div>
               <Button
                 size="sm"
-                onClick={() => claimPayment.mutate(bill.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  claimPayment.mutate(bill.id);
+                }}
                 disabled={claimPayment.isPending}
                 className="gap-2"
               >

@@ -94,11 +94,10 @@ export default function Dashboard() {
   const { data: myBulkPayments = [] } = useQuery({
     queryKey: ["my-bulk-payments-dashboard", membership?.group_id, user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
+      const { data, error } = await (supabase.from("payments") as any)
         .select("id, amount, notes, status")
         .eq("group_id", membership!.group_id)
-        .eq("paid_by", user!.id)
+        .eq("pagador_user_id", user!.id)
         .is("expense_split_id", null)
         .in("status", ["pending", "confirmed"]);
       if (error) throw error;
@@ -409,7 +408,7 @@ export default function Dashboard() {
       await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: null,
-        paid_by: user!.id,
+        pagador_user_id: user!.id,
         competence_key: currentCompetenceKey,
         amount,
         receipt_url: urlData.publicUrl,
@@ -450,7 +449,7 @@ export default function Dashboard() {
       await (supabase.from("payments") as any).insert({
         group_id: membership!.group_id,
         expense_split_id: selectedIndividualSplit.id,
-        paid_by: user!.id,
+        pagador_user_id: user!.id,
         competence_key: currentCompetenceKey,
         amount: Number(selectedIndividualSplit.amount),
         receipt_url: urlData.publicUrl,
@@ -506,8 +505,6 @@ export default function Dashboard() {
       />
 
       <div className="px-4 space-y-4 md:px-6">
-        {(membership as any)?.group_modo_gestao === 'p2p' && <UnpaidBills />}
-
         {!heroCompact && (
           <TabsList className={tabListClass}>
             <TabsTrigger value="home" className={tabTriggerClass}>
