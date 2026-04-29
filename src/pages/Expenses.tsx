@@ -125,6 +125,7 @@ export default function Expenses() {
   const [paidParticipantIds, setPaidParticipantIds] = useState<string[]>([]);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -309,7 +310,7 @@ export default function Expenses() {
   });
 
   const activeMemberIds = useMemo(() => activeMembers.map((member) => member.user_id), [activeMembers]);
-
+  
   useEffect(() => {
     setSelectedParticipantIds(activeMemberIds);
   }, [activeMemberIds]);
@@ -700,7 +701,6 @@ export default function Expenses() {
       } else {
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
-          _created_by: user!.id,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
@@ -717,7 +717,7 @@ export default function Expenses() {
         };
   
         const { data: newExpenseId, error: createError } = await supabase.rpc(
-          "v2_create_expense_with_splits" as any,
+          "create_expense_with_splits_v2" as any,
           {
             ...baseCreateExpenseArgs,
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,

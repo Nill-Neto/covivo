@@ -1,6 +1,5 @@
 CREATE OR REPLACE FUNCTION public.create_expense_with_splits_v2(
   _group_id uuid,
-  _created_by uuid,
   _title text,
   _description text DEFAULT NULL,
   _amount numeric DEFAULT 0,
@@ -23,7 +22,8 @@ SET search_path TO 'public'
 AS $$
 DECLARE
   _expense_id uuid;
-  _caller_id uuid := _created_by;
+  _auth_user_id uuid := auth.uid();
+  _caller_id uuid;
   _member record;
   _participant_id uuid;
   _member_count int;
@@ -37,8 +37,23 @@ DECLARE
   _bill_base date;
   _effective_participants uuid[];
 BEGIN
+  IF _caller_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não autenticado';
+  END IF;
+
+
   _final_purchase_date := COALESCE(_purchase_date, CURRENT_DATE);
   _effective_participants := COALESCE(_participant_user_ids, ARRAY[]::uuid[]);
+
+  IF _auth_user_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não autenticado';
+  END IF;
+
+  IF _created_by IS DISTINCT FROM _auth_user_id THEN
+    RAISE EXCEPTION '_created_by deve corresponder ao usuário autenticado';
+  END IF;
+
+  _caller_id := _auth_user_id;
 
   IF NOT has_role_in_group(_caller_id, _group_id, 'admin') AND _expense_type = 'collective' THEN
     RAISE EXCEPTION 'Apenas administradores podem criar despesas coletivas';
