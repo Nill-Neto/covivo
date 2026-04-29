@@ -795,6 +795,7 @@ export default function Expenses() {
     setInstallments("1");
     setIsRecurring(false);
     setRecurrenceDay("5");
+    setIsPaid(false);
     setPaidParticipantIds([]);
     setStatusWithProvider("pending");
     setSplitMode("all");
