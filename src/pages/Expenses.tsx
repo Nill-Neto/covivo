@@ -44,6 +44,9 @@ import {
   Settings,
   Search,
   X,
+  Eye,
+  FileText,
+  ImageIcon,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1693,6 +1696,7 @@ export default function Expenses() {
 }
 
 function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void }) {
+  const [openReceiptsDialog, setOpenReceiptsDialog] = useState(false);
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
   const mySplit = expense.expense_splits?.find((s) => s.user_id === userId);
   const cardLabel = cards.find((c) => c.id === expense.credit_card_id)?.label;
@@ -1705,6 +1709,22 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
 
   const isInstallment = expense._is_installment && expense.installments > 1;
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
+  const receiptUrls = useMemo(() => {
+    const expenseWithManyReceipts = expense as ExpenseRow & { receipt_urls?: string[] };
+
+    if (Array.isArray(expenseWithManyReceipts.receipt_urls) && expenseWithManyReceipts.receipt_urls.length > 0) {
+      return expenseWithManyReceipts.receipt_urls.filter(Boolean);
+    }
+
+    if (!expense.receipt_url) return [];
+
+    return expense.receipt_url
+      .split(/[\n,;]+/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+  }, [expense]);
+  const singleReceiptUrl = receiptUrls.length === 1 ? receiptUrls[0] : null;
+  const isSinglePdf = !!singleReceiptUrl && singleReceiptUrl.toLowerCase().includes(".pdf");
 
   return (
     <Card id={`expense-${expense.id}`}>
@@ -1769,6 +1789,30 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
           </div>
           {canManage && (
             <div className="flex flex-col gap-1 ml-2">
+              {receiptUrls.length > 0 && (
+                isSinglePdf ? (
+                  <Button asChild size="icon" variant="ghost" className="h-8 w-8">
+                    <a
+                      href={singleReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Ver comprovante da despesa"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setOpenReceiptsDialog(true)}
+                    aria-label="Ver comprovante da despesa"
+                  >
+                    {receiptUrls.length > 1 ? <ImageIcon className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                )
+              )}
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar despesa">
                 <Edit className="h-4 w-4" />
               </Button>
@@ -1793,6 +1837,32 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              <Dialog open={openReceiptsDialog} onOpenChange={setOpenReceiptsDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Comprovantes da despesa</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
+                    {receiptUrls.map((url, index) => {
+                      const isPdf = url.toLowerCase().includes(".pdf");
+
+                      return (
+                        <a
+                          key={`${url}-${index}`}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-md border p-2 hover:bg-muted"
+                          aria-label={`Abrir comprovante ${index + 1} da despesa em nova aba`}
+                        >
+                          {isPdf ? <FileText className="h-4 w-4 shrink-0" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+                          <span className="text-xs truncate">Comprovante {index + 1}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
