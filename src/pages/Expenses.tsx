@@ -132,6 +132,7 @@ export default function Expenses() {
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
@@ -166,7 +167,8 @@ export default function Expenses() {
 
   useEffect(() => {
     if (expenseType === "individual") {
-      setReceiptFile(null);
+      setReceiptFiles([]);
+      setReceiptError(null);
     }
   }, [expenseType]);
 
@@ -847,6 +849,7 @@ export default function Expenses() {
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
     setReceiptFiles([]);
+    setReceiptError(null);
     setReceiptUrl(null);
     setEditingOriginalAmount(null);
   };
@@ -868,6 +871,7 @@ export default function Expenses() {
     setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
     setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
     setReceiptUrl(expense.receipt_url || null);
+    setReceiptError(null);
     setPayerUserId(expense.created_by || "me");
 
     const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
@@ -991,6 +995,34 @@ export default function Expenses() {
     setSelectedParticipantIds((prev) =>
       prev.includes(participantId) ? prev.filter((id) => id !== participantId) : [...prev, participantId],
     );
+  };
+
+  const handleReceiptFilesChange = (filesList: FileList | null) => {
+    const incoming = Array.from(filesList ?? []);
+    const deduplicated = incoming.filter(
+      (file, index, arr) =>
+        arr.findIndex(
+          (candidate) =>
+            `${candidate.name}-${candidate.size}-${candidate.lastModified}` ===
+            `${file.name}-${file.size}-${file.lastModified}`,
+        ) === index,
+    );
+    const validation = validateReceiptFiles(deduplicated);
+    if (!validation.valid) {
+      setReceiptError(validation.message);
+      return;
+    }
+    setReceiptFiles(deduplicated);
+    setReceiptError(null);
+  };
+
+  const removeReceiptFile = (indexToRemove: number) => {
+    setReceiptFiles((previous) => {
+      const updated = previous.filter((_, index) => index !== indexToRemove);
+      const validation = validateReceiptFiles(updated);
+      setReceiptError(validation.valid ? null : validation.message);
+      return updated;
+    });
   };
 
   const registerPaymentMutation = useMutation({
@@ -1285,8 +1317,44 @@ export default function Expenses() {
                             <Input
                               type="file"
                               accept="image/*,.pdf"
-                              onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                              multiple
+                              onChange={(e) => handleReceiptFilesChange(e.target.files)}
                             />
+                            <p className="text-xs text-muted-foreground">Envie 1 PDF ou múltiplas imagens.</p>
+                            {receiptFiles.length === 0 && <p className="text-xs text-muted-foreground">Nenhum arquivo selecionado</p>}
+                            {receiptFiles.length > 0 && (
+                              <div className="space-y-2 rounded-md border p-2">
+                                {receiptFiles.map((file, index) => {
+                                  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+                                  const fileSize = file.size >= 1024 * 1024
+                                    ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                                    : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+                                  return (
+                                    <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-sm border px-2 py-1">
+                                      {isPdf ? <FileText className="h-4 w-4 shrink-0" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+                                      <span className="flex-1 truncate text-xs" title={file.name}>{file.name}</span>
+                                      <span className="shrink-0 text-[11px] text-muted-foreground">{fileSize}</span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        aria-label={`Remover arquivo ${file.name}`}
+                                        onClick={() => removeReceiptFile(index)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                                {receiptFiles.length > 1 && (
+                                  <Button type="button" variant="outline" size="sm" onClick={() => { setReceiptFiles([]); setReceiptError(null); }}>
+                                    Limpar todos
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                            {receiptError && <p className="text-xs text-destructive">{receiptError}</p>}
                             {receiptUrl && (
                               <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
                                 Ver comprovante atual
@@ -1421,7 +1489,7 @@ export default function Expenses() {
 
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
-              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending || (expenseType === "collective" && statusWithProvider === "paid" && !receiptUrl && receiptFiles.length === 0)} className="w-full">
+              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending || !!receiptError || (expenseType === "collective" && statusWithProvider === "paid" && !receiptUrl && receiptFiles.length === 0)} className="w-full">
                 {createOrUpdateExpense.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
@@ -1933,15 +2001,14 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recur
 }
   const validateReceiptFiles = (files: File[]) => {
     if (files.length === 0) return { valid: true as const };
-    const hasPdf = files.some((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+    const hasPdf = files.some((file) => file.type === "application/pdf");
     if (hasPdf) {
       if (files.length !== 1) {
         return { valid: false as const, message: "Se enviar PDF, selecione apenas 1 arquivo PDF." };
       }
       const onlyFile = files[0];
-      const isPdf = onlyFile.type === "application/pdf" || onlyFile.name.toLowerCase().endsWith(".pdf");
-      if (!isPdf) {
-        return { valid: false as const, message: "Arquivo inválido. Envie um PDF único ou apenas imagens." };
+      if (onlyFile.type !== "application/pdf") {
+        return { valid: false as const, message: "PDF inválido. Use um arquivo com tipo application/pdf." };
       }
       return { valid: true as const };
     }
