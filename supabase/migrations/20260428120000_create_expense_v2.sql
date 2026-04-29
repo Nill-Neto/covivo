@@ -1,6 +1,5 @@
 CREATE OR REPLACE FUNCTION public.create_expense_with_splits_v2(
   _group_id uuid,
-  _created_by uuid,
   _title text,
   _description text DEFAULT NULL,
   _amount numeric DEFAULT 0,
@@ -38,6 +37,11 @@ DECLARE
   _bill_base date;
   _effective_participants uuid[];
 BEGIN
+  IF _caller_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não autenticado';
+  END IF;
+
+
   _final_purchase_date := COALESCE(_purchase_date, CURRENT_DATE);
   _effective_participants := COALESCE(_participant_user_ids, ARRAY[]::uuid[]);
 

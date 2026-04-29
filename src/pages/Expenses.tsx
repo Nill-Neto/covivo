@@ -700,7 +700,6 @@ export default function Expenses() {
       } else {
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
-          _created_by: user!.id,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
