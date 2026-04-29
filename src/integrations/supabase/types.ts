@@ -1281,6 +1281,19 @@ export type Database = {
         }
         Returns: Json
       }
+      get_expenses_evolution: {
+        Args: {
+          _group_id: string
+          _start_key: string
+          _end_key: string
+        }
+        Returns: {
+          competence_key: string
+          total_casa: number
+          meu_rateio: number
+          meus_gastos_individuais: number
+        }[]
+      }
       get_group_member_public_profiles: {
         Args: { _group_id: string }
         Returns: {
