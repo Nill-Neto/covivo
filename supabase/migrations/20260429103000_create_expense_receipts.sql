@@ -37,7 +37,10 @@ WITH CHECK (
     SELECT 1
     FROM public.expenses e
     WHERE e.id = expense_id
-      AND e.created_by = auth.uid()
+      AND (
+        e.created_by = auth.uid()
+        OR has_role_in_group(auth.uid(), e.group_id, 'admin')
+      )
   )
 );
 
@@ -50,7 +53,10 @@ USING (
     SELECT 1
     FROM public.expenses e
     WHERE e.id = expense_id
-      AND e.created_by = auth.uid()
+      AND (
+        e.created_by = auth.uid()
+        OR has_role_in_group(auth.uid(), e.group_id, 'admin')
+      )
   )
 )
 WITH CHECK (
@@ -58,7 +64,10 @@ WITH CHECK (
     SELECT 1
     FROM public.expenses e
     WHERE e.id = expense_id
-      AND e.created_by = auth.uid()
+      AND (
+        e.created_by = auth.uid()
+        OR has_role_in_group(auth.uid(), e.group_id, 'admin')
+      )
   )
 );
 
@@ -71,6 +80,9 @@ USING (
     SELECT 1
     FROM public.expenses e
     WHERE e.id = expense_id
-      AND e.created_by = auth.uid()
+      AND (
+        e.created_by = auth.uid()
+        OR has_role_in_group(auth.uid(), e.group_id, 'admin')
+      )
   )
 );
