@@ -999,21 +999,26 @@ export default function Expenses() {
 
   const handleReceiptFilesChange = (filesList: FileList | null) => {
     const incoming = Array.from(filesList ?? []);
-    const deduplicated = incoming.filter(
-      (file, index, arr) =>
-        arr.findIndex(
-          (candidate) =>
-            `${candidate.name}-${candidate.size}-${candidate.lastModified}` ===
-            `${file.name}-${file.size}-${file.lastModified}`,
-        ) === index,
-    );
-    const validation = validateReceiptFiles(deduplicated);
-    if (!validation.valid) {
-      setReceiptError(validation.message);
-      return;
-    }
-    setReceiptFiles(deduplicated);
-    setReceiptError(null);
+    if (incoming.length === 0) return;
+
+    setReceiptFiles((previous) => {
+      const merged = [...previous, ...incoming];
+      const deduplicated = merged.filter(
+        (file, index, arr) =>
+          arr.findIndex(
+            (candidate) =>
+              `${candidate.name}-${candidate.size}-${candidate.lastModified}` ===
+              `${file.name}-${file.size}-${file.lastModified}`,
+          ) === index,
+      );
+      const validation = validateReceiptFiles(deduplicated);
+      if (!validation.valid) {
+        setReceiptError(validation.message);
+        return previous;
+      }
+      setReceiptError(null);
+      return deduplicated;
+    });
   };
 
   const removeReceiptFile = (indexToRemove: number) => {
