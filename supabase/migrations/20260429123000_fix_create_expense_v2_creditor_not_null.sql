@@ -57,7 +57,7 @@ begin
     raise exception 'Falha de identidade do usuário pagador (credor)';
   end if;
 
-  if not has_role_in_group(_caller_id, _group_id, 'admin') and _expense_type = 'collective' then
+  if _expense_type = 'collective' and not has_role_in_group(_caller_id, _group_id, 'admin') then
     raise exception 'Apenas administradores podem criar despesas coletivas';
   end if;
 
