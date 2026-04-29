@@ -121,6 +121,7 @@ export default function Expenses() {
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<ExpenseRow | null>(null);
   const [editConfirmExpense, setEditConfirmExpense] = useState<ExpenseRow | null>(null);
 
+  const [isPaid, setIsPaid] = useState(false);
   const [paidParticipantIds, setPaidParticipantIds] = useState<string[]>([]);
   const [statusWithProvider, setStatusWithProvider] = useState<"pending" | "paid">("pending");
   const [splitMode, setSplitMode] = useState<"all" | "manual">("all");
@@ -383,6 +384,9 @@ export default function Expenses() {
         if (otherParticipantsCount <= 0) {
           return <p>Você está pagando a despesa inteira.</p>;
         }
+        if (isPaid) {
+          return <p>Você já recebeu o reembolso de todos os participantes.</p>;
+        }
         return (
           <p>
             Você receberá{" "}
@@ -440,6 +444,14 @@ export default function Expenses() {
         if (!effectiveParticipantIds.includes(user?.id ?? "")) {
           return <p>Você não participa do rateio desta despesa.</p>;
         }
+        if (isPaid) {
+          return (
+            <p>
+              Você será marcado como tendo pago{" "}
+              <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
+            </p>
+          );
+        }
         return (
           <p>
             Você deve <strong className="text-primary">R$ {perPersonQuota.toFixed(2)}</strong> para {payerName}.
@@ -478,6 +490,7 @@ export default function Expenses() {
     payerUserId,
     user?.id,
     editingId,
+    isPaid,
     effectiveParticipantIds,
     allExpenses,
     participantOptions,
@@ -1272,43 +1285,53 @@ export default function Expenses() {
                       )}
                       {statusWithProvider === 'paid' && paymentMethod !== "credit_card" && !editingId && expenseType === 'collective' && (
                         <div className="pt-3 border-t space-y-3">
-                          <Label className="font-medium">Marcar quem já te pagou</Label>
-                          <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto">
-                            {participantsToPay.length > 1 && (
-                              <div className="flex items-center gap-2 pb-2 border-b mb-2">
-                                <Checkbox
-                                  id="paid-all"
-                                  checked={paidParticipantIds.length === participantsToPay.length}
-                                  onCheckedChange={(checked) => {
-                                    setPaidParticipantIds(checked ? participantsToPay.map(p => p.id) : []);
-                                  }}
-                                />
-                                <Label htmlFor="paid-all" className="font-semibold">Marcar todos</Label>
-                              </div>
-                            )}
-                            {participantsToPay.map(participant => (
-                              <div key={participant.id} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`paid-${participant.id}`}
-                                  checked={paidParticipantIds.includes(participant.id)}
-                                  onCheckedChange={() => {
-                                    setPaidParticipantIds(prev => 
-                                      prev.includes(participant.id) 
-                                        ? prev.filter(id => id !== participant.id) 
-                                        : [...prev, participant.id]
-                                    );
-                                  }}
-                                />
-                                <Label htmlFor={`paid-${participant.id}`} className="font-normal">{participant.name}</Label>
-                              </div>
-                            ))}
-                            {participantsToPay.length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center py-2">Nenhum outro participante no rateio.</p>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <Switch checked={isPaid} onCheckedChange={setIsPaid} id="paid-switch" />
+                            <Label htmlFor="paid-switch" className="cursor-pointer text-sm">Marcar rateio como pago</Label>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Selecione os participantes que já te reembolsaram por esta despesa.
+                          <p className="text-xs text-muted-foreground pl-11">
+                            Ative se os participantes já te reembolsaram.
                           </p>
+                          {isPaid && (
+                            <div className="pl-11 space-y-2 animate-accordion-down">
+                              <div className="space-y-2 rounded-md border p-3 max-h-40 overflow-y-auto">
+                                {participantsToPay.length > 1 && (
+                                  <div className="flex items-center gap-2 pb-2 border-b mb-2">
+                                    <Checkbox
+                                      id="paid-all"
+                                      checked={paidParticipantIds.length === participantsToPay.length}
+                                      onCheckedChange={(checked) => {
+                                        setPaidParticipantIds(checked ? participantsToPay.map(p => p.id) : []);
+                                      }}
+                                    />
+                                    <Label htmlFor="paid-all" className="font-semibold">Marcar todos</Label>
+                                  </div>
+                                )}
+                                {participantsToPay.map(participant => (
+                                  <div key={participant.id} className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`paid-${participant.id}`}
+                                      checked={paidParticipantIds.includes(participant.id)}
+                                      onCheckedChange={() => {
+                                        setPaidParticipantIds(prev => 
+                                          prev.includes(participant.id) 
+                                            ? prev.filter(id => id !== participant.id) 
+                                            : [...prev, participant.id]
+                                        );
+                                      }}
+                                    />
+                                    <Label htmlFor={`paid-${participant.id}`} className="font-normal">{participant.name}</Label>
+                                  </div>
+                                ))}
+                                {participantsToPay.length === 0 && (
+                                  <p className="text-xs text-muted-foreground text-center py-2">Nenhum outro participante no rateio.</p>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Selecione os participantes que já te reembolsaram por esta despesa.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
