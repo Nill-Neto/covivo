@@ -585,6 +585,9 @@ export default function Expenses() {
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
       const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
+      if (!actualPayerId) {
+        throw new Error("Não foi possível identificar quem pagou a despesa.");
+      }
   
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
@@ -766,6 +769,24 @@ export default function Expenses() {
               receipt_url: uploadedReceiptUrl,
             })
             .eq("id", newExpenseId);
+
+          const { error: backfillCreditorError } = await supabase
+            .from("expense_splits")
+            .update({ credor_user_id: user.id })
+            .eq("expense_id", newExpenseId)
+            .is("credor_user_id", null);
+          if (backfillCreditorError) throw backfillCreditorError;
+
+          const { count: nullCreditorCount, error: nullCreditorCheckError } = await supabase
+            .from("expense_splits")
+            .select("id", { count: "exact", head: true })
+            .eq("expense_id", newExpenseId)
+            .is("credor_user_id", null);
+          if (nullCreditorCheckError) throw nullCreditorCheckError;
+          if ((nullCreditorCount ?? 0) > 0) {
+            throw new Error("Não foi possível definir o credor da despesa. Tente novamente.");
+          }
+
           if (uploadedReceipts.length > 0) {
             const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
               uploadedReceipts.map((receipt) => ({ expense_id: newExpenseId, ...receipt })),
