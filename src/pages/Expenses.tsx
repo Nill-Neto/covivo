@@ -128,7 +128,7 @@ export default function Expenses() {
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
@@ -597,15 +597,28 @@ export default function Expenses() {
       const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
       const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid";
   
+      const receiptValidation = validateReceiptFiles(receiptFiles);
+      if (!receiptValidation.valid) {
+        throw new Error(receiptValidation.message);
+      }
+
+      const requiresReceipt = expenseType === "collective" && statusWithProvider === "paid";
+      if (requiresReceipt) {
+        const hasExistingReceipt = !!receiptUrl;
+        const hasNewReceipt = receiptFiles.length > 0;
+        if (!editingId && !hasNewReceipt) {
+          throw new Error("Anexe o comprovante para despesas coletivas já pagas.");
+        }
+        if (editingId && !hasExistingReceipt && !hasNewReceipt) {
+          throw new Error("Anexe novo comprovante ou mantenha o comprovante já existente.");
+        }
+      }
+
       let uploadedReceiptUrl = receiptUrl;
-  
-      if (receiptFile) {
-        const ext = receiptFile.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${Date.now()}_expense.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receiptFile);
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
-        uploadedReceiptUrl = publicUrlData.publicUrl;
+      let uploadedReceipts: Array<{ url: string; mime_type: string; position: number }> = [];
+      if (receiptFiles.length > 0) {
+        uploadedReceipts = await uploadReceiptFiles(receiptFiles, user.id);
+        uploadedReceiptUrl = uploadedReceipts[0]?.url ?? null;
       }
   
       if (editingType === "recurring" && editingId) {
@@ -652,6 +665,13 @@ export default function Expenses() {
           })
           .eq("id", editingId);
         if (error) throw error;
+        if (uploadedReceipts.length > 0) {
+          await supabase.from("expense_receipts" as any).delete().eq("expense_id", editingId);
+          const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
+            uploadedReceipts.map((receipt) => ({ expense_id: editingId, ...receipt })),
+          );
+          if (receiptsError) throw receiptsError;
+        }
         const savedExpense = await fetchSavedExpense(editingId);
         setDateValue(savedExpense.purchase_date);
   
@@ -741,6 +761,12 @@ export default function Expenses() {
               receipt_url: uploadedReceiptUrl,
             })
             .eq("id", newExpenseId);
+          if (uploadedReceipts.length > 0) {
+            const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
+              uploadedReceipts.map((receipt) => ({ expense_id: newExpenseId, ...receipt })),
+            );
+            if (receiptsError) throw receiptsError;
+          }
         }
   
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
@@ -817,7 +843,7 @@ export default function Expenses() {
     setSplitMode("all");
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
-    setReceiptFile(null);
+    setReceiptFiles([]);
     setReceiptUrl(null);
     setEditingOriginalAmount(null);
   };
@@ -1392,7 +1418,7 @@ export default function Expenses() {
 
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
-              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending} className="w-full">
+              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending || (expenseType === "collective" && statusWithProvider === "paid" && !receiptUrl && receiptFiles.length === 0)} className="w-full">
                 {createOrUpdateExpense.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
@@ -1835,3 +1861,36 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recur
     </Card>
   );
 }
+  const validateReceiptFiles = (files: File[]) => {
+    if (files.length === 0) return { valid: true as const };
+    const hasPdf = files.some((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+    if (hasPdf) {
+      if (files.length !== 1) {
+        return { valid: false as const, message: "Se enviar PDF, selecione apenas 1 arquivo PDF." };
+      }
+      const onlyFile = files[0];
+      const isPdf = onlyFile.type === "application/pdf" || onlyFile.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        return { valid: false as const, message: "Arquivo inválido. Envie um PDF único ou apenas imagens." };
+      }
+      return { valid: true as const };
+    }
+    const hasInvalid = files.some((file) => !file.type.startsWith("image/"));
+    if (hasInvalid) {
+      return { valid: false as const, message: "Sem PDF, todos os arquivos devem ser imagens." };
+    }
+    return { valid: true as const };
+  };
+
+  const uploadReceiptFiles = async (files: File[], userId: string) => {
+    const uploadedReceipts: Array<{ url: string; mime_type: string; position: number }> = [];
+    for (const [index, file] of files.entries()) {
+      const ext = file.name.split(".").pop() ?? (file.type === "application/pdf" ? "pdf" : "jpg");
+      const path = `${userId}/${Date.now()}_expense_${index}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("receipts").upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      uploadedReceipts.push({ url: publicUrlData.publicUrl, mime_type: file.type || "application/octet-stream", position: index });
+    }
+    return uploadedReceipts;
+  };
