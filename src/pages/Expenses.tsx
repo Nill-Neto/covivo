@@ -1130,6 +1130,10 @@ export default function Expenses() {
     });
   };
 
+  const isQuickPayDisabled = useMemo(() => {
+    return registerPaymentMutation.isPending || !quickPaymentDate || !quickReceiptFile;
+  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFile]);
+
   const isSaveDisabled = useMemo(() => {
     if (createOrUpdateExpense.isPending) return true;
     if (!title.trim() || !amount || parseFloat(amount) <= 0) return true;
@@ -1647,7 +1651,7 @@ export default function Expenses() {
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button
                 onClick={handleQuickRegisterPayment}
-                disabled={registerPaymentMutation.isPending}
+                disabled={isQuickPayDisabled}
                 className="w-full"
               >
                 {registerPaymentMutation.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
