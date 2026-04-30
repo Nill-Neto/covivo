@@ -70,8 +70,18 @@ const PAYMENT_METHODS = [
 ];
 
 type ExpenseSplit = Tables<"expense_splits">;
+
+type ExpenseReceipt = {
+  id: string;
+  expense_id: string;
+  url: string;
+  mime_type: string;
+  file_name: string | null;
+  created_at: string;
+};
 type ExpenseRow = Omit<Tables<"expenses">, "expense_splits"> & {
   expense_splits?: ExpenseSplit[];
+  expense_receipts?: ExpenseReceipt[];
   _is_installment?: boolean;
   _installment_number?: number;
   _installment_amount?: number;
@@ -128,8 +138,8 @@ export default function Expenses() {
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [existingReceipts, setExistingReceipts] = useState<ExpenseReceipt[]>([]);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
   const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
@@ -188,13 +198,13 @@ export default function Expenses() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
-        .select("*, expense_splits(id, user_id, amount, status, paid_at)")
+        .select("*, expense_splits(*), expense_receipts(*)")
         .eq("group_id", membership!.group_id)
         .eq("competence_key", currentCompetenceKey)
         .order("purchase_date", { ascending: false });
 
       if (error) throw error;
-      return (data ?? []) as ExpenseRow[];
+      return (data ?? []) as unknown as ExpenseRow[];
     },
     enabled: !!membership?.group_id,
     staleTime: 60_000,
@@ -234,10 +244,10 @@ export default function Expenses() {
       if (missingExpenseIds.length === 0) return [];
       const { data, error } = await supabase
         .from("expenses")
-        .select("*, expense_splits(id, user_id, amount, status, paid_at)")
+        .select("*, expense_splits(*), expense_receipts(*)")
         .in("id", missingExpenseIds);
       if (error) throw error;
-      return (data ?? []) as ExpenseRow[];
+      return (data ?? []) as unknown as ExpenseRow[];
     },
     enabled: missingExpenseIds.length > 0,
   });
@@ -367,6 +377,34 @@ export default function Expenses() {
     if (payerUserId === "me") return "Você";
     return participantOptions.find((p) => p.id === payerUserId)?.name || "Não definido";
   }, [payerUserId, participantOptions]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) {
+      setReceiptFiles([]);
+      return;
+    }
+
+    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    const imgFiles = files.filter(file => file.type.startsWith('image/'));
+
+    if (pdfFiles.length > 0) {
+      if (files.length > 1) {
+        toast({ title: "Seleção inválida", description: "Se incluir um PDF, ele deve ser o único arquivo.", variant: "destructive" });
+        e.target.value = '';
+        setReceiptFiles([]);
+        return;
+      }
+    } else {
+      if (imgFiles.length !== files.length) {
+        toast({ title: "Seleção inválida", description: "Apenas arquivos de imagem ou um único PDF são permitidos.", variant: "destructive" });
+        e.target.value = '';
+        setReceiptFiles([]);
+        return;
+      }
+    }
+    setReceiptFiles(files);
+  };
 
   const instantSummary = useMemo(() => {
     if (expenseType !== "collective" || perPersonQuota <= 0) {
@@ -574,34 +612,49 @@ export default function Expenses() {
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
       const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
-  
+
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
       }
-  
+
       if (paymentMethod === "credit_card" && (creditCardId === "none" || !creditCardId) && editingType === "expense") {
         throw new Error("Selecione um cartão de crédito.");
       }
-  
+
       if (expenseType === "collective" && splitMode === "manual" && selectedParticipantIds.length === 0) {
         throw new Error("Selecione pelo menos um participante.");
       }
-  
+
       const categoryToSend = category === "other" ? customCategory.trim() : category;
       const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
       const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid";
-  
-      let uploadedReceiptUrl = receiptUrl;
-  
-      if (receiptFile) {
-        const ext = receiptFile.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${Date.now()}_expense.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receiptFile);
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
-        uploadedReceiptUrl = publicUrlData.publicUrl;
+
+      if (expenseType === "collective" && providerPaid) {
+        const hasExistingReceipts = existingReceipts && existingReceipts.length > 0;
+        if (!editingId && receiptFiles.length === 0) {
+          throw new Error("Para despesas coletivas pagas, o comprovante é obrigatório.");
+        }
+        if (editingId && receiptFiles.length === 0 && !hasExistingReceipts) {
+          throw new Error("Para editar uma despesa coletiva paga, anexe um novo comprovante ou mantenha um existente.");
+        }
       }
-  
+
+      const uploadedReceipts: { url: string; mime_type: string; file_name: string }[] = [];
+      if (receiptFiles.length > 0) {
+        for (const file of receiptFiles) {
+          const ext = file.name.split(".").pop() ?? "bin";
+          const path = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const { error: uploadError } = await supabase.storage.from("receipts").upload(path, file);
+          if (uploadError) throw uploadError;
+          const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+          uploadedReceipts.push({
+            url: publicUrlData.publicUrl,
+            mime_type: file.type,
+            file_name: file.name,
+          });
+        }
+      }
+
       if (editingType === "recurring" && editingId) {
         const { error } = await supabase
           .from("recurring_expenses")
@@ -616,9 +669,32 @@ export default function Expenses() {
           .eq("id", editingId);
         if (error) throw error;
       } else if (editingType === "expense" && editingId) {
+        const originalExpense = allExpenses.find(e => e.id === editingId);
+        const originalReceipts = originalExpense?.expense_receipts || [];
+        const receiptsToDelete = originalReceipts.filter(orig => !existingReceipts.some(curr => curr.id === orig.id));
+
+        if (receiptsToDelete.length > 0) {
+            const idsToDelete = receiptsToDelete.map(r => r.id);
+            const pathsToDelete = receiptsToDelete.map(r => {
+                try {
+                    const url = new URL(r.url);
+                    const path = url.pathname.substring(url.pathname.indexOf('/receipts/') + '/receipts/'.length);
+                    return decodeURIComponent(path);
+                } catch (e) {
+                    console.error("Error parsing receipt URL for deletion:", e);
+                    return null;
+                }
+            }).filter((p): p is string => p !== null);
+
+            if (pathsToDelete.length > 0) {
+                await supabase.storage.from('receipts').remove(pathsToDelete);
+            }
+            await supabase.from('expense_receipts' as any).delete().in('id', idsToDelete);
+        }
+
         const parsedAmount = parseFloat(amount);
         const parsedInstallments = parseInt(installments) || 1;
-  
+
         const compKey = editCompetence?.trim()
           ? editCompetence
           : getCompetenceKeyFromDate(
@@ -627,7 +703,7 @@ export default function Expenses() {
                 ? cards.find((c) => c.id === finalCreditCardId)?.closing_day || 1
                 : closingDay,
             );
-  
+
         const { error } = await supabase
           .from("expenses")
           .update({
@@ -641,14 +717,19 @@ export default function Expenses() {
             purchase_date: dateValue,
             paid_to_provider: providerPaid,
             due_date: paymentDate || null,
-            receipt_url: uploadedReceiptUrl,
             competence_key: compKey,
           })
           .eq("id", editingId);
         if (error) throw error;
+
+        if (uploadedReceipts.length > 0) {
+          const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: editingId, ...r }));
+          await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+        }
+
         const savedExpense = await fetchSavedExpense(editingId);
         setDateValue(savedExpense.purchase_date);
-  
+
         if (editingOriginalAmount && parsedAmount !== editingOriginalAmount) {
           const ratio = parsedAmount / editingOriginalAmount;
           const { data: splits } = await supabase
@@ -664,9 +745,9 @@ export default function Expenses() {
             }
           }
         }
-  
+
         await supabase.from("expense_installments").delete().eq("expense_id", editingId);
-  
+
         if (paymentMethod === "credit_card" && finalCreditCardId && parsedInstallments > 0) {
           const card = cards.find((c) => c.id === finalCreditCardId);
           if (card) {
@@ -676,7 +757,7 @@ export default function Expenses() {
             if (purchaseDate.getDate() >= closingDay) {
               billBase.setMonth(billBase.getMonth() + 1);
             }
-  
+
             const perInstallment = Math.round((parsedAmount / parsedInstallments) * 100) / 100;
             const installmentRows = [];
             for (let i = 1; i <= parsedInstallments; i++) {
@@ -694,14 +775,14 @@ export default function Expenses() {
             await supabase.from("expense_installments").insert(installmentRows);
           }
         }
-  
+
         if (expenseType === "collective" && splitMode === "manual") {
           await applyManualSplitSelection(editingId, parsedAmount, effectiveParticipantIds, actualPayerId);
         }
       } else {
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
-          _created_by: user.id, // Adicionado para corrigir o erro de credor_user_id nulo
+          _created_by: user.id,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
@@ -716,7 +797,7 @@ export default function Expenses() {
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
         };
-  
+
         const { data: newExpenseId, error: createError } = await supabase.rpc(
           "create_expense_with_splits_v2" as any,
           {
@@ -724,24 +805,28 @@ export default function Expenses() {
             _participant_user_ids: expenseType === "collective" ? collectiveParticipantIds : individualParticipantIds,
           },
         );
-  
+
         if (createError) throw createError;
-  
+
         if (newExpenseId) {
           await supabase
             .from("expenses")
             .update({
               paid_to_provider: providerPaid,
               due_date: paymentDate || null,
-              receipt_url: uploadedReceiptUrl,
             })
             .eq("id", newExpenseId);
+
+          if (uploadedReceipts.length > 0) {
+            const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: newExpenseId as string, ...r }));
+            await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+          }
         }
-  
+
         if (newExpenseId && expenseType === "collective" && splitMode === "manual") {
           await applyManualSplitSelection(newExpenseId as string, parseFloat(amount), effectiveParticipantIds, actualPayerId);
         }
-  
+
         if (paidParticipantIds.length > 0 && paymentMethod !== "credit_card" && newExpenseId) {
           await supabase
             .from("expense_splits")
@@ -749,13 +834,13 @@ export default function Expenses() {
             .eq("expense_id", newExpenseId)
             .in("user_id", paidParticipantIds);
         }
-  
+
         if (isRecurring) {
           const day = parseInt(recurrenceDay);
           const nextMonthDate = new Date();
           nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
           nextMonthDate.setDate(day);
-  
+
           await supabase.from("recurring_expenses").insert({
             group_id: membership.group_id,
             created_by: user.id,
@@ -812,8 +897,8 @@ export default function Expenses() {
     setSplitMode("all");
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
-    setReceiptFile(null);
-    setReceiptUrl(null);
+    setReceiptFiles([]);
+    setExistingReceipts([]);
     setEditingOriginalAmount(null);
   };
 
@@ -833,7 +918,7 @@ export default function Expenses() {
     setInstallments(String(expense.installments || 1));
     setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
     setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
-    setReceiptUrl(expense.receipt_url || null);
+    setExistingReceipts(expense.expense_receipts || []);
     setPayerUserId(expense.created_by || "me");
 
     const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
@@ -1246,17 +1331,51 @@ export default function Expenses() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Comprovante</Label>
+                          <Label className="text-xs text-muted-foreground">Comprovante(s)</Label>
                           <Input
                             type="file"
                             accept="image/*,.pdf"
-                            onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                            multiple
+                            onChange={handleFileChange}
                           />
-                          {receiptUrl && (
-                            <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
-                              Ver comprovante atual
-                            </a>
-                          )}
+                          <div className="space-y-2 pt-2">
+                            {existingReceipts.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Comprovantes atuais:</p>
+                                <div className="space-y-1">
+                                  {existingReceipts.map(receipt => (
+                                    <div key={receipt.id} className="flex items-center justify-between text-xs bg-muted/50 p-1.5 rounded">
+                                      <a href={receipt.url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate pr-2">
+                                        {receipt.file_name || 'comprovante'}
+                                      </a>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => {
+                                        setExistingReceipts(prev => prev.filter(r => r.id !== receipt.id));
+                                      }}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {receiptFiles.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium text-muted-foreground">Novos comprovantes:</p>
+                                <div className="space-y-1">
+                                  {receiptFiles.map((file, index) => (
+                                    <div key={index} className="flex items-center justify-between text-xs bg-muted/50 p-1.5 rounded">
+                                      <span className="truncate pr-2">{file.name}</span>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => {
+                                        setReceiptFiles(prev => prev.filter((_, i) => i !== index));
+                                      }}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                       {editingType === "expense" && editingId && (
