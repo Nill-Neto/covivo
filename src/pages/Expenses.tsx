@@ -147,7 +147,8 @@ export default function Expenses() {
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
   const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
   const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [quickReceiptFile, setQuickReceiptFile] = useState<File | null>(null);
+  const [quickReceiptFiles, setQuickReceiptFiles] = useState<File[]>([]);
+  const [quickReceiptError, setQuickReceiptError] = useState<string | null>(null);
 
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
@@ -415,6 +416,41 @@ export default function Expenses() {
 
     setReceiptFiles(uniqueFiles);
     setReceiptError(null);
+  };
+
+  const handleQuickFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) {
+      setQuickReceiptFiles([]);
+      setQuickReceiptError(null);
+      return;
+    }
+
+    const uniqueFiles = files.filter((file, index, self) =>
+      index === self.findIndex((f) => (
+        f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+      ))
+    );
+
+    const pdfFiles = uniqueFiles.filter(file => file.type === 'application/pdf');
+    const imgFiles = uniqueFiles.filter(file => file.type.startsWith('image/'));
+
+    if (pdfFiles.length > 0) {
+      if (uniqueFiles.length > 1) {
+        setQuickReceiptError("Se incluir um PDF, ele deve ser o único arquivo.");
+        e.target.value = '';
+        return;
+      }
+    } else {
+      if (imgFiles.length !== uniqueFiles.length) {
+        setQuickReceiptError("Apenas arquivos de imagem ou um único PDF são permitidos.");
+        e.target.value = '';
+        return;
+      }
+    }
+
+    setQuickReceiptFiles(uniqueFiles);
+    setQuickReceiptError(null);
   };
 
   const instantSummary = useMemo(() => {
@@ -1060,19 +1096,27 @@ export default function Expenses() {
       expense,
       payerId,
       paymentDateValue,
-      proofFile,
+      proofFiles,
     }: {
       expense: ExpenseRow;
       payerId: string;
       paymentDateValue: string;
-      proofFile: File;
+      proofFiles: File[];
     }) => {
-      const ext = proofFile.name.split(".").pop() ?? "jpg";
-      const path = `${user!.id}/${Date.now()}_expense_payment.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("receipts").upload(path, proofFile);
-      if (uploadError) throw uploadError;
+      const uploadedReceipts: { url: string; mime_type: string; file_name: string }[] = [];
+      for (const file of proofFiles) {
+        const ext = file.name.split(".").pop() ?? "bin";
+        const path = `${user!.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, file);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+        uploadedReceipts.push({
+          url: publicUrlData.publicUrl,
+          mime_type: file.type,
+          file_name: file.name,
+        });
+      }
 
-      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
       const payerName = payerId === "me"
         ? "Você"
         : participantOptions.find((participant) => participant.id === payerId)?.name || "Morador";
@@ -1091,19 +1135,18 @@ export default function Expenses() {
         .eq("id", expense.id);
       if (updateError) throw updateError;
 
-      await supabase.from("expense_receipts" as any).insert({
-        expense_id: expense.id,
-        url: publicUrlData.publicUrl,
-        mime_type: proofFile.type,
-        file_name: proofFile.name,
-      });
+      if (uploadedReceipts.length > 0) {
+        const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: expense.id, ...r }));
+        await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setQuickPayExpense(null);
       setQuickPayerUserId("me");
       setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
-      setQuickReceiptFile(null);
+      setQuickReceiptFiles([]);
+      setQuickReceiptError(null);
       toast({ title: "Pagamento registrado com sucesso." });
     },
     onError: (err: any) => {
@@ -1117,7 +1160,7 @@ export default function Expenses() {
       toast({ title: "Erro", description: "Informe a data do pagamento.", variant: "destructive" });
       return;
     }
-    if (!quickReceiptFile) {
+    if (quickReceiptFiles.length === 0) {
       toast({ title: "Erro", description: "Anexe o comprovante.", variant: "destructive" });
       return;
     }
@@ -1126,13 +1169,13 @@ export default function Expenses() {
       expense: quickPayExpense,
       payerId: quickPayerUserId,
       paymentDateValue: quickPaymentDate,
-      proofFile: quickReceiptFile,
+      proofFiles: quickReceiptFiles,
     });
   };
 
   const isQuickPayDisabled = useMemo(() => {
-    return registerPaymentMutation.isPending || !quickPaymentDate || !quickReceiptFile;
-  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFile]);
+    return registerPaymentMutation.isPending || !quickPaymentDate || quickReceiptFiles.length === 0;
+  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFiles]);
 
   const isSaveDisabled = useMemo(() => {
     if (createOrUpdateExpense.isPending) return true;
@@ -1640,13 +1683,52 @@ export default function Expenses() {
                 <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Comprovante</Label>
+                <Label>Comprovante(s)</Label>
                 <Input
+                  id="quick-receipt-upload"
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={(e) => setQuickReceiptFile(e.target.files?.[0] || null)}
+                  multiple
+                  onChange={handleQuickFileChange}
+                  className="hidden"
                 />
+                <Label
+                  htmlFor="quick-receipt-upload"
+                  className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                >
+                  <span className="border rounded-md px-2 py-1 text-xs font-semibold bg-background">Escolher arquivos</span>
+                  <span className="text-muted-foreground text-sm">
+                    {quickReceiptFiles.length > 0 ? `${quickReceiptFiles.length} arq...` : "Nenhum arquivo"}
+                  </span>
+                </Label>
+                <p className="text-xs text-muted-foreground">Envie 1 PDF ou múltiplas imagens.</p>
+                {quickReceiptError && <p className="text-sm text-destructive">{quickReceiptError}</p>}
               </div>
+              
+              {quickReceiptFiles.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {quickReceiptFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm bg-background p-2 rounded-md border">
+                      <div className="flex items-center gap-2 truncate">
+                        {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4 text-muted-foreground" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground/80 shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQuickReceiptFiles(prev => prev.filter((_, i) => i !== index))} aria-label={`Remover ${file.name}`}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {quickReceiptFiles.length > 1 && (
+                    <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setQuickReceiptFiles([])}>
+                      Limpar todos
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
               <Button
@@ -1826,7 +1908,8 @@ export default function Expenses() {
               setQuickPayExpense(e);
               setQuickPayerUserId("me");
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
-              setQuickReceiptFile(null);
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1848,7 +1931,8 @@ export default function Expenses() {
               setQuickPayExpense(e);
               setQuickPayerUserId("me");
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
-              setQuickReceiptFile(null);
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1870,7 +1954,8 @@ export default function Expenses() {
               setQuickPayExpense(e);
               setQuickPayerUserId("me");
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
-              setQuickReceiptFile(null);
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
             }}
             onViewReceipts={setViewingReceipts}
           />
