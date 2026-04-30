@@ -1504,7 +1504,7 @@ export default function Expenses() {
 
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
-              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending} className="w-full">
+              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={isSaveDisabled} className="w-full">
                 {createOrUpdateExpense.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
