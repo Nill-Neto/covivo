@@ -1914,8 +1914,8 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
   return (
     <Card id={`expense-${expense.id}`} className="transition-all hover:shadow-md">
       <CardContent className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-4 gap-y-2 items-start">
-          {/* Left Column */}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-4 gap-y-3">
+          {/* Left Column: Main Info */}
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <p className="font-semibold text-base">{expense.title}</p>
@@ -1953,17 +1953,17 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
             )}
           </div>
 
-          {/* Right Column */}
-          <div className="flex flex-col items-stretch sm:items-end gap-2">
+          {/* Right Column: Amounts and Actions */}
+          <div className="flex flex-col items-start sm:items-end gap-2">
             <div className="text-left sm:text-right">
               <p className="text-xl font-bold">R$ {Number(displayAmount).toFixed(2)}</p>
               {isInstallment && (
                 <p className="text-xs text-muted-foreground">Total: R$ {Number(expense.amount).toFixed(2)}</p>
               )}
               {mySplit && expense.expense_type === "collective" && (
-                <Badge variant="secondary" className="text-xs mt-1">
+                <p className="text-sm text-muted-foreground">
                   Sua parte: R$ {Number(mySplit.amount).toFixed(2)}
-                </Badge>
+                </p>
               )}
             </div>
             
@@ -2016,18 +2016,21 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
                 </>
               )}
             </div>
-            {!expense.paid_to_provider && canManage && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-1 h-8 text-xs w-full sm:w-auto"
-                onClick={onRegisterPayment}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Registrar pagamento
-              </Button>
-            )}
           </div>
         </div>
+        
+        {!expense.paid_to_provider && canManage && (
+          <div className="flex justify-end mt-3 pt-3 border-t border-border/50">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={onRegisterPayment}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Registrar pagamento
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
