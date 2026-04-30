@@ -701,6 +701,7 @@ export default function Expenses() {
       } else {
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
+          _created_by: user.id, // Adicionado para corrigir o erro de credor_user_id nulo
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
