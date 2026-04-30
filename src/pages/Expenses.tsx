@@ -154,6 +154,7 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [viewingReceipts, setViewingReceipts] = useState<ExpenseReceipt[] | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
@@ -1701,6 +1702,34 @@ export default function Expenses() {
           </AlertDialogContent>
         </AlertDialog>
 
+        <Dialog open={!!viewingReceipts} onOpenChange={(open) => !open && setViewingReceipts(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Comprovantes</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {(viewingReceipts || []).map(receipt => (
+                <a 
+                  key={receipt.id} 
+                  href={receipt.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-2 border rounded-md hover:bg-muted transition-colors"
+                >
+                  {receipt.mime_type.startsWith('image/') ? (
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <span className="flex-1 truncate text-sm font-medium text-primary">
+                    {receipt.file_name || 'Ver comprovante'}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
       <div className="text-sm text-muted-foreground">
         Exibindo competência: <strong>{format(cycleStart, "dd/MM")}</strong> até{" "}
         <strong>{format(subDays(cycleEnd, 1), "dd/MM")}</strong>
@@ -1795,6 +1824,7 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFile(null);
             }}
+            onViewReceipts={setViewingReceipts}
           />
         ))}
       </TabsContent>
@@ -1816,6 +1846,7 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFile(null);
             }}
+            onViewReceipts={setViewingReceipts}
           />
         ))}
       </TabsContent>
@@ -1837,6 +1868,7 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFile(null);
             }}
+            onViewReceipts={setViewingReceipts}
           />
         ))}
       </TabsContent>
@@ -1865,7 +1897,7 @@ export default function Expenses() {
   );
 }
 
-function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void }) {
+function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment, onViewReceipts }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void, onViewReceipts: (receipts: ExpenseReceipt[]) => void }) {
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
   const mySplit = expense.expense_splits?.find((s) => s.user_id === userId);
   const cardLabel = cards.find((c) => c.id === expense.credit_card_id)?.label;
@@ -1919,14 +1951,24 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
               </p>
             )}
             {expense.expense_receipts && expense.expense_receipts.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {expense.expense_receipts.map(receipt => (
-                  <a key={receipt.id} href={receipt.url} target="_blank" rel="noreferrer" className="text-xs flex items-center gap-1.5 bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors">
-                    <ImageIcon className="h-3 w-3 text-muted-foreground" />
-                    {receipt.file_name || 'Comprovante'}
-                  </a>
-                ))}
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 text-xs gap-1.5"
+                aria-label="Ver comprovantes da despesa"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const receipts = expense.expense_receipts!;
+                  if (receipts.length === 1 && receipts[0].mime_type === 'application/pdf') {
+                    window.open(receipts[0].url, '_blank', 'noopener,noreferrer');
+                  } else {
+                    onViewReceipts(receipts);
+                  }
+                }}
+              >
+                <ImageIcon className="h-3 w-3" />
+                Ver Comprovante{expense.expense_receipts.length > 1 ? 's' : ''}
+              </Button>
             )}
           </div>
           <div className="text-right shrink-0">
