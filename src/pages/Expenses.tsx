@@ -1692,53 +1692,60 @@ export default function Expenses() {
                 <Label className="text-xs text-muted-foreground">Despesa</Label>
                 <p className="text-sm font-medium">{quickPayExpense?.title}</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Pagador</Label>
-                  <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="me">Você</SelectItem>
-                      {participantOptions.map((participant) => (
-                        <SelectItem key={participant.id} value={participant.id}>
-                          {participant.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                <Label className="text-base font-medium">Detalhes do Pagamento</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Pagador</Label>
+                    <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="me">Você</SelectItem>
+                        {participantOptions.map((participant) => (
+                          <SelectItem key={participant.id} value={participant.id}>
+                            {participant.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data</Label>
+                    <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Data</Label>
-                  <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <Select value={quickPaymentMethod} onValueChange={setQuickPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {quickPaymentMethod === "credit_card" && (
+                    <div className="space-y-2">
+                      <Label>Cartão</Label>
+                      <Select value={quickCreditCardId} onValueChange={setQuickCreditCardId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                          {cards.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
-                <Select value={quickPaymentMethod} onValueChange={setQuickPaymentMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {quickPaymentMethod === "credit_card" && (
-                <div className="space-y-2">
-                  <Label>Cartão</Label>
-                  <Select value={quickCreditCardId} onValueChange={setQuickCreditCardId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
-                      {cards.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Comprovante(s)</Label>
+                <Label>Comprovante(s) *</Label>
                 <Input
                   id="quick-receipt-upload"
                   type="file"
@@ -1756,7 +1763,7 @@ export default function Expenses() {
                     {quickReceiptFiles.length > 0 ? `${quickReceiptFiles.length} arq...` : "Nenhum arquivo"}
                   </span>
                 </Label>
-                <p className="text-xs text-muted-foreground">Envie 1 PDF ou múltiplas imagens.</p>
+                <p className="text-xs text-muted-foreground">O comprovante é obrigatório. Envie 1 PDF ou múltiplas imagens.</p>
                 {quickReceiptError && <p className="text-sm text-destructive">{quickReceiptError}</p>}
               </div>
               
