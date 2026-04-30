@@ -149,6 +149,8 @@ export default function Expenses() {
   const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [quickReceiptFiles, setQuickReceiptFiles] = useState<File[]>([]);
   const [quickReceiptError, setQuickReceiptError] = useState<string | null>(null);
+  const [quickPaymentMethod, setQuickPaymentMethod] = useState("cash");
+  const [quickCreditCardId, setQuickCreditCardId] = useState<string>("none");
 
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
@@ -1097,11 +1099,15 @@ export default function Expenses() {
       payerId,
       paymentDateValue,
       proofFiles,
+      paymentMethodValue,
+      creditCardIdValue,
     }: {
       expense: ExpenseRow;
       payerId: string;
       paymentDateValue: string;
       proofFiles: File[];
+      paymentMethodValue: string;
+      creditCardIdValue: string | null;
     }) => {
       const uploadedReceipts: { url: string; mime_type: string; file_name: string }[] = [];
       for (const file of proofFiles) {
@@ -1124,6 +1130,9 @@ export default function Expenses() {
       const updatedDescription = expense.description
         ? `${expense.description}\n${historyLine}`
         : historyLine;
+      
+      const actualPayerId = payerId === "me" ? user!.id : payerId;
+      const finalCreditCardId = paymentMethodValue === "credit_card" ? creditCardIdValue : null;
 
       const { error: updateError } = await supabase
         .from("expenses")
@@ -1131,6 +1140,9 @@ export default function Expenses() {
           paid_to_provider: true,
           due_date: paymentDateValue,
           description: updatedDescription,
+          created_by: actualPayerId,
+          payment_method: paymentMethodValue,
+          credit_card_id: finalCreditCardId,
         })
         .eq("id", expense.id);
       if (updateError) throw updateError;
@@ -1147,6 +1159,8 @@ export default function Expenses() {
       setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
       setQuickReceiptFiles([]);
       setQuickReceiptError(null);
+      setQuickPaymentMethod("cash");
+      setQuickCreditCardId("none");
       toast({ title: "Pagamento registrado com sucesso." });
     },
     onError: (err: any) => {
@@ -1164,18 +1178,30 @@ export default function Expenses() {
       toast({ title: "Erro", description: "Anexe o comprovante.", variant: "destructive" });
       return;
     }
+    if (quickPaymentMethod === "credit_card" && (quickCreditCardId === "none" || !quickCreditCardId)) {
+      toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
+      return;
+    }
 
     registerPaymentMutation.mutate({
       expense: quickPayExpense,
       payerId: quickPayerUserId,
       paymentDateValue: quickPaymentDate,
       proofFiles: quickReceiptFiles,
+      paymentMethodValue: quickPaymentMethod,
+      creditCardIdValue: quickCreditCardId,
     });
   };
 
   const isQuickPayDisabled = useMemo(() => {
-    return registerPaymentMutation.isPending || !quickPaymentDate || quickReceiptFiles.length === 0;
-  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFiles]);
+    if (registerPaymentMutation.isPending || !quickPaymentDate || quickReceiptFiles.length === 0) {
+      return true;
+    }
+    if (quickPaymentMethod === "credit_card" && (quickCreditCardId === "none" || !quickCreditCardId)) {
+      return true;
+    }
+    return false;
+  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFiles, quickPaymentMethod, quickCreditCardId]);
 
   const isSaveDisabled = useMemo(() => {
     if (createOrUpdateExpense.isPending) return true;
@@ -1652,6 +1678,8 @@ export default function Expenses() {
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setQuickPayExpense(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }
           }}
         >
@@ -1664,24 +1692,51 @@ export default function Expenses() {
                 <Label className="text-xs text-muted-foreground">Despesa</Label>
                 <p className="text-sm font-medium">{quickPayExpense?.title}</p>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Pagador</Label>
+                  <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="me">Você</SelectItem>
+                      {participantOptions.map((participant) => (
+                        <SelectItem key={participant.id} value={participant.id}>
+                          {participant.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label>Pagador</Label>
-                <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                <Label>Forma de Pagamento</Label>
+                <Select value={quickPaymentMethod} onValueChange={setQuickPaymentMethod}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="me">Você</SelectItem>
-                    {participantOptions.map((participant) => (
-                      <SelectItem key={participant.id} value={participant.id}>
-                        {participant.name}
-                      </SelectItem>
+                    {PAYMENT_METHODS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Data</Label>
-                <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
-              </div>
+              {quickPaymentMethod === "credit_card" && (
+                <div className="space-y-2">
+                  <Label>Cartão</Label>
+                  <Select value={quickCreditCardId} onValueChange={setQuickCreditCardId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                      {cards.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Comprovante(s)</Label>
                 <Input
@@ -1910,6 +1965,8 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFiles([]);
               setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1933,6 +1990,8 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFiles([]);
               setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1956,6 +2015,8 @@ export default function Expenses() {
               setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
               setQuickReceiptFiles([]);
               setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
