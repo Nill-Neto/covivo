@@ -1912,12 +1912,13 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
 
   return (
-    <Card id={`expense-${expense.id}`}>
+    <Card id={`expense-${expense.id}`} className="transition-all hover:shadow-md">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <p className="font-medium">{expense.title}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-4 gap-y-2 items-start">
+          {/* Left Column */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <p className="font-semibold text-base">{expense.title}</p>
               <Badge variant="outline" className="text-xs">{catLabel}</Badge>
               <Badge
                 variant={expense.expense_type === "collective" ? "default" : "secondary"}
@@ -1931,95 +1932,101 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
                 </Badge>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {format(parseLocalDate(expense.purchase_date), "dd/MM/yyyy")}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" /> {format(parseLocalDate(expense.purchase_date), "dd/MM/yyyy")}
               </span>
-              <Badge variant={expense.paid_to_provider ? "default" : "secondary"} className="text-[10px]">
+              <Badge variant={expense.paid_to_provider ? "default" : "secondary"} className="text-[10px] font-medium">
                 {expense.paid_to_provider ? "Paga ao fornecedor" : "Pendente com fornecedor"}
               </Badge>
               {expense.payment_method === "credit_card" && (
-                <span>
-                  <CreditCard className="h-3 w-3 inline mr-1" /> {cardLabel}{" "}
+                <span className="flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5" /> {cardLabel}{" "}
                   {expense.installments > 1 && `(${expense.installments}x)`}
                 </span>
               )}
             </div>
             {paymentHistory && (
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground mt-2 italic">
                 {paymentHistory}
               </p>
             )}
-            {expense.expense_receipts && expense.expense_receipts.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 h-7 text-xs gap-1.5"
-                aria-label="Ver comprovantes da despesa"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const receipts = expense.expense_receipts!;
-                  if (receipts.length === 1 && receipts[0].mime_type === 'application/pdf') {
-                    window.open(receipts[0].url, '_blank', 'noopener,noreferrer');
-                  } else {
-                    onViewReceipts(receipts);
-                  }
-                }}
-              >
-                <ImageIcon className="h-3 w-3" />
-                Ver Comprovante{expense.expense_receipts.length > 1 ? 's' : ''}
-              </Button>
-            )}
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-lg font-bold">R$ {Number(displayAmount).toFixed(2)}</p>
-            {isInstallment && (
-              <p className="text-[10px] text-muted-foreground">Total: R$ {Number(expense.amount).toFixed(2)}</p>
-            )}
-            {mySplit && expense.expense_type === "collective" && (
-              <Badge variant="secondary" className="text-[10px]">
-                Sua parte: R$ {Number(mySplit.amount).toFixed(2)}
-              </Badge>
-            )}
+
+          {/* Right Column */}
+          <div className="flex flex-col items-stretch sm:items-end gap-2">
+            <div className="text-left sm:text-right">
+              <p className="text-xl font-bold">R$ {Number(displayAmount).toFixed(2)}</p>
+              {isInstallment && (
+                <p className="text-xs text-muted-foreground">Total: R$ {Number(expense.amount).toFixed(2)}</p>
+              )}
+              {mySplit && expense.expense_type === "collective" && (
+                <Badge variant="secondary" className="text-xs mt-1">
+                  Sua parte: R$ {Number(mySplit.amount).toFixed(2)}
+                </Badge>
+              )}
+            </div>
+            
+            <div className="flex items-center justify-start sm:justify-end gap-1">
+              {expense.expense_receipts && expense.expense_receipts.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Ver comprovantes da despesa"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const receipts = expense.expense_receipts!;
+                    if (receipts.length === 1 && receipts[0].mime_type === 'application/pdf') {
+                      window.open(receipts[0].url, '_blank', 'noopener,noreferrer');
+                    } else {
+                      onViewReceipts(receipts);
+                    }
+                  }}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </Button>
+              )}
+              {canManage && (
+                <>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar despesa">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir despesa">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir esta despesa? Essa ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
+            </div>
             {!expense.paid_to_provider && canManage && (
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 h-7 text-xs"
+                className="mt-1 h-8 text-xs w-full sm:w-auto"
                 onClick={onRegisterPayment}
               >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Registrar pagamento
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Registrar pagamento
               </Button>
             )}
           </div>
-          {canManage && (
-            <div className="flex flex-col gap-1 ml-2">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar despesa">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir despesa">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja excluir esta despesa? Essa ação não pode ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
