@@ -181,6 +181,14 @@ export default function Expenses() {
   const [sortOrder, setSortOrder] = useState("newest");
 
   useEffect(() => {
+    if (location.state?.openNewExpenseModal) {
+      setOpen(true);
+      // Clear state to prevent re-opening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
