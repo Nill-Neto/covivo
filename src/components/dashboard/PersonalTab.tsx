@@ -155,7 +155,7 @@ export function PersonalTab({
 
   return (
     <ScrollReveal preset="blur-slide" className="space-y-6">
-      {modoGestao === 'p2p' ? <P2PBalances balances={p2pBalances} /> : <UnpaidBills />}
+      {modoGestao === 'p2p' && <P2PBalances balances={p2pBalances} />}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-1 bg-primary text-primary-foreground shadow-lg">
@@ -206,6 +206,8 @@ export function PersonalTab({
         </Card>
       </div>
       
+      {modoGestao === 'p2p' && <UnpaidBills />}
+
       <div id="pending-details" className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>

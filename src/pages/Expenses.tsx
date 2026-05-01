@@ -52,7 +52,6 @@ import { ptBR } from "date-fns/locale";
 import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
-import { RegisterPaymentModal } from "@/components/shared/RegisterPaymentModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 const CATEGORIES = [
@@ -146,6 +145,12 @@ export default function Expenses() {
   const [receiptError, setReceiptError] = useState<string | null>(null);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
+  const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
+  const [quickPaymentDate, setQuickPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [quickReceiptFiles, setQuickReceiptFiles] = useState<File[]>([]);
+  const [quickReceiptError, setQuickReceiptError] = useState<string | null>(null);
+  const [quickPaymentMethod, setQuickPaymentMethod] = useState("cash");
+  const [quickCreditCardId, setQuickCreditCardId] = useState<string>("none");
 
   const [editingOriginalAmount, setEditingOriginalAmount] = useState<number | null>(null);
 
@@ -413,6 +418,41 @@ export default function Expenses() {
 
     setReceiptFiles(uniqueFiles);
     setReceiptError(null);
+  };
+
+  const handleQuickFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) {
+      setQuickReceiptFiles([]);
+      setQuickReceiptError(null);
+      return;
+    }
+
+    const uniqueFiles = files.filter((file, index, self) =>
+      index === self.findIndex((f) => (
+        f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+      ))
+    );
+
+    const pdfFiles = uniqueFiles.filter(file => file.type === 'application/pdf');
+    const imgFiles = uniqueFiles.filter(file => file.type.startsWith('image/'));
+
+    if (pdfFiles.length > 0) {
+      if (uniqueFiles.length > 1) {
+        setQuickReceiptError("Se incluir um PDF, ele deve ser o único arquivo.");
+        e.target.value = '';
+        return;
+      }
+    } else {
+      if (imgFiles.length !== uniqueFiles.length) {
+        setQuickReceiptError("Apenas arquivos de imagem ou um único PDF são permitidos.");
+        e.target.value = '';
+        return;
+      }
+    }
+
+    setQuickReceiptFiles(uniqueFiles);
+    setQuickReceiptError(null);
   };
 
   const instantSummary = useMemo(() => {
@@ -1053,6 +1093,116 @@ export default function Expenses() {
     );
   };
 
+  const registerPaymentMutation = useMutation({
+    mutationFn: async ({
+      expense,
+      payerId,
+      paymentDateValue,
+      proofFiles,
+      paymentMethodValue,
+      creditCardIdValue,
+    }: {
+      expense: ExpenseRow;
+      payerId: string;
+      paymentDateValue: string;
+      proofFiles: File[];
+      paymentMethodValue: string;
+      creditCardIdValue: string | null;
+    }) => {
+      const uploadedReceipts: { url: string; mime_type: string; file_name: string }[] = [];
+      for (const file of proofFiles) {
+        const ext = file.name.split(".").pop() ?? "bin";
+        const path = `${user!.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, file);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+        uploadedReceipts.push({
+          url: publicUrlData.publicUrl,
+          mime_type: file.type,
+          file_name: file.name,
+        });
+      }
+
+      const payerName = payerId === "me"
+        ? "Você"
+        : participantOptions.find((participant) => participant.id === payerId)?.name || "Morador";
+      const historyLine = `quitada por ${payerName} em ${format(parseLocalDate(paymentDateValue), "dd/MM")}`;
+      const updatedDescription = expense.description
+        ? `${expense.description}\n${historyLine}`
+        : historyLine;
+      
+      const actualPayerId = payerId === "me" ? user!.id : payerId;
+      const finalCreditCardId = paymentMethodValue === "credit_card" ? creditCardIdValue : null;
+
+      const { error: updateError } = await supabase
+        .from("expenses")
+        .update({
+          paid_to_provider: true,
+          due_date: paymentDateValue,
+          description: updatedDescription,
+          created_by: actualPayerId,
+          payment_method: paymentMethodValue,
+          credit_card_id: finalCreditCardId,
+        })
+        .eq("id", expense.id);
+      if (updateError) throw updateError;
+
+      if (uploadedReceipts.length > 0) {
+        const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: expense.id, ...r }));
+        await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      setQuickPayExpense(null);
+      setQuickPayerUserId("me");
+      setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+      setQuickReceiptFiles([]);
+      setQuickReceiptError(null);
+      setQuickPaymentMethod("cash");
+      setQuickCreditCardId("none");
+      toast({ title: "Pagamento registrado com sucesso." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleQuickRegisterPayment = () => {
+    if (!quickPayExpense) return;
+    if (!quickPaymentDate) {
+      toast({ title: "Erro", description: "Informe a data do pagamento.", variant: "destructive" });
+      return;
+    }
+    if (quickReceiptFiles.length === 0) {
+      toast({ title: "Erro", description: "Anexe o comprovante.", variant: "destructive" });
+      return;
+    }
+    if (quickPaymentMethod === "credit_card" && (quickCreditCardId === "none" || !quickCreditCardId)) {
+      toast({ title: "Erro", description: "Selecione um cartão de crédito.", variant: "destructive" });
+      return;
+    }
+
+    registerPaymentMutation.mutate({
+      expense: quickPayExpense,
+      payerId: quickPayerUserId,
+      paymentDateValue: quickPaymentDate,
+      proofFiles: quickReceiptFiles,
+      paymentMethodValue: quickPaymentMethod,
+      creditCardIdValue: quickCreditCardId,
+    });
+  };
+
+  const isQuickPayDisabled = useMemo(() => {
+    if (registerPaymentMutation.isPending || !quickPaymentDate || quickReceiptFiles.length === 0) {
+      return true;
+    }
+    if (quickPaymentMethod === "credit_card" && (quickCreditCardId === "none" || !quickCreditCardId)) {
+      return true;
+    }
+    return false;
+  }, [registerPaymentMutation.isPending, quickPaymentDate, quickReceiptFiles, quickPaymentMethod, quickCreditCardId]);
+
   const isSaveDisabled = useMemo(() => {
     if (createOrUpdateExpense.isPending) return true;
     if (!title.trim() || !amount || parseFloat(amount) <= 0) return true;
@@ -1523,17 +1673,137 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
 
-        <RegisterPaymentModal
+        <Dialog
           open={!!quickPayExpense}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setQuickPayExpense(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }
           }}
-          expense={quickPayExpense}
-          cards={cards}
-          participants={participantOptions}
-        />
+        >
+          <DialogContent className="max-w-md p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+            <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b bg-background">
+              <DialogTitle className="font-serif">Registrar pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Despesa</Label>
+                <p className="text-sm font-medium">{quickPayExpense?.title}</p>
+              </div>
+
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                <Label className="text-base font-medium">Detalhes do Pagamento</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Pagador</Label>
+                    <Select value={quickPayerUserId} onValueChange={setQuickPayerUserId}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="me">Você</SelectItem>
+                        {participantOptions.map((participant) => (
+                          <SelectItem key={participant.id} value={participant.id}>
+                            {participant.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data</Label>
+                    <Input type="date" value={quickPaymentDate} onChange={(e) => setQuickPaymentDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <Select value={quickPaymentMethod} onValueChange={setQuickPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {quickPaymentMethod === "credit_card" && (
+                    <div className="space-y-2">
+                      <Label>Cartão</Label>
+                      <Select value={quickCreditCardId} onValueChange={setQuickCreditCardId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {cards.length === 0 && <SelectItem value="none" disabled>Nenhum cartão</SelectItem>}
+                          {cards.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Comprovante(s) *</Label>
+                <Input
+                  id="quick-receipt-upload"
+                  type="file"
+                  accept="image/*,.pdf"
+                  multiple
+                  onChange={handleQuickFileChange}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="quick-receipt-upload"
+                  className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                >
+                  <span className="border rounded-md px-2 py-1 text-xs font-semibold bg-background">Escolher arquivos</span>
+                  <span className="text-muted-foreground text-sm">
+                    {quickReceiptFiles.length > 0 ? `${quickReceiptFiles.length} arq...` : "Nenhum arquivo"}
+                  </span>
+                </Label>
+                <p className="text-xs text-muted-foreground">O comprovante é obrigatório. Envie 1 PDF ou múltiplas imagens.</p>
+                {quickReceiptError && <p className="text-sm text-destructive">{quickReceiptError}</p>}
+              </div>
+              
+              {quickReceiptFiles.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {quickReceiptFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm bg-background p-2 rounded-md border">
+                      <div className="flex items-center gap-2 truncate">
+                        {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4 text-muted-foreground" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground/80 shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQuickReceiptFiles(prev => prev.filter((_, i) => i !== index))} aria-label={`Remover ${file.name}`}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {quickReceiptFiles.length > 1 && (
+                    <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setQuickReceiptFiles([])}>
+                      Limpar todos
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
+              <Button
+                onClick={handleQuickRegisterPayment}
+                disabled={isQuickPayDisabled}
+                className="w-full"
+              >
+                {registerPaymentMutation.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : null}
+                Confirmar pagamento
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={!!editConfirmExpense} onOpenChange={(v) => { if (!v) setEditConfirmExpense(null); }}>
           <AlertDialogContent>
@@ -1698,6 +1968,12 @@ export default function Expenses() {
             onDelete={() => handleDeleteClick(e)}
             onRegisterPayment={() => {
               setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1717,6 +1993,12 @@ export default function Expenses() {
             onDelete={() => handleDeleteClick(e)}
             onRegisterPayment={() => {
               setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
@@ -1736,6 +2018,12 @@ export default function Expenses() {
             onDelete={() => handleDeleteClick(e)}
             onRegisterPayment={() => {
               setQuickPayExpense(e);
+              setQuickPayerUserId("me");
+              setQuickPaymentDate(format(new Date(), "yyyy-MM-dd"));
+              setQuickReceiptFiles([]);
+              setQuickReceiptError(null);
+              setQuickPaymentMethod("cash");
+              setQuickCreditCardId("none");
             }}
             onViewReceipts={setViewingReceipts}
           />
