@@ -137,7 +137,7 @@ export function DashboardHeader({
             </div>
 
             <Button variant="outline" className="relative h-10 w-full gap-2 overflow-hidden sm:w-auto" asChild>
-              <Link to="/expenses">
+              <Link to="/expenses" state={{ openNewExpenseModal: true }}>
                 <div
                   className={cn(
                     "absolute inset-0 pointer-events-none rounded-[inherit] border-2 border-transparent border-inset [mask-clip:padding-box,border-box]",
