@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CalendarClock, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, CalendarClock, Calendar } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -9,9 +9,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { AnimatedGroup } from "@/components/ui/animated-group";
 import { TextEffect } from "@/components/ui/text-effect";
-import { APP_NAME } from "@/config/brand";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MonthYearPicker } from "@/components/ui/month-year-picker";
+import { MonthNavigator } from "@/components/ui/MonthNavigator";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -42,7 +40,6 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -129,34 +126,12 @@ export function DashboardHeader({
 
           {/* Right: Actions */}
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-3 lg:mt-0 lg:w-auto">
-            <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card/80 p-1 shadow-sm sm:w-auto">
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onPrevMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px] h-8"
-                  >
-                    {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <MonthYearPicker
-                    date={currentDate}
-                    onDateChange={(date) => {
-                      onDateSelect(date);
-                      setPopoverOpen(false);
-                    }}
-                    onClose={() => setPopoverOpen(false)}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onNextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <MonthNavigator
+              currentDate={currentDate}
+              onPrevMonth={onPrevMonth}
+              onNextMonth={onNextMonth}
+              onDateSelect={onDateSelect}
+            />
 
             <Button variant="outline" className="relative h-10 w-full gap-2 overflow-hidden sm:w-auto" asChild>
               <Link to="/expenses" state={{ openNewExpenseModal: true }}>

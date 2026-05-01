@@ -21,12 +21,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Plus, AlertTriangle, Minus, PlusCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, Plus, AlertTriangle, Minus, PlusCircle, Trash2 } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { PageHero } from "@/components/layout/PageHero";
 import { ScrollRevealGroup } from "@/components/ui/scroll-reveal";
 import { useCycleDates } from "@/hooks/useCycleDates";
+import { MonthNavigator } from "@/components/ui/MonthNavigator";
 
 const categories = [
   { value: "limpeza", label: "Limpeza" },
@@ -47,7 +47,7 @@ export default function Inventory() {
   const [filter, setFilter] = useState("all");
   const [form, setForm] = useState({ name: "", category: "geral", quantity: "1", unit: "un", min_quantity: "1" });
 
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth } = useCycleDates(membership?.group_id);
+  const { currentDate, setCurrentDate, cycleStart, cycleEnd, nextMonth, prevMonth } = useCycleDates(membership?.group_id);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["inventory", membership?.group_id, cycleStart.toISOString(), cycleEnd.toISOString()],
@@ -126,18 +126,12 @@ export default function Inventory() {
         icon={<Package className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          {/* Month Selector */}
-          <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
-             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
-               <ChevronLeft className="h-4 w-4" />
-             </Button>
-             <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-               {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-             </div>
-             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
-               <ChevronRight className="h-4 w-4" />
-             </Button>
-           </div>
+            <MonthNavigator
+              currentDate={currentDate}
+              onPrevMonth={prevMonth}
+              onNextMonth={nextMonth}
+              onDateSelect={setCurrentDate}
+            />
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

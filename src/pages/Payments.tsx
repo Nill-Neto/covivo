@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Check, X, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronsUpDown, Settings, Trash2, CreditCard } from "lucide-react";
+import { Plus, Check, X, Upload, Image as ImageIcon, ChevronsUpDown, Settings, Trash2, CreditCard } from "lucide-react";
 import { CustomLoader } from "@/components/ui/custom-loader";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,6 +33,7 @@ import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Capacitor } from "@capacitor/core";
+import { MonthNavigator } from "@/components/ui/MonthNavigator";
 
 const PAYMENT_DRAFT_STORAGE_KEY = "payments:send-payment-draft";
 
@@ -70,7 +71,7 @@ export default function Payments() {
   const isMobile = useIsMobile();
   const isNativeRuntime = Capacitor.isNativePlatform();
 
-  const { currentDate, cycleStart, cycleEnd, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
+  const { currentDate, setCurrentDate, cycleStart, cycleEnd, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
   const platformLabel = useMemo(() => {
     if (isNativeRuntime) return `capacitor-${Capacitor.getPlatform()}`;
     if (isMobile) return "mobile-web";
@@ -415,18 +416,12 @@ export default function Payments() {
         icon={<CreditCard className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          {/* Month Selector */}
-          <div className="flex h-10 w-full items-center justify-between rounded-lg border bg-card p-1 shadow-sm sm:w-auto">
-             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
-               <ChevronLeft className="h-4 w-4" />
-             </Button>
-             <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-               {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-             </div>
-             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
-               <ChevronRight className="h-4 w-4" />
-             </Button>
-           </div>
+            <MonthNavigator
+              currentDate={currentDate}
+              onPrevMonth={prevMonth}
+              onNextMonth={nextMonth}
+              onDateSelect={setCurrentDate}
+            />
 
             {!isAdmin && (pendingSplits?.length ?? 0) > 0 && (
               <Dialog
