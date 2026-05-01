@@ -44,9 +44,9 @@ import {
   Settings,
   Search,
   X,
-  Image as ImageIcon,
+  Eye,
   FileText,
-  ArrowRight,
+  ImageIcon,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -142,8 +142,8 @@ export default function Expenses() {
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
-  const [existingReceipts, setExistingReceipts] = useState<ExpenseReceipt[]>([]);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
   const [quickPayerUserId, setQuickPayerUserId] = useState<string>("me");
@@ -175,6 +175,13 @@ export default function Expenses() {
       setCustomCategory("");
     }
   }, [category]);
+
+  useEffect(() => {
+    if (expenseType === "individual") {
+      setReceiptFiles([]);
+      setReceiptError(null);
+    }
+  }, [expenseType]);
 
   const currentCompetenceKey = formatCompetenceKey(currentDate);
 
@@ -624,7 +631,10 @@ export default function Expenses() {
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
       const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
-
+      if (!actualPayerId) {
+        throw new Error("Não foi possível identificar quem pagou a despesa.");
+      }
+  
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
       }
@@ -640,15 +650,29 @@ export default function Expenses() {
       const categoryToSend = category === "other" ? customCategory.trim() : category;
       const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
       const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid";
+  
+      const receiptValidation = validateReceiptFiles(receiptFiles);
+      if (!receiptValidation.valid) {
+        throw new Error(receiptValidation.message);
+      }
 
-      if (expenseType === "collective" && providerPaid) {
-        const hasExistingReceipts = existingReceipts && existingReceipts.length > 0;
-        if (!editingId && receiptFiles.length === 0) {
-          throw new Error("Para despesas coletivas pagas, o comprovante é obrigatório.");
+      const requiresReceipt = expenseType === "collective" && statusWithProvider === "paid";
+      if (requiresReceipt) {
+        const hasExistingReceipt = !!receiptUrl;
+        const hasNewReceipt = receiptFiles.length > 0;
+        if (!editingId && !hasNewReceipt) {
+          throw new Error("Anexe o comprovante para despesas coletivas já pagas.");
         }
-        if (editingId && receiptFiles.length === 0 && !hasExistingReceipts) {
-          throw new Error("Para editar uma despesa coletiva paga, anexe um novo comprovante ou mantenha um existente.");
+        if (editingId && !hasExistingReceipt && !hasNewReceipt) {
+          throw new Error("Anexe novo comprovante ou mantenha o comprovante já existente.");
         }
+      }
+
+      let uploadedReceiptUrl = receiptUrl;
+      let uploadedReceipts: Array<{ url: string; mime_type: string; position: number }> = [];
+      if (receiptFiles.length > 0) {
+        uploadedReceipts = await uploadReceiptFiles(receiptFiles, user.id);
+        uploadedReceiptUrl = uploadedReceipts[0]?.url ?? null;
       }
 
       const uploadedReceipts: { url: string; mime_type: string; file_name: string }[] = [];
@@ -733,12 +757,13 @@ export default function Expenses() {
           })
           .eq("id", editingId);
         if (error) throw error;
-
         if (uploadedReceipts.length > 0) {
-          const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: editingId, ...r }));
-          await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+          await supabase.from("expense_receipts" as any).delete().eq("expense_id", editingId);
+          const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
+            uploadedReceipts.map((receipt) => ({ expense_id: editingId, ...receipt })),
+          );
+          if (receiptsError) throw receiptsError;
         }
-
         const savedExpense = await fetchSavedExpense(editingId);
         setDateValue(savedExpense.purchase_date);
 
@@ -808,6 +833,7 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
+          _payer_user_id: actualPayerId,
         };
 
         const { data: newExpenseId, error: createError } = await supabase.rpc(
@@ -829,9 +855,28 @@ export default function Expenses() {
             })
             .eq("id", newExpenseId);
 
+          const { error: backfillCreditorError } = await supabase
+            .from("expense_splits")
+            .update({ credor_user_id: actualPayerId })
+            .eq("expense_id", newExpenseId)
+            .is("credor_user_id", null);
+          if (backfillCreditorError) throw backfillCreditorError;
+
+          const { count: nullCreditorCount, error: nullCreditorCheckError } = await supabase
+            .from("expense_splits")
+            .select("id", { count: "exact", head: true })
+            .eq("expense_id", newExpenseId)
+            .is("credor_user_id", null);
+          if (nullCreditorCheckError) throw nullCreditorCheckError;
+          if ((nullCreditorCount ?? 0) > 0) {
+            throw new Error("Não foi possível definir o credor da despesa. Tente novamente.");
+          }
+
           if (uploadedReceipts.length > 0) {
-            const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: newExpenseId as string, ...r }));
-            await supabase.from("expense_receipts" as any).insert(newReceiptRows);
+            const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
+              uploadedReceipts.map((receipt) => ({ expense_id: newExpenseId, ...receipt })),
+            );
+            if (receiptsError) throw receiptsError;
           }
         }
 
@@ -910,7 +955,8 @@ export default function Expenses() {
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
     setReceiptFiles([]);
-    setExistingReceipts([]);
+    setReceiptError(null);
+    setReceiptUrl(null);
     setEditingOriginalAmount(null);
   };
 
@@ -930,7 +976,8 @@ export default function Expenses() {
     setInstallments(String(expense.installments || 1));
     setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
     setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
-    setExistingReceipts(expense.expense_receipts || []);
+    setReceiptUrl(expense.receipt_url || null);
+    setReceiptError(null);
     setPayerUserId(expense.created_by || "me");
 
     const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
@@ -1054,6 +1101,39 @@ export default function Expenses() {
     setSelectedParticipantIds((prev) =>
       prev.includes(participantId) ? prev.filter((id) => id !== participantId) : [...prev, participantId],
     );
+  };
+
+  const handleReceiptFilesChange = (filesList: FileList | null) => {
+    const incoming = Array.from(filesList ?? []);
+    if (incoming.length === 0) return;
+
+    setReceiptFiles((previous) => {
+      const merged = [...previous, ...incoming];
+      const deduplicated = merged.filter(
+        (file, index, arr) =>
+          arr.findIndex(
+            (candidate) =>
+              `${candidate.name}-${candidate.size}-${candidate.lastModified}` ===
+              `${file.name}-${file.size}-${file.lastModified}`,
+          ) === index,
+      );
+      const validation = validateReceiptFiles(deduplicated);
+      if (!validation.valid) {
+        setReceiptError(validation.message);
+        return previous;
+      }
+      setReceiptError(null);
+      return deduplicated;
+    });
+  };
+
+  const removeReceiptFile = (indexToRemove: number) => {
+    setReceiptFiles((previous) => {
+      const updated = previous.filter((_, index) => index !== indexToRemove);
+      const validation = validateReceiptFiles(updated);
+      setReceiptError(validation.valid ? null : validation.message);
+      return updated;
+    });
   };
 
   const registerPaymentMutation = useMutation({
@@ -1399,66 +1479,54 @@ export default function Expenses() {
                             onChange={(e) => setDateValue(e.target.value)}
                           />
                         </div>
-                        {expenseType === 'collective' && (
+                        {expenseType === "collective" && (
                           <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">Comprovante(s)</Label>
+                            <Label className="text-xs text-muted-foreground">Comprovante</Label>
                             <Input
                               type="file"
                               accept="image/*,.pdf"
                               multiple
-                              onChange={handleFileChange}
+                              onChange={(e) => handleReceiptFilesChange(e.target.files)}
                             />
                             <p className="text-xs text-muted-foreground">Envie 1 PDF ou múltiplas imagens.</p>
-                            {receiptError && <p className="text-sm text-destructive">{receiptError}</p>}
-                            
-                            {existingReceipts.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-xs font-medium text-muted-foreground">Comprovantes atuais:</p>
-                                <div className="space-y-1">
-                                  {existingReceipts.map(receipt => (
-                                    <div key={receipt.id} className="flex items-center justify-between text-xs bg-muted/50 p-1.5 rounded">
-                                      <a href={receipt.url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate pr-2 flex items-center gap-2">
-                                        <ImageIcon className="h-4 w-4" />
-                                        {receipt.file_name || 'comprovante'}
-                                      </a>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => {
-                                        setExistingReceipts(prev => prev.filter(r => r.id !== receipt.id));
-                                      }}>
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            {receiptFiles.length === 0 && <p className="text-xs text-muted-foreground">Nenhum arquivo selecionado</p>}
                             {receiptFiles.length > 0 && (
-                              <div className="mt-2">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-xs font-medium text-muted-foreground">Novos comprovantes:</p>
-                                  {receiptFiles.length > 1 && (
-                                    <Button variant="ghost" size="sm" className="text-xs h-auto py-0" onClick={() => setReceiptFiles([])}>Limpar todos</Button>
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  {receiptFiles.map((file, index) => (
-                                    <div key={index} className="flex items-center justify-between text-xs bg-muted/50 p-1.5 rounded">
-                                      <div className="flex items-center gap-2 truncate">
-                                        {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                                        <span className="truncate">{file.name}</span>
-                                        <span className="text-muted-foreground/70 shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
-                                      </div>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => {
-                                        setReceiptFiles(prev => prev.filter((_, i) => i !== index));
-                                      }} aria-label={`Remover ${file.name}`}>
-                                        <X className="h-3 w-3" />
+                              <div className="space-y-2 rounded-md border p-2">
+                                {receiptFiles.map((file, index) => {
+                                  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+                                  const fileSize = file.size >= 1024 * 1024
+                                    ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                                    : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+                                  return (
+                                    <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-sm border px-2 py-1">
+                                      {isPdf ? <FileText className="h-4 w-4 shrink-0" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+                                      <span className="flex-1 truncate text-xs" title={file.name}>{file.name}</span>
+                                      <span className="shrink-0 text-[11px] text-muted-foreground">{fileSize}</span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        aria-label={`Remover arquivo ${file.name}`}
+                                        onClick={() => removeReceiptFile(index)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })}
+                                {receiptFiles.length > 1 && (
+                                  <Button type="button" variant="outline" size="sm" onClick={() => { setReceiptFiles([]); setReceiptError(null); }}>
+                                    Limpar todos
+                                  </Button>
+                                )}
                               </div>
                             )}
-                            {receiptFiles.length === 0 && existingReceipts.length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center py-2">Nenhum arquivo selecionado.</p>
+                            {receiptError && <p className="text-xs text-destructive">{receiptError}</p>}
+                            {receiptUrl && (
+                              <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                                Ver comprovante atual
+                              </a>
                             )}
                           </div>
                         )}
@@ -1589,7 +1657,7 @@ export default function Expenses() {
 
             </div>
             <div className="px-6 pb-6 pt-4 shrink-0 border-t bg-background">
-              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={isSaveDisabled} className="w-full">
+              <Button onClick={() => createOrUpdateExpense.mutate()} disabled={createOrUpdateExpense.isPending || !!receiptError || (expenseType === "collective" && statusWithProvider === "paid" && !receiptUrl && receiptFiles.length === 0)} className="w-full">
                 {createOrUpdateExpense.isPending ? <CustomLoader className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingId ? "Atualizar" : "Salvar"}
               </Button>
@@ -1892,7 +1960,8 @@ export default function Expenses() {
   );
 }
 
-function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment, onViewReceipts }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void, onViewReceipts: (receipts: ExpenseReceipt[]) => void }) {
+function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegisterPayment }: { expense: ExpenseRow, userId?: string, isAdmin: boolean, cards: CreditCardRow[], onEdit: () => void, onDelete: () => void, onRegisterPayment: () => void }) {
+  const [openReceiptsDialog, setOpenReceiptsDialog] = useState(false);
   const catLabel = CATEGORIES.find((c) => c.value === expense.category)?.label ?? expense.category;
   const mySplit = expense.expense_splits?.find((s) => s.user_id === userId);
   const cardLabel = cards.find((c) => c.id === expense.credit_card_id)?.label;
@@ -1905,15 +1974,22 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
 
   const isInstallment = expense._is_installment && expense.installments > 1;
   const displayAmount = isInstallment ? expense._installment_amount : expense.amount;
-  const receipts = expense.expense_receipts || [];
+  const receiptUrls = useMemo(() => {
+    const expenseWithManyReceipts = expense as ExpenseRow & { receipt_urls?: string[] };
 
-  const handleViewReceipts = () => {
-    if (receipts.length === 1) {
-      window.open(receipts[0].url, '_blank', 'noopener,noreferrer');
-    } else if (receipts.length > 1) {
-      onViewReceipts(receipts);
+    if (Array.isArray(expenseWithManyReceipts.receipt_urls) && expenseWithManyReceipts.receipt_urls.length > 0) {
+      return expenseWithManyReceipts.receipt_urls.filter(Boolean);
     }
-  };
+
+    if (!expense.receipt_url) return [];
+
+    return expense.receipt_url
+      .split(/[\n,;]+/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+  }, [expense]);
+  const singleReceiptUrl = receiptUrls.length === 1 ? receiptUrls[0] : null;
+  const isSinglePdf = !!singleReceiptUrl && singleReceiptUrl.toLowerCase().includes(".pdf");
 
   return (
     <Card id={`expense-${expense.id}`}>
@@ -1978,10 +2054,29 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
           </div>
           {canManage && (
             <div className="flex flex-col gap-1 ml-2">
-              {receipts.length > 0 && (
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleViewReceipts} aria-label="Ver comprovantes da despesa">
-                  <ImageIcon className="h-4 w-4" />
-                </Button>
+              {receiptUrls.length > 0 && (
+                isSinglePdf ? (
+                  <Button asChild size="icon" variant="ghost" className="h-8 w-8">
+                    <a
+                      href={singleReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Ver comprovante da despesa"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setOpenReceiptsDialog(true)}
+                    aria-label="Ver comprovante da despesa"
+                  >
+                    {receiptUrls.length > 1 ? <ImageIcon className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                )
               )}
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} aria-label="Editar despesa">
                 <Edit className="h-4 w-4" />
@@ -2007,6 +2102,32 @@ function ExpenseCard({ expense, userId, isAdmin, cards, onEdit, onDelete, onRegi
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              <Dialog open={openReceiptsDialog} onOpenChange={setOpenReceiptsDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Comprovantes da despesa</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
+                    {receiptUrls.map((url, index) => {
+                      const isPdf = url.toLowerCase().includes(".pdf");
+
+                      return (
+                        <a
+                          key={`${url}-${index}`}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-md border p-2 hover:bg-muted"
+                          aria-label={`Abrir comprovante ${index + 1} da despesa em nova aba`}
+                        >
+                          {isPdf ? <FileText className="h-4 w-4 shrink-0" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+                          <span className="text-xs truncate">Comprovante {index + 1}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
@@ -2075,3 +2196,35 @@ function RecurringCard({ recurring, isAdmin, userId, onEdit, onDelete }: { recur
     </Card>
   );
 }
+  const validateReceiptFiles = (files: File[]) => {
+    if (files.length === 0) return { valid: true as const };
+    const hasPdf = files.some((file) => file.type === "application/pdf");
+    if (hasPdf) {
+      if (files.length !== 1) {
+        return { valid: false as const, message: "Se enviar PDF, selecione apenas 1 arquivo PDF." };
+      }
+      const onlyFile = files[0];
+      if (onlyFile.type !== "application/pdf") {
+        return { valid: false as const, message: "PDF inválido. Use um arquivo com tipo application/pdf." };
+      }
+      return { valid: true as const };
+    }
+    const hasInvalid = files.some((file) => !file.type.startsWith("image/"));
+    if (hasInvalid) {
+      return { valid: false as const, message: "Sem PDF, todos os arquivos devem ser imagens." };
+    }
+    return { valid: true as const };
+  };
+
+  const uploadReceiptFiles = async (files: File[], userId: string) => {
+    const uploadedReceipts: Array<{ url: string; mime_type: string; position: number }> = [];
+    for (const [index, file] of files.entries()) {
+      const ext = file.name.split(".").pop() ?? (file.type === "application/pdf" ? "pdf" : "jpg");
+      const path = `${userId}/${Date.now()}_expense_${index}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("receipts").upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      uploadedReceipts.push({ url: publicUrlData.publicUrl, mime_type: file.type || "application/octet-stream", position: index });
+    }
+    return uploadedReceipts;
+  };
