@@ -10,6 +10,8 @@ import { motion } from "framer-motion";
 import { AnimatedGroup } from "@/components/ui/animated-group";
 import { TextEffect } from "@/components/ui/text-effect";
 import { APP_NAME } from "@/config/brand";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
 
 interface DashboardHeaderProps {
   userName: string | undefined;
@@ -20,6 +22,7 @@ interface DashboardHeaderProps {
   cycleLimitDate: Date;
   onNextMonth: () => void;
   onPrevMonth: () => void;
+  onDateSelect: (date: Date) => void;
   compactTabs?: ReactNode;
   onCompactChange?: (isCompact: boolean) => void;
 }
@@ -33,11 +36,13 @@ export function DashboardHeader({
   cycleLimitDate,
   onNextMonth,
   onPrevMonth,
+  onDateSelect,
   compactTabs,
   onCompactChange,
 }: DashboardHeaderProps) {
   const [isCompact, setIsCompact] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -128,9 +133,26 @@ export function DashboardHeader({
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onPrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-              </div>
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px] h-8"
+                  >
+                    {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <MonthYearPicker
+                    date={currentDate}
+                    onDateChange={(date) => {
+                      onDateSelect(date);
+                      setPopoverOpen(false);
+                    }}
+                    onClose={() => setPopoverOpen(false)}
+                  />
+                </PopoverContent>
+              </Popover>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onNextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
