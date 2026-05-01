@@ -104,6 +104,15 @@ export function RegisterPaymentModal({
         .eq("id", expense.id);
       if (updateError) throw updateError;
 
+      const { error: updateSplitsError } = await supabase
+        .from("expense_splits")
+        .update({
+          status: "pending",
+          credor_user_id: actualPayerId,
+        })
+        .eq("expense_id", expense.id);
+      if (updateSplitsError) throw updateSplitsError;
+
       if (uploadedReceipts.length > 0) {
         const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: expense.id, ...r }));
         await supabase.from("expense_receipts" as any).insert(newReceiptRows);
