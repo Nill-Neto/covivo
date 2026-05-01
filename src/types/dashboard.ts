@@ -86,3 +86,10 @@ export interface PendingSplit {
     status: string;
   }[];
 }
+
+export type MyP2PBalance = {
+  other_user_id: string;
+  other_user_full_name: string | null;
+  other_user_avatar_url: string | null;
+  net_balance: number;
+};
