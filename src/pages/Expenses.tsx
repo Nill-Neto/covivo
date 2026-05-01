@@ -999,62 +999,59 @@ export default function Expenses() {
 
   const filteredCollective = (decoratedExpenses ?? []).filter((e) => e.expense_type === "collective");
 
+  const lowerSearchTerm = searchTerm.toLowerCase().trim();
+  const filterBySearch = (e: ExpenseRow | RecurringExpenseRow) => {
+    if (!lowerSearchTerm) return true;
+    const catLabel = CATEGORIES.find((c) => c.value === e.category)?.label ?? e.category;
+    return (
+      e.title?.toLowerCase().includes(lowerSearchTerm) ||
+      catLabel.toLowerCase().includes(lowerSearchTerm)
+    );
+  };
+
+  const finalFilteredAll = filteredAll.filter(filterBySearch);
+  const finalFilteredMine = filteredMine.filter(filterBySearch);
+  const finalFilteredCollective = filteredCollective.filter(filterBySearch);
+  const finalRecurring = recurringExpenses?.filter(filterBySearch);
+
   const dynamicCategories = useMemo(() => {
     const allCategories = new Map<string, string>();
     CATEGORIES.forEach(c => allCategories.set(c.value, c.label));
-    (decoratedExpenses ?? []).forEach(expense => {
+    finalFilteredAll.forEach(expense => {
       if (expense.category && !allCategories.has(expense.category)) {
         allCategories.set(expense.category, expense.category);
       }
     });
     return Array.from(allCategories, ([value, label]) => ({ value, label }));
-  }, [decoratedExpenses]);
+  }, [finalFilteredAll]);
 
-  const { processedExpenses, processedRecurringExpenses } = useMemo(() => {
-    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+  const processedExpenses = useMemo(() => {
+    const applyFiltersAndSorting = (expenses: ExpenseRow[]) => {
+      let filtered = expenses;
 
-    const filterAndSort = (expenses: (ExpenseRow | RecurringExpenseRow)[], isRecurring = false) => {
-      // 1. Filter by search
-      const filteredBySearch = expenses.filter(e => {
-        if (!lowerSearchTerm) return true;
-        const catLabel = CATEGORIES.find(c => c.value === e.category)?.label ?? e.category;
-        return (
-          e.title?.toLowerCase().includes(lowerSearchTerm) ||
-          catLabel.toLowerCase().includes(lowerSearchTerm)
-        );
-      });
-
-      // 2. Filter by category
-      let filteredByCategory = filteredBySearch;
-      if (filterCategory !== 'all') {
-        filteredByCategory = filteredBySearch.filter(e => e.category === filterCategory);
+      if (filterCategory !== "all") {
+        filtered = filtered.filter(e => e.category === filterCategory);
       }
 
-      // 3. Filter by card (not for recurring)
-      let filteredByCard = filteredByCategory;
-      if (!isRecurring && filterCard !== 'all') {
-        if (filterCard === 'none') {
-          filteredByCard = filteredByCategory.filter(e => (e as ExpenseRow).payment_method !== 'credit_card' || !(e as ExpenseRow).credit_card_id);
+      if (filterCard !== "all") {
+        if (filterCard === "none") {
+          filtered = filtered.filter(e => e.payment_method !== "credit_card" || !e.credit_card_id);
         } else {
-          filteredByCard = filteredByCategory.filter(e => (e as ExpenseRow).credit_card_id === filterCard);
+          filtered = filtered.filter(e => e.credit_card_id === filterCard);
         }
       }
 
-      // 4. Sort
-      const sorted = [...filteredByCard].sort((a, b) => {
-        const dateA = new Date(isRecurring ? (a as RecurringExpenseRow).next_due_date : (a as ExpenseRow).purchase_date);
-        const dateB = new Date(isRecurring ? (b as RecurringExpenseRow).next_due_date : (b as ExpenseRow).purchase_date);
-
+      const sorted = [...filtered].sort((a, b) => {
         switch (sortOrder) {
-          case 'newest':
-            return dateB.getTime() - dateA.getTime();
-          case 'oldest':
-            return dateA.getTime() - dateB.getTime();
-          case 'amount-desc':
+          case "newest":
+            return new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime();
+          case "oldest":
+            return new Date(a.purchase_date).getTime() - new Date(b.purchase_date).getTime();
+          case "amount-desc":
             return b.amount - a.amount;
-          case 'amount-asc':
+          case "amount-asc":
             return a.amount - b.amount;
-          case 'title-asc':
+          case "title-asc":
             return a.title.localeCompare(b.title);
           default:
             return 0;
@@ -1065,24 +1062,42 @@ export default function Expenses() {
     };
 
     return {
-      processedExpenses: {
-        all: filterAndSort(filteredAll) as ExpenseRow[],
-        mine: filterAndSort(filteredMine) as ExpenseRow[],
-        collective: filterAndSort(filteredCollective) as ExpenseRow[],
-      },
-      processedRecurringExpenses: filterAndSort(recurringExpenses || [], true) as RecurringExpenseRow[],
+      all: applyFiltersAndSorting(finalFilteredAll),
+      mine: applyFiltersAndSorting(finalFilteredMine),
+      collective: applyFiltersAndSorting(finalFilteredCollective),
     };
-  }, [
-    searchTerm,
-    filterCategory,
-    filterCard,
-    sortOrder,
-    filteredAll,
-    filteredMine,
-    filteredCollective,
-    recurringExpenses,
-  ]);
+  }, [finalFilteredAll, finalFilteredMine, finalFilteredCollective, filterCategory, filterCard, sortOrder]);
 
+  const processedRecurringExpenses = useMemo(() => {
+    if (!finalRecurring) return [];
+
+    let filtered = finalRecurring;
+
+    if (filterCategory !== "all") {
+      filtered = filtered.filter(e => e.category === filterCategory);
+    }
+
+    // filterCard is not applicable to recurring expenses
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortOrder) {
+        case "newest":
+          return new Date(b.next_due_date).getTime() - new Date(a.next_due_date).getTime();
+        case "oldest":
+          return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+        case "amount-desc":
+          return b.amount - a.amount;
+        case "amount-asc":
+          return a.amount - b.amount;
+        case "title-asc":
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [finalRecurring, filterCategory, sortOrder]);
 
   useEffect(() => {
     if (location.hash) {
