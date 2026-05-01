@@ -1017,13 +1017,13 @@ export default function Expenses() {
   const dynamicCategories = useMemo(() => {
     const allCategories = new Map<string, string>();
     CATEGORIES.forEach(c => allCategories.set(c.value, c.label));
-    decoratedExpenses.forEach(expense => {
+    finalFilteredAll.forEach(expense => {
       if (expense.category && !allCategories.has(expense.category)) {
         allCategories.set(expense.category, expense.category);
       }
     });
     return Array.from(allCategories, ([value, label]) => ({ value, label }));
-  }, [decoratedExpenses]);
+  }, [finalFilteredAll]);
 
   const processedExpenses = useMemo(() => {
     const applyFiltersAndSorting = (expenses: ExpenseRow[]) => {
