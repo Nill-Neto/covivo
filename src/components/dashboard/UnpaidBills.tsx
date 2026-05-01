@@ -1,17 +1,24 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import { HandCoins, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import type { Tables } from "@/integrations/supabase/types";
 
-export function UnpaidBills() {
+type ExpenseRow = Tables<"expenses"> & {
+  expense_splits: Tables<"expense_splits">[];
+};
+
+interface UnpaidBillsProps {
+  onRegisterPayment: (expense: ExpenseRow) => void;
+}
+
+export function UnpaidBills({ onRegisterPayment }: UnpaidBillsProps) {
   const { user, membership } = useAuth();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: unpaidBills, isLoading } = useQuery({
@@ -25,29 +32,9 @@ export function UnpaidBills() {
         .eq("paid_to_provider", false);
 
       if (error) throw error;
-      return data;
+      return data as ExpenseRow[];
     },
     enabled: !!membership?.group_id && !!user?.id,
-  });
-
-  const claimPayment = useMutation({
-    mutationFn: async (expenseId: string) => {
-      const { error } = await supabase.rpc("claim_expense_payment", {
-        _expense_id: expenseId,
-        _user_id: user!.id,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Despesa assumida!", description: "As dívidas foram atualizadas para os outros membros." });
-      queryClient.invalidateQueries({ queryKey: ["unpaid-bills"] });
-      queryClient.invalidateQueries({ queryKey: ["get_my_p2p_balances"] }); // To refresh the main balance
-      queryClient.invalidateQueries({ queryKey: ["dashboard-expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["my-pending-splits-dashboard"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
   });
 
   if (isLoading || !unpaidBills || unpaidBills.length === 0) {
@@ -91,9 +78,8 @@ export function UnpaidBills() {
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  claimPayment.mutate(bill.id);
+                  onRegisterPayment(bill);
                 }}
-                disabled={claimPayment.isPending}
                 className="gap-2"
               >
                 <HandCoins className="h-4 w-4" />

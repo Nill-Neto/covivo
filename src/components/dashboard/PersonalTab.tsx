@@ -143,6 +143,7 @@ export function PersonalTab({
   republicChartData,
   totalMonthExpenses,
   onPayRateio,
+  onRegisterPayment,
 }) {
   const { isAdmin } = useAuth();
   const [hoveredPersonal, setHoveredPersonal] = useState<string | null>(null);
@@ -206,7 +207,7 @@ export function PersonalTab({
         </Card>
       </div>
       
-      {modoGestao === 'p2p' && <UnpaidBills />}
+      {modoGestao === 'p2p' && <UnpaidBills onRegisterPayment={onRegisterPayment} />}
 
       <div id="pending-details" className="grid gap-4 md:grid-cols-2">
         <Card>

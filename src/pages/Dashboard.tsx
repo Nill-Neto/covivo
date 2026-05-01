@@ -24,9 +24,13 @@ import {
   sortPendingItemsByDateDesc,
 } from "@/lib/collectivePending";
 import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Tables } from "@/integrations/supabase/types";
+import { RegisterPaymentModal } from "@/components/expenses/RegisterPaymentModal";
 
 type MyP2PBalance = Database["public"]["Functions"]["get_my_p2p_balances"]["Returns"][number];
+type ExpenseRow = Tables<"expenses"> & {
+  expense_splits: Tables<"expense_splits">[];
+};
 
 export default function Dashboard() {
   const { profile, membership, user } = useAuth();
@@ -41,6 +45,7 @@ export default function Dashboard() {
   const [rateioCurrentAmount, setRateioCurrentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("home");
   const [heroCompact, setHeroCompact] = useState(false);
+  const [expenseToPay, setExpenseToPay] = useState<ExpenseRow | null>(null);
 
   const {
     currentDate,
@@ -113,6 +118,17 @@ export default function Dashboard() {
       return data ?? [];
     },
     enabled: !!user,
+  });
+
+  const { data: participantOptions = [] } = useQuery({
+    queryKey: ["participant-options", membership?.group_id],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("get_group_member_public_profiles", {
+        _group_id: membership!.group_id,
+      });
+      return (data ?? []).map(p => ({ id: p.id, name: p.full_name }));
+    },
+    enabled: !!membership?.group_id,
   });
 
   const { data: billInstallments = [], isLoading: isLoadingBillInstallments } = useQuery({
@@ -553,6 +569,7 @@ export default function Dashboard() {
               }
               setPayRateioOpen(true);
             }}
+            onRegisterPayment={setExpenseToPay}
           />
         </TabsContent>
 
@@ -594,6 +611,17 @@ export default function Dashboard() {
         setReceiptFile={setReceiptFile}
         rateioCurrentAmount={rateioCurrentAmount}
         setRateioCurrentAmount={setRateioCurrentAmount}
+      />
+
+      <RegisterPaymentModal
+        open={!!expenseToPay}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setExpenseToPay(null);
+        }}
+        expense={expenseToPay}
+        onSuccess={() => setExpenseToPay(null)}
+        participantOptions={participantOptions}
+        cards={creditCards}
       />
     </Tabs>
   );
