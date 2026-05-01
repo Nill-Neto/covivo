@@ -1817,8 +1817,8 @@ export default function Expenses() {
       </TabsContent>
 
       <TabsContent value="mine" className="space-y-3 mt-4">
-        {finalFilteredMine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
-        {finalFilteredMine.map((e) => (
+        {processedExpenses.mine.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa individual encontrada nesta competência.</p>}
+        {processedExpenses.mine.map((e) => (
           <ExpenseCard
             key={e.id}
             expense={e}
