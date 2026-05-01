@@ -49,6 +49,7 @@ export default function Dashboard() {
 
   const {
     currentDate,
+    setCurrentDate,
     cycleStart,
     cycleEnd,
     cycleLimitDate,
@@ -516,6 +517,7 @@ export default function Dashboard() {
         cycleLimitDate={cycleLimitDate}
         onNextMonth={nextMonth}
         onPrevMonth={prevMonth}
+        onDateSelect={setCurrentDate}
         compactTabs={compactTabsList}
         onCompactChange={setHeroCompact}
       />

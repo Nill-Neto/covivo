@@ -15,7 +15,7 @@ export default function Admin() {
   const { membership, isAdmin, profile } = useAuth();
   const [heroCompact, setHeroCompact] = useState(false);
   
-  const { currentDate, cycleStart, cycleEnd, cycleLimitDate, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
+  const { currentDate, setCurrentDate, cycleStart, cycleEnd, cycleLimitDate, nextMonth, prevMonth, closingDay } = useCycleDates(membership?.group_id);
   const currentCompetenceKey = formatCompetenceKey(currentDate);
 
   const { data: adminData, isLoading, error, refetch } = useQuery<AdminDashboardData | null>({
@@ -69,7 +69,7 @@ export default function Admin() {
   if (error) {
     return (
       <div className="space-y-4 animate-in fade-in duration-500">
-        <DashboardHeader userName={profile?.full_name} groupName={membership?.group_name} currentDate={currentDate} cycleStart={cycleStart} cycleEnd={cycleEnd} cycleLimitDate={cycleLimitDate} onNextMonth={nextMonth} onPrevMonth={prevMonth} onCompactChange={setHeroCompact} />
+        <DashboardHeader userName={profile?.full_name} groupName={membership?.group_name} currentDate={currentDate} cycleStart={cycleStart} cycleEnd={cycleEnd} cycleLimitDate={cycleLimitDate} onNextMonth={nextMonth} onPrevMonth={prevMonth} onDateSelect={setCurrentDate} onCompactChange={setHeroCompact} />
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function Admin() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      <DashboardHeader userName={profile?.full_name} groupName={membership?.group_name} currentDate={currentDate} cycleStart={cycleStart} cycleEnd={cycleEnd} cycleLimitDate={cycleLimitDate} onNextMonth={nextMonth} onPrevMonth={prevMonth} onCompactChange={setHeroCompact} />
+      <DashboardHeader userName={profile?.full_name} groupName={membership?.group_name} currentDate={currentDate} cycleStart={cycleStart} cycleEnd={cycleEnd} cycleLimitDate={cycleLimitDate} onNextMonth={nextMonth} onPrevMonth={prevMonth} onDateSelect={setCurrentDate} onCompactChange={setHeroCompact} />
       {adminData && (
         <AdminTab
           groupId={membership.group_id}

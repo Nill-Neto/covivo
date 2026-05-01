@@ -37,8 +37,6 @@ import {
   CreditCard,
   Trash2,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   Receipt,
   Settings,
@@ -54,6 +52,7 @@ import { useCycleDates } from "@/hooks/useCycleDates";
 import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates";
 import { PageHero } from "@/components/layout/PageHero";
 import { RegisterPaymentModal } from "@/components/expenses/RegisterPaymentModal";
+import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import type { Tables } from "@/integrations/supabase/types";
 
 const validateReceiptFiles = (files: File[]) => {
@@ -1290,17 +1289,12 @@ export default function Expenses() {
         icon={<Receipt className="h-4 w-4" />}
         actions={
           <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-full sm:w-auto items-center justify-between rounded-lg border bg-card p-1 shadow-sm">
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={prevMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex-1 px-2 text-center text-sm font-medium capitalize truncate sm:min-w-[140px]">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={nextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <MonthNavigator
+              currentDate={currentDate}
+              onPrevMonth={prevMonth}
+              onNextMonth={nextMonth}
+              onDateSelect={setCurrentDate}
+            />
             <Button className="h-10 w-full sm:w-auto gap-2" onClick={() => { resetForm(); setOpen(true); }}>
               <Plus className="h-4 w-4" /> Nova Despesa
             </Button>
