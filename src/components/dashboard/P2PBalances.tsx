@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowUpRight, ArrowDownLeft, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { P2PBalanceDetailsDialog } from "./P2PBalanceDetailsDialog";
 import type { MyP2PBalance } from "@/types/dashboard";
 
 interface P2PBalancesProps {
@@ -8,6 +11,9 @@ interface P2PBalancesProps {
 }
 
 export function P2PBalances({ balances }: P2PBalancesProps) {
+  const { user } = useAuth();
+  const [viewingDetailsFor, setViewingDetailsFor] = useState<MyP2PBalance | null>(null);
+
   if (!balances || balances.length === 0) {
     return (
       <Card>
@@ -30,57 +36,65 @@ export function P2PBalances({ balances }: P2PBalancesProps) {
   const credits = balances.filter(b => b.net_balance > 0).sort((a, b) => b.net_balance - a.net_balance);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          Balanço P2P
-        </CardTitle>
-        <CardDescription>Resumo de quem deve para quem no seu grupo.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="text-sm font-medium text-destructive flex items-center gap-2 mb-3">
-            <ArrowUpRight className="h-4 w-4" />
-            Você deve para
-          </h3>
-          <div className="space-y-3">
-            {debts.length > 0 ? (
-              debts.map(debt => (
-                <BalanceItem key={debt.other_user_id} user={debt} type="debt" />
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Ninguém para quem você deva.</p>
-            )}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Balanço P2P
+          </CardTitle>
+          <CardDescription>Resumo de quem deve para quem no seu grupo.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-medium text-destructive flex items-center gap-2 mb-3">
+              <ArrowUpRight className="h-4 w-4" />
+              Você deve para
+            </h3>
+            <div className="space-y-3">
+              {debts.length > 0 ? (
+                debts.map(debt => (
+                  <BalanceItem key={debt.other_user_id} user={debt} type="debt" onClick={() => setViewingDetailsFor(debt)} />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Ninguém para quem você deva.</p>
+              )}
+            </div>
           </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-success flex items-center gap-2 mb-3">
-            <ArrowDownLeft className="h-4 w-4" />
-            Quem te deve
-          </h3>
-          <div className="space-y-3">
-            {credits.length > 0 ? (
-              credits.map(credit => (
-                <BalanceItem key={credit.other_user_id} user={credit} type="credit" />
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Ninguém te deve.</p>
-            )}
+          <div>
+            <h3 className="text-sm font-medium text-success flex items-center gap-2 mb-3">
+              <ArrowDownLeft className="h-4 w-4" />
+              Quem te deve
+            </h3>
+            <div className="space-y-3">
+              {credits.length > 0 ? (
+                credits.map(credit => (
+                  <BalanceItem key={credit.other_user_id} user={credit} type="credit" onClick={() => setViewingDetailsFor(credit)} />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Ninguém te deve.</p>
+              )}
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <P2PBalanceDetailsDialog
+        open={!!viewingDetailsFor}
+        onOpenChange={(isOpen) => !isOpen && setViewingDetailsFor(null)}
+        currentUser={user}
+        otherUser={viewingDetailsFor}
+      />
+    </>
   );
 }
 
-function BalanceItem({ user, type }: { user: MyP2PBalance, type: 'debt' | 'credit' }) {
+function BalanceItem({ user, type, onClick }: { user: MyP2PBalance, type: 'debt' | 'credit', onClick: () => void }) {
   const initials = (user.other_user_full_name || "?").charAt(0);
   const amount = Math.abs(user.net_balance);
   const colorClass = type === 'debt' ? 'text-destructive' : 'text-success';
 
   return (
-    <div className="flex items-center justify-between">
+    <button onClick={onClick} className="flex items-center justify-between w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
         <Avatar className="h-8 w-8">
           <AvatarImage src={user.other_user_avatar_url ?? undefined} />
@@ -91,6 +105,6 @@ function BalanceItem({ user, type }: { user: MyP2PBalance, type: 'debt' | 'credi
       <span className={`text-sm font-semibold ${colorClass}`}>
         R$ {amount.toFixed(2)}
       </span>
-    </div>
+    </button>
   );
 }
