@@ -1831,8 +1831,8 @@ export default function Expenses() {
       </div>
 
       <TabsContent value="all" className="space-y-3 mt-4">
-        {finalFilteredAll.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
-        {finalFilteredAll.map((e) => (
+        {processedExpenses.all.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada nesta competência.</p>}
+        {processedExpenses.all.map((e) => (
           <ExpenseCard
             key={e.id}
             expense={e}
