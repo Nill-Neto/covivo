@@ -182,7 +182,7 @@ export default function Dashboard() {
   const { data: p2pBalances = [] } = useQuery<MyP2PBalance[]>({
     queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_my_p2p_balances");
+      const { data, error } = await supabase.rpc("get_my_p2p_balances", { _user_id: user!.id });
       if (error) throw error;
       return data ?? [];
     },

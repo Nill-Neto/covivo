@@ -1327,7 +1327,7 @@ export type Database = {
         }[]
       }
       get_my_p2p_balances: {
-        Args: Record<PropertyKey, never>
+        Args: { _user_id: string }
         Returns: {
           net_balance: number
           other_user_avatar_url: string | null
