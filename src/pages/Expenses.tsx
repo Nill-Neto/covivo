@@ -1068,6 +1068,37 @@ export default function Expenses() {
     };
   }, [finalFilteredAll, finalFilteredMine, finalFilteredCollective, filterCategory, filterCard, sortOrder]);
 
+  const processedRecurringExpenses = useMemo(() => {
+    if (!finalRecurring) return [];
+
+    let filtered = finalRecurring;
+
+    if (filterCategory !== "all") {
+      filtered = filtered.filter(e => e.category === filterCategory);
+    }
+
+    // filterCard is not applicable to recurring expenses
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortOrder) {
+        case "newest":
+          return new Date(b.next_due_date).getTime() - new Date(a.next_due_date).getTime();
+        case "oldest":
+          return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+        case "amount-desc":
+          return b.amount - a.amount;
+        case "amount-asc":
+          return a.amount - b.amount;
+        case "title-asc":
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [finalRecurring, filterCategory, sortOrder]);
+
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.substring(1);
@@ -1087,7 +1118,7 @@ export default function Expenses() {
         return () => clearTimeout(timer);
       }
     }
-  }, [location.hash, finalFilteredAll, finalFilteredCollective, finalFilteredMine]);
+  }, [location.hash, processedExpenses.all, processedExpenses.collective, processedExpenses.mine]);
 
   const handleEditClick = (expense: ExpenseRow) => {
     if (expense._is_installment && expense.installments > 1) {
@@ -1864,8 +1895,8 @@ export default function Expenses() {
           </Button>
         </div>
 
-        {!finalRecurring?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
-        {finalRecurring?.map((r) => (
+        {!processedRecurringExpenses?.length && <p className="text-center text-muted-foreground py-8">Nenhuma recorrência configurada.</p>}
+        {processedRecurringExpenses?.map((r) => (
           <RecurringCard key={r.id} recurring={r} isAdmin={isAdmin} userId={user?.id} onEdit={() => openEditRecurring(r)} onDelete={() => deleteRecurring.mutate(r.id)} />
         ))}
       </TabsContent>
