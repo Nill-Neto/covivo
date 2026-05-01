@@ -1014,6 +1014,17 @@ export default function Expenses() {
   const finalFilteredCollective = filteredCollective.filter(filterBySearch);
   const finalRecurring = recurringExpenses?.filter(filterBySearch);
 
+  const dynamicCategories = useMemo(() => {
+    const allCategories = new Map<string, string>();
+    CATEGORIES.forEach(c => allCategories.set(c.value, c.label));
+    finalFilteredAll.forEach(expense => {
+      if (expense.category && !allCategories.has(expense.category)) {
+        allCategories.set(expense.category, expense.category);
+      }
+    });
+    return Array.from(allCategories, ([value, label]) => ({ value, label }));
+  }, [finalFilteredAll]);
+
   const processedExpenses = useMemo(() => {
     const applyFiltersAndSorting = (expenses: ExpenseRow[]) => {
       let filtered = expenses;
@@ -1671,72 +1682,81 @@ export default function Expenses() {
       )}
 
       <div className="relative z-20 space-y-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar despesas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-              className="pl-9 pr-9 bg-card"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Mais recentes</SelectItem>
-                <SelectItem value="oldest">Mais antigas</SelectItem>
-                <SelectItem value="amount-desc">Maior valor</SelectItem>
-                <SelectItem value="amount-asc">Menor valor</SelectItem>
-                <SelectItem value="title-asc">A-Z</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar despesas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+            className="pl-9 pr-9 bg-card"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-                <Select value={filterCard} onValueChange={setFilterCard}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por cartão" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todos os cartões</SelectItem>
-                    <SelectItem value="none">Nenhum (outros pagamentos)</SelectItem>
-                    {cards.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                        {c.label}
-                    </SelectItem>
-                    ))}
-                </SelectContent>
-                </Select>
-            </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar por categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {dynamicCategories.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterCard} onValueChange={setFilterCard}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar por cartão" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os cartões</SelectItem>
+              <SelectItem value="none">Nenhum (outros pagamentos)</SelectItem>
+              {cards.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={sortOrder} onValueChange={setSortOrder}>
+            <SelectTrigger>
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Mais recentes</SelectItem>
+              <SelectItem value="oldest">Mais antigas</SelectItem>
+              <SelectItem value="amount-desc">Maior valor</SelectItem>
+              <SelectItem value="amount-asc">Menor valor</SelectItem>
+              <SelectItem value="title-asc">A-Z</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setFilterCategory("all");
+              setFilterCard("all");
+              setSortOrder("newest");
+              setSearchTerm("");
+            }}
+          >
+            Limpar
+          </Button>
         </div>
         
         
