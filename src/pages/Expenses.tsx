@@ -44,9 +44,8 @@ import {
   Settings,
   Search,
   X,
-  Eye,
+  Image as ImageIcon,
   FileText,
-  ImageIcon,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,26 +54,6 @@ import { getCompetenceKeyFromDate, formatCompetenceKey } from "@/lib/cycleDates"
 import { PageHero } from "@/components/layout/PageHero";
 import { RegisterPaymentModal } from "@/components/expenses/RegisterPaymentModal";
 import type { Tables } from "@/integrations/supabase/types";
-
-const validateReceiptFiles = (files: File[]) => {
-  if (files.length === 0) return { valid: true as const };
-  const hasPdf = files.some((file) => file.type === "application/pdf");
-  if (hasPdf) {
-    if (files.length !== 1) {
-      return { valid: false as const, message: "Se enviar PDF, selecione apenas 1 arquivo PDF." };
-    }
-    const onlyFile = files[0];
-    if (onlyFile.type !== "application/pdf") {
-      return { valid: false as const, message: "PDF inválido. Use um arquivo com tipo application/pdf." };
-    }
-    return { valid: true as const };
-  }
-  const hasInvalid = files.some((file) => !file.type.startsWith("image/"));
-  if (hasInvalid) {
-    return { valid: false as const, message: "Sem PDF, todos os arquivos devem ser imagens." };
-  }
-  return { valid: true as const };
-};
 
 const CATEGORIES = [
   { value: "rent", label: "Aluguel" },
@@ -163,9 +142,8 @@ export default function Expenses() {
   const [payerUserId, setPayerUserId] = useState<string>("me");
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
-  const [receiptError, setReceiptError] = useState<string | null>(null);
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [existingReceipts, setExistingReceipts] = useState<ExpenseReceipt[]>([]);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
 
   const [quickPayExpense, setQuickPayExpense] = useState<ExpenseRow | null>(null);
 
@@ -198,13 +176,6 @@ export default function Expenses() {
       setCustomCategory("");
     }
   }, [category]);
-
-  useEffect(() => {
-    if (expenseType === "individual") {
-      setReceiptFiles([]);
-      setReceiptError(null);
-    }
-  }, [expenseType]);
 
   const currentCompetenceKey = formatCompetenceKey(currentDate);
 
@@ -654,10 +625,7 @@ export default function Expenses() {
       const collectiveParticipantIds = splitBetweenAll ? activeMemberIds : selectedParticipantIds;
       const individualParticipantIds = user?.id ? [user.id] : [];
       const actualPayerId = payerUserId === "me" ? user.id : payerUserId;
-      if (!actualPayerId) {
-        throw new Error("Não foi possível identificar quem pagou a despesa.");
-      }
-  
+
       if (!title.trim() || !amount || parseFloat(amount) <= 0) {
         throw new Error("Preencha título e valor.");
       }
@@ -673,21 +641,14 @@ export default function Expenses() {
       const categoryToSend = category === "other" ? customCategory.trim() : category;
       const finalCreditCardId = creditCardId === "none" ? null : creditCardId;
       const providerPaid = paymentMethod === "credit_card" || statusWithProvider === "paid";
-  
-      const receiptValidation = validateReceiptFiles(receiptFiles);
-      if (!receiptValidation.valid) {
-        throw new Error(receiptValidation.message);
-      }
 
-      const requiresReceipt = expenseType === "collective" && statusWithProvider === "paid";
-      if (requiresReceipt) {
+      if (expenseType === "collective" && providerPaid) {
         const hasExistingReceipts = existingReceipts && existingReceipts.length > 0;
-        const hasNewReceipt = receiptFiles.length > 0;
-        if (!editingId && !hasNewReceipt) {
-          throw new Error("Anexe o comprovante para despesas coletivas já pagas.");
+        if (!editingId && receiptFiles.length === 0) {
+          throw new Error("Para despesas coletivas pagas, o comprovante é obrigatório.");
         }
-        if (editingId && !hasExistingReceipts && !hasNewReceipt) {
-          throw new Error("Anexe novo comprovante ou mantenha o comprovante já existente.");
+        if (editingId && receiptFiles.length === 0 && !hasExistingReceipts) {
+          throw new Error("Para editar uma despesa coletiva paga, anexe um novo comprovante ou mantenha um existente.");
         }
       }
 
@@ -773,12 +734,12 @@ export default function Expenses() {
           })
           .eq("id", editingId);
         if (error) throw error;
+
         if (uploadedReceipts.length > 0) {
-          const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
-            uploadedReceipts.map((receipt) => ({ expense_id: editingId, ...receipt })),
-          );
-          if (receiptsError) throw receiptsError;
+          const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: editingId, ...r }));
+          await supabase.from("expense_receipts" as any).insert(newReceiptRows);
         }
+
         const savedExpense = await fetchSavedExpense(editingId);
         setDateValue(savedExpense.purchase_date);
 
@@ -848,7 +809,6 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
-          _payer_user_id: actualPayerId,
         };
 
         const { data: newExpenseId, error: createError } = await supabase.rpc(
@@ -870,28 +830,9 @@ export default function Expenses() {
             })
             .eq("id", newExpenseId);
 
-          const { error: backfillCreditorError } = await supabase
-            .from("expense_splits")
-            .update({ credor_user_id: actualPayerId })
-            .eq("expense_id", newExpenseId)
-            .is("credor_user_id", null);
-          if (backfillCreditorError) throw backfillCreditorError;
-
-          const { count: nullCreditorCount, error: nullCreditorCheckError } = await supabase
-            .from("expense_splits")
-            .select("id", { count: "exact", head: true })
-            .eq("expense_id", newExpenseId)
-            .is("credor_user_id", null);
-          if (nullCreditorCheckError) throw nullCreditorCheckError;
-          if ((nullCreditorCount ?? 0) > 0) {
-            throw new Error("Não foi possível definir o credor da despesa. Tente novamente.");
-          }
-
           if (uploadedReceipts.length > 0) {
-            const { error: receiptsError } = await supabase.from("expense_receipts" as any).insert(
-              uploadedReceipts.map((receipt) => ({ expense_id: newExpenseId, ...receipt })),
-            );
-            if (receiptsError) throw receiptsError;
+            const newReceiptRows = uploadedReceipts.map(r => ({ expense_id: newExpenseId as string, ...r }));
+            await supabase.from("expense_receipts" as any).insert(newReceiptRows);
           }
         }
 
@@ -970,8 +911,6 @@ export default function Expenses() {
     setPayerUserId("me");
     setPaymentDate(format(new Date(), "yyyy-MM-dd"));
     setReceiptFiles([]);
-    setReceiptError(null);
-    setReceiptUrl(null);
     setExistingReceipts([]);
     setEditingOriginalAmount(null);
   };
@@ -992,9 +931,7 @@ export default function Expenses() {
     setInstallments(String(expense.installments || 1));
     setStatusWithProvider(expense.paid_to_provider ? "paid" : "pending");
     setPaymentDate(expense.due_date || expense.purchase_date || format(new Date(), "yyyy-MM-dd"));
-    setReceiptUrl(expense.receipt_url || null);
     setExistingReceipts(expense.expense_receipts || []);
-    setReceiptError(null);
     setPayerUserId(expense.created_by || "me");
 
     const currentSplitIds = (expense.expense_splits ?? []).map((split) => split.user_id);
@@ -1473,7 +1410,7 @@ export default function Expenses() {
                             onChange={(e) => setDateValue(e.target.value)}
                           />
                         </div>
-                        {expenseType === "collective" && (
+                        {expenseType === 'collective' && (
                           <div className="space-y-2">
                             <Label>Comprovante(s)</Label>
                             <Input
