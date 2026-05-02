@@ -44,8 +44,9 @@ export function P2PBalanceDetailsDialog({ open, onOpenChange, currentUser, other
     enabled: open && !!currentUser && !!otherUser,
   });
 
-  const totalDebt = data?.debts?.reduce((sum, item) => sum + item.amount, 0) ?? 0;
-  const totalCredit = data?.credits?.reduce((sum, item) => sum + item.amount, 0) ?? 0;
+  const totalDebt = data?.debts?.reduce((sum, item) => sum + Number(item.amount), 0) ?? 0;
+  const totalCredit = data?.credits?.reduce((sum, item) => sum + Number(item.amount), 0) ?? 0;
+  const netBalanceFromDetails = totalCredit - totalDebt;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,7 +60,7 @@ export function P2PBalanceDetailsDialog({ open, onOpenChange, currentUser, other
             <span>Balanço com {otherUser?.other_user_full_name}</span>
           </DialogTitle>
           <DialogDescription>
-            Saldo líquido: <span className={otherUser && otherUser.net_balance < 0 ? 'text-destructive' : 'text-success'}>R$ {otherUser?.net_balance.toFixed(2)}</span>
+            Saldo líquido: <span className={netBalanceFromDetails < 0 ? 'text-destructive' : 'text-success'}>R$ {netBalanceFromDetails.toFixed(2)}</span>
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-1">
@@ -116,7 +117,7 @@ function DetailItem({ item }: { item: { amount: number, expenses: { title: strin
           {item.expenses?.purchase_date ? format(new Date(item.expenses.purchase_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR }) : 'Data indisponível'}
         </p>
       </div>
-      <span className="font-semibold">R$ {item.amount.toFixed(2)}</span>
+      <span className="font-semibold">R$ {Number(item.amount).toFixed(2)}</span>
     </div>
   );
 }
