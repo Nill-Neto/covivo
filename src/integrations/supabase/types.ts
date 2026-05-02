@@ -1326,8 +1326,8 @@ export type Database = {
           person_b_id: string
         }[]
       }
-      get_my_group_p2p_balances: {
-        Args: { _user_id: string; _group_id: string }
+      get_my_p2p_balances: {
+        Args: { _user_id: string }
         Returns: {
           net_balance: number
           other_user_avatar_url: string | null

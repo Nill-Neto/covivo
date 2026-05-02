@@ -27,7 +27,7 @@ import { UnpaidBills } from "@/components/dashboard/UnpaidBills";
 import type { Database, Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/expenses/RegisterPaymentModal";
 
-type MyP2PBalance = Database["public"]["Functions"]["get_my_group_p2p_balances"]["Returns"][number];
+type MyP2PBalance = Database["public"]["Functions"]["get_my_p2p_balances"]["Returns"][number];
 type ExpenseRow = Tables<"expenses"> & {
   expense_splits: Tables<"expense_splits">[];
 };
@@ -180,12 +180,9 @@ export default function Dashboard() {
   });
 
   const { data: p2pBalances = [] } = useQuery<MyP2PBalance[]>({
-    queryKey: ["get_my_group_p2p_balances", user?.id, membership?.group_id],
+    queryKey: ["get_my_p2p_balances", user?.id, membership?.group_id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_my_group_p2p_balances", { 
-        _user_id: user!.id,
-        _group_id: membership!.group_id
-      });
+      const { data, error } = await supabase.rpc("get_my_p2p_balances", { _user_id: user!.id });
       if (error) throw error;
       return data ?? [];
     },

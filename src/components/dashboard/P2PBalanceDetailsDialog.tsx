@@ -9,7 +9,6 @@ import { ptBR } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { MyP2PBalance } from "@/types/dashboard";
 import type { User } from "@supabase/supabase-js";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface P2PBalanceDetailsDialogProps {
   open: boolean;
@@ -19,17 +18,14 @@ interface P2PBalanceDetailsDialogProps {
 }
 
 export function P2PBalanceDetailsDialog({ open, onOpenChange, currentUser, otherUser }: P2PBalanceDetailsDialogProps) {
-  const { membership } = useAuth();
-
   const { data, isLoading, error } = useQuery({
-    queryKey: ['p2p-details', currentUser?.id, otherUser?.other_user_id, membership?.group_id],
+    queryKey: ['p2p-details', currentUser?.id, otherUser?.other_user_id],
     queryFn: async () => {
-      if (!currentUser || !otherUser || !membership) return null;
+      if (!currentUser || !otherUser) return null;
 
       const { data: debts, error: debtsError } = await supabase
         .from('expense_splits')
-        .select('id, amount, expenses!inner(title, purchase_date, group_id)')
-        .eq('expenses.group_id', membership.group_id)
+        .select('id, amount, expenses(title, purchase_date)')
         .eq('user_id', currentUser.id)
         .eq('credor_user_id', otherUser.other_user_id)
         .eq('status', 'pending');
@@ -37,8 +33,7 @@ export function P2PBalanceDetailsDialog({ open, onOpenChange, currentUser, other
 
       const { data: credits, error: creditsError } = await supabase
         .from('expense_splits')
-        .select('id, amount, expenses!inner(title, purchase_date, group_id)')
-        .eq('expenses.group_id', membership.group_id)
+        .select('id, amount, expenses(title, purchase_date)')
         .eq('user_id', otherUser.other_user_id)
         .eq('credor_user_id', currentUser.id)
         .eq('status', 'pending');
@@ -46,7 +41,7 @@ export function P2PBalanceDetailsDialog({ open, onOpenChange, currentUser, other
 
       return { debts, credits };
     },
-    enabled: open && !!currentUser && !!otherUser && !!membership,
+    enabled: open && !!currentUser && !!otherUser,
   });
 
   const totalDebt = data?.debts?.reduce((sum, item) => sum + item.amount, 0) ?? 0;
