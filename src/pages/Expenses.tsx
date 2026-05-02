@@ -841,7 +841,7 @@ export default function Expenses() {
       } else {
         const baseCreateExpenseArgs = {
           _group_id: membership!.group_id,
-          _created_by: user.id,
+          _created_by: actualPayerId,
           _title: title.trim(),
           _description: description.trim() || null,
           _amount: parseFloat(amount),
@@ -855,7 +855,6 @@ export default function Expenses() {
           _credit_card_id: finalCreditCardId,
           _installments: parseInt(installments) || 1,
           _purchase_date: dateValue,
-          _payer_user_id: actualPayerId,
         };
 
         const { data: newExpenseId, error: createError } = await supabase.rpc(
